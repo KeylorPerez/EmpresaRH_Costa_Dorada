@@ -5,6 +5,7 @@ require('dotenv').config();
 const empleadoRoutes = require('./routes/empleadoRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const authRoutes = require('./routes/authRoutes');
+const asistenciaRoutes = require('./routes/asistenciaRoutes');
 
 
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api/empleados', empleadoRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/asistencia', asistenciaRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
