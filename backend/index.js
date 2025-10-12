@@ -6,6 +6,7 @@ const empleadoRoutes = require('./routes/empleadoRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
 const authRoutes = require('./routes/authRoutes');
 const asistenciaRoutes = require('./routes/asistenciaRoutes');
+const vacacionesRoutes = require('./routes/vacacionesRoutes'); 
 
 
 
@@ -17,6 +18,7 @@ app.use('/api/empleados', empleadoRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/asistencia', asistenciaRoutes);
+app.use('/api/vacaciones', vacacionesRoutes); 
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
