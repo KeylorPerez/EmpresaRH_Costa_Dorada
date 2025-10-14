@@ -9,15 +9,12 @@ const Usuario = require('../models/Usuario'); // para obtener el id_empleado vin
 const getVacaciones = async (req, res) => {
   try {
     const user = req.user; // { id_usuario, id_rol }
-
     if (!user) return res.status(401).json({ error: 'No autenticado' });
 
     if (user.id_rol === 1) {
-      // Admin
       const rows = await Vacaciones.getAll();
       return res.json(rows);
     } else {
-      // Empleado normal
       const usuario = await Usuario.getById(user.id_usuario);
       if (!usuario || !usuario.id_empleado)
         return res.status(400).json({ error: 'Usuario no vinculado a empleado' });
@@ -57,7 +54,6 @@ const createSolicitud = async (req, res) => {
     // Calcular días solicitados automáticamente
     const dias_solicitados = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-    // Resolver id_empleado (si es empleado normal, se obtiene del usuario)
     const usuario = await Usuario.getById(user.id_usuario);
     const actorEmpleadoId = usuario ? usuario.id_empleado : null;
 
@@ -66,17 +62,14 @@ const createSolicitud = async (req, res) => {
       return res.status(400).json({ error: 'id_empleado requerido (o vincular usuario a empleado)' });
     }
 
-    // Si no es admin, no puede crear para otro empleado
     if (idEmpleadoBody && user.id_rol !== 1 && idEmpleadoBody !== actorEmpleadoId) {
       return res.status(403).json({ error: 'No autorizado para crear solicitud para otro empleado' });
     }
 
-    // Crear solicitud (estado = Pendiente por defecto)
-    const created = await Vacaciones.createSolicitud({
+    const created = await Vacaciones.create({
       id_empleado: id_empleado_final,
       fecha_inicio: start,
       fecha_fin: end,
-      dias_solicitados,
       motivo
     });
 
@@ -101,7 +94,12 @@ const aprobarSolicitud = async (req, res) => {
     const id_vacacion = parseInt(req.params.id, 10);
     if (isNaN(id_vacacion)) return res.status(400).json({ error: 'id inválido' });
 
-    await Vacaciones.aprobar(id_vacacion, user.id_usuario);
+    const { dias_aprobados } = req.body;
+    if (!dias_aprobados || isNaN(dias_aprobados)) {
+      return res.status(400).json({ error: 'dias_aprobados es requerido y debe ser número' });
+    }
+
+    await Vacaciones.aprobar(id_vacacion, user.id_usuario, parseInt(dias_aprobados, 10));
     return res.json({ message: 'Solicitud aprobada correctamente' });
   } catch (err) {
     return res.status(500).json({ error: err.message });

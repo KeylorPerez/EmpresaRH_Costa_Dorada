@@ -114,6 +114,24 @@ class Empleado {
       throw err;
     }
   }
+
+  // Activar (reverso de deactivate)
+  static async activate(id_empleado) {
+    try {
+      const pool = await poolPromise;
+      await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .query(`
+          UPDATE Empleados
+          SET estado = 1,
+              updated_at = GETDATE()
+          WHERE id_empleado = @id_empleado
+        `);
+      return { message: 'Empleado activado' };
+    } catch (err) {
+      throw err;
+    }
+  }
 }
 
 module.exports = Empleado;

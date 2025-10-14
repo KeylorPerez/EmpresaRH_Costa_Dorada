@@ -1,27 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const {
-    getEmpleados,
-    getEmpleadoById,
-    createEmpleado,
-    updateEmpleado,
-    deactivateEmpleado
+  getEmpleados,
+  getEmpleadoById,
+  createEmpleado,
+  updateEmpleado,
+  deactivateEmpleado,
+  activateEmpleado
 } = require('../controllers/empleadoController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
-// GET /api/empleados -> todos los empleados (autenticado)
+// 📘 Obtener todos los empleados (solo autenticado)
 router.get('/', authenticateToken, getEmpleados);
 
-// GET /api/empleados/:id -> un empleado por ID (autenticado)
+// 📘 Obtener un empleado por ID
 router.get('/:id', authenticateToken, getEmpleadoById);
 
-// POST /api/empleados -> crear un empleado (solo admin)
+// 🟢 Crear un nuevo empleado (solo admin)
 router.post('/', authenticateToken, authorizeRoles(1), createEmpleado);
 
-// PUT /api/empleados/:id -> actualizar empleado (solo admin)
+// 🟡 Actualizar empleado (solo admin)
 router.put('/:id', authenticateToken, authorizeRoles(1), updateEmpleado);
 
-// DELETE /api/empleados/:id -> desactivar empleado (soft delete, solo admin)
-router.delete('/:id', authenticateToken, authorizeRoles(1), deactivateEmpleado);
+// 🔴 Desactivar empleado (soft delete)
+router.patch('/:id/desactivar', authenticateToken, authorizeRoles(1), deactivateEmpleado);
+
+// 🟢 Activar empleado (reactivar)
+router.patch('/:id/activar', authenticateToken, authorizeRoles(1), activateEmpleado);
 
 module.exports = router;

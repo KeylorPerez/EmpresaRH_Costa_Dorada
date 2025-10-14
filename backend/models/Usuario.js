@@ -60,6 +60,13 @@ class Usuario {
         }
     }
 
+    static async updateLastLogin(id_usuario) {
+    const pool = await poolPromise;
+    await pool.request()
+        .input('id_usuario', sql.Int, id_usuario)
+        .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
+}
+
     // Actualizar un usuario
     static async update(id_usuario, { username, password_hash, id_rol, id_empleado }) {
         try {

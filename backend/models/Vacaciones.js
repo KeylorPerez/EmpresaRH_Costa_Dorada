@@ -39,18 +39,18 @@ class Vacaciones {
   }
 
   // 🔹 Crear solicitud (empleado)
-  static async createSolicitud({ id_empleado, fecha_inicio, fecha_fin }) {
+  static async create({ id_empleado, fecha_inicio, fecha_fin }) {
     try {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .input('fecha_inicio', sql.Date, fecha_inicio)
         .input('fecha_fin', sql.Date, fecha_fin)
-        .input('dias_aprobados', sql.Int, 0) // valor por defecto
+        .input('dias_aprobados', sql.Int, 0) // pendiente, por defecto 0
         .input('id_estado', sql.Int, 1) // pendiente
         .query(`
-          INSERT INTO Vacaciones (id_empleado, fecha_inicio, fecha_fin, dias_aprobados, id_estado)
-          VALUES (@id_empleado, @fecha_inicio, @fecha_fin, @dias_aprobados, @id_estado);
+          INSERT INTO Vacaciones (id_empleado, fecha_inicio, fecha_fin, dias_aprobados, id_estado, created_at, updated_at)
+          VALUES (@id_empleado, @fecha_inicio, @fecha_fin, @dias_aprobados, @id_estado, GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_vacacion;
         `);
       return result.recordset[0];
@@ -72,7 +72,8 @@ class Vacaciones {
           UPDATE Vacaciones
           SET id_estado = @id_estado,
               aprobado_por = @id_admin,
-              dias_aprobados = @dias_aprobados
+              dias_aprobados = @dias_aprobados,
+              updated_at = GETDATE()
           WHERE id_vacacion = @id_vacacion
         `);
       return { message: 'Vacación aprobada correctamente' };
@@ -93,10 +94,24 @@ class Vacaciones {
           UPDATE Vacaciones
           SET id_estado = @id_estado,
               aprobado_por = @id_admin,
-              dias_aprobados = 0
+              dias_aprobados = 0,
+              updated_at = GETDATE()
           WHERE id_vacacion = @id_vacacion
         `);
       return { message: 'Vacación rechazada correctamente' };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // 🔹 Eliminar solicitud (opcional, hard delete)
+  static async delete(id_vacacion) {
+    try {
+      const pool = await poolPromise;
+      await pool.request()
+        .input('id_vacacion', sql.Int, id_vacacion)
+        .query(`DELETE FROM Vacaciones WHERE id_vacacion = @id_vacacion`);
+      return { message: 'Vacación eliminada' };
     } catch (err) {
       throw err;
     }

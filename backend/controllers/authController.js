@@ -7,6 +7,10 @@ const login = async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username y contraseña son requeridos' });
+        }
+
         // Buscar usuario por username
         const user = await Usuario.getByUsername(username);
         if (!user) return res.status(400).json({ error: 'Usuario no encontrado' });
@@ -22,13 +26,11 @@ const login = async (req, res) => {
             { expiresIn: '8h' }
         );
 
-        // Actualizar ultimo_login
-        await Usuario.update(user.id_usuario, { 
-            username: user.username, 
-            password_hash: user.password_hash, 
-            id_rol: user.id_rol, 
-            id_empleado: user.id_empleado 
-        });
+        // Actualizar último login (solo la fecha)
+        const pool = await require('../db/db').poolPromise;
+        await pool.request()
+            .input('id_usuario', require('../db/db').sql.Int, user.id_usuario)
+            .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
 
         res.json({ token });
     } catch (err) {
