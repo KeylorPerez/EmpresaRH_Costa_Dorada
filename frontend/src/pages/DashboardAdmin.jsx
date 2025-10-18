@@ -1,23 +1,24 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const Dashboard = () => {
+const DashboardAdmin = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Verifica si hay token guardado
     const token = localStorage.getItem("token");
-
     if (!token) {
       navigate("/login");
       return;
     }
 
-    // Decodificar datos del usuario (básico)
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       setUser(payload);
+      if (payload.id_rol !== 1) {
+        // Si no es admin, redirige al dashboard de empleado
+        navigate("/dashboard-empleado");
+      }
     } catch (error) {
       console.error("Token inválido:", error);
       navigate("/login");
@@ -47,16 +48,7 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold mb-4 text-gray-800">
               ¡Bienvenido, {user.username}!
             </h2>
-            <p className="text-gray-600">
-              Rol:{" "}
-              <span className="font-semibold">
-                {user.id_rol === 1
-                  ? "Administrador"
-                  : user.id_rol === 2
-                  ? "Empleado"
-                  : "Invitado"}
-              </span>
-            </p>
+            <p className="text-gray-600 font-semibold">Rol: Administrador</p>
           </div>
         ) : (
           <p className="text-gray-600 text-lg">Cargando...</p>
@@ -70,4 +62,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default DashboardAdmin;

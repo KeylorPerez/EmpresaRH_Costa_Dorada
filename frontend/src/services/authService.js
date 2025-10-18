@@ -1,4 +1,3 @@
-
 import axios from "../api/axiosConfig";
 
 // Función para iniciar sesión
@@ -9,9 +8,14 @@ export const login = async (username, password) => {
     // Si el backend devuelve el token, lo guardamos en localStorage
     if (response.data.token) {
       localStorage.setItem("token", response.data.token);
+
+      // Decodificar payload del token (id_usuario, username, id_rol)
+      const payload = JSON.parse(atob(response.data.token.split(".")[1]));
+
+      return payload; // Retornamos payload para usarlo en AuthForm
     }
 
-    return response.data;
+    throw new Error("Token no recibido del servidor");
   } catch (error) {
     // Captura errores del servidor o de red
     if (error.response) {

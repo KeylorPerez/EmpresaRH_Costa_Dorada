@@ -14,8 +14,17 @@ const AuthForm = () => {
     setError("");
 
     try {
-      await login(username, password);
-      navigate("/dashboard"); // Redirige al dashboard después del login
+      // Llamada al backend para login
+      const user = await login(username, password);
+
+      // Redirigir según rol
+      if (user.id_rol === 1) {
+        navigate("/admin"); // Administrador
+      } else if (user.id_rol === 2) {
+        navigate("/empleado"); // Empleado
+      } else {
+        setError("Rol de usuario no autorizado");
+      }
     } catch (err) {
       setError(err.message);
     }

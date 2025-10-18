@@ -1,30 +1,37 @@
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "./components/AuthForm";
-import Dashboard from "./pages/Dashboard";
+import AuthForm from "./components/AuthForm";
+import DashboardAdmin from "./pages/DashboardAdmin";
+import DashboardEmpleado from "./pages/DashboardEmpleado";
+import PrivateRoute from "./routes/PrivateRoute";
 
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" />;
-};
-
+// App.jsx maneja rutas públicas y privadas
 function App() {
   return (
     <Routes>
-      {/* Página de Login */}
-      <Route path="/login" element={<Login />} />
+      {/* Ruta pública */}
+      <Route path="/login" element={<AuthForm />} />
 
-      {/* Ruta protegida */}
+      {/* Rutas privadas */}
       <Route
-        path="/dashboard"
+        path="/admin/*"
         element={
-          <PrivateRoute>
-            <Dashboard />
+          <PrivateRoute allowedRoles={[1]}>
+            <DashboardAdmin />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/empleado/*"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <DashboardEmpleado />
           </PrivateRoute>
         }
       />
 
       {/* Redirección por defecto */}
-      <Route path="*" element={<Navigate to="/login" />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
