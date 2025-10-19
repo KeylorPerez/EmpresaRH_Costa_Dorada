@@ -1,17 +1,18 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Navigate } from "react-router-dom";
+import AuthContext from "../context/AuthContext"; // <-- import correcto
 
 const PrivateRoute = ({ allowedRoles, children }) => {
-  const token = localStorage.getItem("token");
-  const user = token ? JSON.parse(atob(token.split(".")[1])) : null;
+  const { user, loading } = useContext(AuthContext);
 
-  if (!token || !user) {
-    return <Navigate to="/login" replace />;
-  }
+  // Mientras se carga la sesión
+  if (loading) return <p className="text-center mt-8">Cargando...</p>;
 
-  if (!allowedRoles.includes(user.id_rol)) {
-    return <Navigate to="/login" replace />;
-  }
+  // Si no hay usuario logueado, redirige a login
+  if (!user) return <Navigate to="/login" replace />;
+
+  // Si el rol del usuario no está permitido, redirige a login
+  if (!allowedRoles.includes(user.id_rol)) return <Navigate to="/login" replace />;
 
   return children;
 };

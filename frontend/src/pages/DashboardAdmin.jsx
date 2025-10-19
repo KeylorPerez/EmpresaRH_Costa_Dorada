@@ -1,32 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import AuthContext from "../context/AuthContext";
 
 const DashboardAdmin = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, logoutUser } = useContext(AuthContext);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+  // Redirigir si no hay usuario o no es admin
+  React.useEffect(() => {
+    if (!user) {
       navigate("/login");
-      return;
+    } else if (user.id_rol !== 1) {
+      navigate("/empleado");
     }
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setUser(payload);
-      if (payload.id_rol !== 1) {
-        // Si no es admin, redirige al dashboard de empleado
-        navigate("/dashboard-empleado");
-      }
-    } catch (error) {
-      console.error("Token inválido:", error);
-      navigate("/login");
-    }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    logoutUser();
     navigate("/login");
   };
 

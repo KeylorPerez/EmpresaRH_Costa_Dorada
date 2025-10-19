@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
+import AuthContext from "../context/AuthContext"; // <-- import correcto
 import "../assets/styles/global.css";
 
 const AuthForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const { loginUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -15,18 +17,21 @@ const AuthForm = () => {
 
     try {
       // Llamada al backend para login
-      const user = await login(username, password);
+      const { user, token } = await login(username, password);
+
+      // Guardar usuario y token en el contexto
+      loginUser(user, token);
 
       // Redirigir según rol
       if (user.id_rol === 1) {
-        navigate("/admin"); // Administrador
+        navigate("/admin");
       } else if (user.id_rol === 2) {
-        navigate("/empleado"); // Empleado
+        navigate("/empleado");
       } else {
         setError("Rol de usuario no autorizado");
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Error al iniciar sesión");
     }
   };
 

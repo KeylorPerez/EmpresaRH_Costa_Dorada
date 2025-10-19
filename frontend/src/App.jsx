@@ -12,7 +12,7 @@ function App() {
       {/* Ruta pública */}
       <Route path="/login" element={<AuthForm />} />
 
-      {/* Rutas privadas */}
+      {/* Rutas privadas con roles */}
       <Route
         path="/admin/*"
         element={
@@ -30,7 +30,7 @@ function App() {
         }
       />
 
-      {/* Redirección por defecto */}
+      {/* Redirección por defecto a login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
