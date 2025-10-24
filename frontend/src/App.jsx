@@ -3,9 +3,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AuthForm from "./components/AuthForm";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardEmpleado from "./pages/DashboardEmpleado";
+import Empleados from "./pages/Empleados"; // <-- import del módulo
 import PrivateRoute from "./routes/PrivateRoute";
 
-// App.jsx maneja rutas públicas y privadas
 function App() {
   return (
     <Routes>
@@ -21,6 +21,15 @@ function App() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/admin/empleados"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Empleados />
+          </PrivateRoute>
+        }
+      />
+
       <Route
         path="/empleado/*"
         element={

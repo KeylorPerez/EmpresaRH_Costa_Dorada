@@ -14,7 +14,6 @@ const AuthForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
     try {
       // Llamada al backend para login
       const { user, token } = await login(username, password);

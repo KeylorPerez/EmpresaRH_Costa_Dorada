@@ -1,16 +1,17 @@
 const { poolPromise, sql } = require('../db/db');
 
 class Empleado {
-  // Obtener todos los empleados activos
+  // Obtener todos los empleados activos con nombre del puesto
   static async getAll() {
     try {
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
-          SELECT * 
-          FROM Empleados 
-          WHERE estado = 1 
-          ORDER BY nombre, apellido
+          SELECT e.*, p.nombre AS puesto_nombre
+          FROM Empleados e
+          JOIN Puestos p ON e.id_puesto = p.id_puesto
+          WHERE e.estado = 1
+          ORDER BY e.nombre, e.apellido
         `);
       return result.recordset;
     } catch (err) {
@@ -18,16 +19,17 @@ class Empleado {
     }
   }
 
-  // Obtener un empleado por ID
+  // Obtener un empleado por ID con nombre del puesto
   static async getById(id_empleado) {
     try {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT * 
-          FROM Empleados 
-          WHERE id_empleado = @id_empleado AND estado = 1
+          SELECT e.*, p.nombre AS puesto_nombre
+          FROM Empleados e
+          JOIN Puestos p ON e.id_puesto = p.id_puesto
+          WHERE e.id_empleado = @id_empleado AND e.estado = 1
         `);
       return result.recordset[0];
     } catch (err) {
@@ -54,7 +56,7 @@ class Empleado {
           VALUES (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_base, 1, GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
-      return result.recordset[0]; // { id_empleado: xxx }
+      return result.recordset[0];
     } catch (err) {
       throw err;
     }
