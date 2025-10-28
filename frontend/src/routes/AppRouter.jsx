@@ -1,21 +1,21 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import PrivateRoute from './PrivateRoute';
-import DashboardAdmin from '../pages/DashboardAdmin';
-import DashboardEmpleado from '../pages/DashboardEmpleado';
-import Empleados from '../pages/Empleados';
-import Login from '../pages/Login';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import PrivateRoute from "./PrivateRoute";
+import DashboardAdmin from "../pages/DashboardAdmin";
+import DashboardEmpleado from "../pages/DashboardEmpleado";
+import Empleados from "../pages/Empleados";
+import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
   return (
     <Router>
       <Routes>
         {/* Página de login */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<AuthForm />} />
 
         {/* Dashboard admin */}
         <Route
-          path="/dashboard-admin"
+          path="/admin/*"
           element={
             <PrivateRoute allowedRoles={[1]}>
               <DashboardAdmin />
@@ -23,19 +23,9 @@ const AppRouter = () => {
           }
         />
 
-        {/* Dashboard empleado */}
-        <Route
-          path="/dashboard-empleado"
-          element={
-            <PrivateRoute allowedRoles={[2]}>
-              <DashboardEmpleado />
-            </PrivateRoute>
-          }
-        />
-
         {/* Módulo de empleados (solo admins) */}
         <Route
-          path="/empleados"
+          path="/admin/empleados"
           element={
             <PrivateRoute allowedRoles={[1]}>
               <Empleados />
@@ -43,8 +33,18 @@ const AppRouter = () => {
           }
         />
 
-        {/* Ruta por defecto: si no encuentra nada, ir a login */}
-        <Route path="*" element={<Login />} />
+        {/* Dashboard empleado */}
+        <Route
+          path="/empleado/*"
+          element={
+            <PrivateRoute allowedRoles={[2]}>
+              <DashboardEmpleado />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Redirección por defecto a login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );

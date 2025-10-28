@@ -1,6 +1,10 @@
 import React, { useContext } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import AuthContext from "../context/AuthContext";
+import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
+import Button from "../components/Button";
+
 
 const DashboardAdmin = () => {
   const navigate = useNavigate();
@@ -20,45 +24,74 @@ const DashboardAdmin = () => {
     navigate("/login");
   };
 
+  // Links del Sidebar
+  const adminLinks = [
+    { path: "/admin/empleados", label: "Empleados" },
+    { path: "/admin/planilla", label: "Planilla" },
+    { path: "/admin/vacaciones", label: "Vacaciones" },
+    { path: "/admin/prestamos", label: "Préstamos" },
+    { path: "/admin/liquidaciones", label: "Liquidaciones" },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <nav className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-semibold">Panel de Administración</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition"
-        >
-          Cerrar sesión
-        </button>
-      </nav>
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <Sidebar links={adminLinks} roleColor="blue" />
 
-      <main className="flex-grow flex flex-col items-center justify-center space-y-6">
-        {user ? (
-          <div className="bg-white p-8 rounded-2xl shadow-md w-96 text-center space-y-4">
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">
-              ¡Bienvenido, {user.username}!
-            </h2>
-            <p className="text-gray-600 font-semibold">Rol: Administrador</p>
+      <div className="flex flex-col flex-grow">
+        {/* Navbar */}
+        <Navbar
+          title="Panel de Administración"
+          user={user}
+          roleColor="blue"
+          onLogout={handleLogout}
+        />
 
-            {/* Links rápidos del panel */}
-            <div className="flex flex-col space-y-2 mt-4">
-              <Link
-                to="/admin/empleados"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
-              >
-                Gestionar Empleados
-              </Link>
-              {/* Podés agregar más botones aquí, por ejemplo Planilla, Vacaciones, etc. */}
+        {/* Contenido principal */}
+        <main className="flex-grow flex flex-col items-center justify-center p-6">
+          {user ? (
+            <div className="bg-white p-8 rounded-2xl shadow-md w-96 text-center space-y-4">
+              <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                ¡Bienvenido, {user.username}!
+              </h2>
+              <p className="text-gray-600 font-semibold">Rol: Administrador</p>
+
+              {/* Links rápidos del panel con Button */}
+              <div className="flex flex-col space-y-2 mt-4">
+                <Button
+                  onClick={() => navigate("/admin/empleados")}
+                  variant="primary"
+                  size="md"
+                >
+                  Gestionar Empleados
+                </Button>
+                <Button
+                  onClick={() => navigate("/admin/planilla")}
+                  variant="primary"
+                  size="md"
+                >
+                  Planilla
+                </Button>
+                <Button
+                  onClick={() => navigate("/admin/vacaciones")}
+                  variant="primary"
+                  size="md"
+                >
+                  Vacaciones
+                </Button>
+                {/* Agregá más botones según módulos */}
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="text-gray-600 text-lg">Cargando...</p>
-        )}
-      </main>
+          ) : (
+            <p className="text-gray-600 text-lg">Cargando...</p>
+          )}
+        </main>
 
-      <footer className="text-center py-4 text-gray-500 text-sm">
-        © 2025 EmpresaRH - Todos los derechos reservados
-      </footer>
+        {/* Footer */}
+        <footer className="text-center py-4 text-gray-500 text-sm">
+          © 2025 EmpresaRH - Todos los derechos reservados
+        </footer>
+      </div>
     </div>
   );
 };

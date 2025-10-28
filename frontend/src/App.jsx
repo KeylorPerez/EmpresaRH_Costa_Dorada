@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AuthForm from "./components/AuthForm";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardEmpleado from "./pages/DashboardEmpleado";
-import Empleados from "./pages/Empleados"; // <-- import del módulo
+import Empleados from "./pages/Empleados";
 import PrivateRoute from "./routes/PrivateRoute";
 
 function App() {
@@ -12,7 +12,7 @@ function App() {
       {/* Ruta pública */}
       <Route path="/login" element={<AuthForm />} />
 
-      {/* Rutas privadas con roles */}
+      {/* Rutas privadas para admin */}
       <Route
         path="/admin/*"
         element={
@@ -30,6 +30,7 @@ function App() {
         }
       />
 
+      {/* Rutas privadas para empleado */}
       <Route
         path="/empleado/*"
         element={
