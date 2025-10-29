@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import empleadoService from "../services/empleadoService";
-import { useAuth } from "../context/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
