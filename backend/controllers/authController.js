@@ -15,6 +15,11 @@ const login = async (req, res) => {
         const user = await Usuario.getByUsername(username);
         if (!user) return res.status(400).json({ error: 'Usuario no encontrado' });
 
+        // Verificar si el usuario está activo
+        if (user.estado === 0) {
+            return res.status(403).json({ error: 'Usuario inactivo, contacte al administrador' });
+        }
+
         // Verificar contraseña
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(400).json({ error: 'Contraseña incorrecta' });

@@ -7,6 +7,7 @@ class Usuario {
             const pool = await poolPromise;
             const result = await pool.request()
                 .query(`SELECT u.id_usuario, u.username, u.id_rol, u.id_empleado, u.ultimo_login,
+                               u.estado,
                                r.nombre AS rol
                         FROM Usuarios u
                         INNER JOIN CatalogoRoles r ON u.id_rol = r.id_rol`);
@@ -22,7 +23,7 @@ class Usuario {
             const pool = await poolPromise;
             const result = await pool.request()
                 .input('id_usuario', sql.Int, id_usuario)
-                .query(`SELECT * FROM Usuarios WHERE id_usuario = @id_usuario`);
+                .query(`SELECT *, estado FROM Usuarios WHERE id_usuario = @id_usuario`);
             return result.recordset[0];
         } catch (err) {
             throw err;
@@ -43,7 +44,7 @@ class Usuario {
     }
 
     // Crear un usuario
-    static async create({ username, password_hash, id_rol, id_empleado }) {
+    static async create({ username, password_hash, id_rol, id_empleado, estado = 1 }) {
         try {
             const pool = await poolPromise;
             const result = await pool.request()
@@ -51,8 +52,9 @@ class Usuario {
                 .input('password_hash', sql.VarChar, password_hash)
                 .input('id_rol', sql.Int, id_rol)
                 .input('id_empleado', sql.Int, id_empleado)
-                .query(`INSERT INTO Usuarios (username, password_hash, id_rol, id_empleado)
-                        VALUES (@username, @password_hash, @id_rol, @id_empleado);
+                .input('estado', sql.Bit, estado)
+                .query(`INSERT INTO Usuarios (username, password_hash, id_rol, id_empleado, estado)
+                        VALUES (@username, @password_hash, @id_rol, @id_empleado, @estado);
                         SELECT SCOPE_IDENTITY() AS id_usuario;`);
             return result.recordset[0];
         } catch (err) {
@@ -60,15 +62,16 @@ class Usuario {
         }
     }
 
+    // Actualizar último login
     static async updateLastLogin(id_usuario) {
-    const pool = await poolPromise;
-    await pool.request()
-        .input('id_usuario', sql.Int, id_usuario)
-        .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
-}
+        const pool = await poolPromise;
+        await pool.request()
+            .input('id_usuario', sql.Int, id_usuario)
+            .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
+    }
 
     // Actualizar un usuario
-    static async update(id_usuario, { username, password_hash, id_rol, id_empleado }) {
+    static async update(id_usuario, { username, password_hash, id_rol, id_empleado, estado }) {
         try {
             const pool = await poolPromise;
             await pool.request()
@@ -77,11 +80,13 @@ class Usuario {
                 .input('password_hash', sql.VarChar, password_hash)
                 .input('id_rol', sql.Int, id_rol)
                 .input('id_empleado', sql.Int, id_empleado)
+                .input('estado', sql.Bit, estado)
                 .query(`UPDATE Usuarios
                         SET username = @username,
                             password_hash = @password_hash,
                             id_rol = @id_rol,
-                            id_empleado = @id_empleado
+                            id_empleado = @id_empleado,
+                            estado = @estado
                         WHERE id_usuario = @id_usuario`);
             return { message: 'Usuario actualizado' };
         } catch (err) {

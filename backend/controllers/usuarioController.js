@@ -14,7 +14,7 @@ const getUsuarios = async (req, res) => {
 // Crear un usuario
 const createUsuario = async (req, res) => {
     try {
-        const { username, password, id_rol, id_empleado } = req.body;
+        const { username, password, id_rol, id_empleado, estado = 1 } = req.body;
 
         if (!username || !password || !id_rol || !id_empleado) {
             return res.status(400).json({ error: 'Faltan datos requeridos' });
@@ -24,7 +24,7 @@ const createUsuario = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        const newUser = await Usuario.create({ username, password_hash, id_rol, id_empleado });
+        const newUser = await Usuario.create({ username, password_hash, id_rol, id_empleado, estado });
         res.status(201).json({ message: 'Usuario creado', id_usuario: newUser.id_usuario });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -37,7 +37,7 @@ const updateUsuario = async (req, res) => {
         const id = parseInt(req.params.id, 10);
         if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
 
-        const { username, password, id_rol, id_empleado } = req.body;
+        const { username, password, id_rol, id_empleado, estado } = req.body;
 
         let password_hash;
         if (password) {
@@ -49,7 +49,8 @@ const updateUsuario = async (req, res) => {
             username, 
             password_hash: password_hash || undefined, 
             id_rol, 
-            id_empleado 
+            id_empleado,
+            estado
         });
 
         res.json({ message: 'Usuario actualizado' });
@@ -57,5 +58,25 @@ const updateUsuario = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+// Activar o desactivar un usuario
+const cambiarEstadoUsuario = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const { estado } = req.body;
 
-module.exports = { getUsuarios, createUsuario, updateUsuario };
+        if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+        if (estado !== 0 && estado !== 1) return res.status(400).json({ error: 'El estado debe ser 0 o 1' });
+
+        const pool = await require('../db/db').poolPromise;
+        await pool.request()
+            .input('id_usuario', require('../db/db').sql.Int, id)
+            .input('estado', require('../db/db').sql.Bit, estado)
+            .query(`UPDATE Usuarios SET estado = @estado, updated_at = GETDATE() WHERE id_usuario = @id_usuario`);
+
+        res.json({ message: `Usuario ${estado === 1 ? 'activado' : 'desactivado'} correctamente` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+module.exports = { getUsuarios, createUsuario, updateUsuario, cambiarEstadoUsuario };
