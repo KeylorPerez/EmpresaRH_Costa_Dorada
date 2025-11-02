@@ -45,6 +45,8 @@ const Prestamos = ({ mode }) => {
         { path: "/admin/liquidaciones", label: "Liquidaciones" },
       ];
     }
+
+    // ✅ bloque de rutas para empleados
     return [
       { path: "/empleado/asistencia", label: "Asistencia" },
       { path: "/empleado/vacaciones", label: "Vacaciones" },
@@ -163,9 +165,12 @@ const Prestamos = ({ mode }) => {
           {!isAdmin && (
             <section className="bg-white rounded-xl shadow-sm p-6">
               <header className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">Solicitar préstamo</h2>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Solicitar préstamo
+                </h2>
                 <p className="text-sm text-gray-500">
-                  Completa la información y envía tu solicitud de préstamo al departamento financiero.
+                  Completa la información y envía tu solicitud de préstamo al
+                  departamento financiero.
                 </p>
               </header>
 
@@ -188,7 +193,9 @@ const Prestamos = ({ mode }) => {
                 </div>
 
                 <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuotas</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cuotas
+                  </label>
                   <input
                     type="number"
                     name="cuotas"
@@ -299,7 +306,9 @@ const Prestamos = ({ mode }) => {
                             <p className="font-semibold">
                               {prestamo.nombre || "Empleado"} {prestamo.apellido || ""}
                             </p>
-                            <p className="text-xs text-gray-500">ID #{prestamo.id_empleado}</p>
+                            <p className="text-xs text-gray-500">
+                              ID #{prestamo.id_empleado}
+                            </p>
                           </td>
                         )}
                         <td className="px-4 py-3 text-gray-700">
@@ -318,7 +327,9 @@ const Prestamos = ({ mode }) => {
                           {formatearPorcentaje(prestamo.interes_porcentaje)}
                         </td>
                         <td className="px-4 py-3">{renderEstadoBadge(prestamo)}</td>
-                        {isAdmin && <td className="px-4 py-3">{renderAcciones(prestamo)}</td>}
+                        {isAdmin && (
+                          <td className="px-4 py-3">{renderAcciones(prestamo)}</td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -345,3 +356,5 @@ Prestamos.defaultProps = {
 };
 
 export default Prestamos;
+
+

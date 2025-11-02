@@ -46,7 +46,10 @@ const Vacaciones = ({ mode }) => {
       { path: "/empleado/asistencia", label: "Asistencia" },
       { path: "/empleado/vacaciones", label: "Vacaciones" },
       { path: "/empleado/prestamos", label: "Préstamos" },
+<<<<<<< codex/review-frontend-code-structure-vqpbix
       { path: "/empleado/liquidaciones", label: "Liquidaciones" },
+=======
+>>>>>>> main
     ];
   }, [isAdmin]);
 
