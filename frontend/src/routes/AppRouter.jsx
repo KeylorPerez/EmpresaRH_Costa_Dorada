@@ -33,6 +33,7 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de usuarios (solo admins) */}
       <Route
         path="/admin/usuarios"
         element={
@@ -59,3 +60,5 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+
+
