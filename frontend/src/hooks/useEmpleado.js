@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
 import empleadoService from "../services/empleadoService";
 
+const INITIAL_FORM_DATA = {
+  nombre: "",
+  apellido: "",
+  id_puesto: "",
+  cedula: "",
+  fecha_nacimiento: "",
+  telefono: "",
+  email: "",
+  fecha_ingreso: "",
+  salario_base: "",
+};
+
 export const useEmpleado = () => {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmpleado, setEditingEmpleado] = useState(null);
-  const [formData, setFormData] = useState({
-    nombre: "",
-    apellido: "",
-    id_puesto: "",
-    cedula: "",
-    fecha_nacimiento: "",
-    telefono: "",
-    email: "",
-    fecha_ingreso: "",
-    salario_base: "",
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
   useEffect(() => {
     fetchEmpleados();
@@ -50,18 +52,7 @@ export const useEmpleado = () => {
         await empleadoService.create(formData);
       }
       setModalOpen(false);
-      setEditingEmpleado(null);
-      setFormData({
-        nombre: "",
-        apellido: "",
-        id_puesto: "",
-        cedula: "",
-        fecha_nacimiento: "",
-        telefono: "",
-        email: "",
-        fecha_ingreso: "",
-        salario_base: "",
-      });
+      resetForm();
       fetchEmpleados();
     } catch (err) {
       console.error(err);
@@ -83,6 +74,12 @@ export const useEmpleado = () => {
       salario_base: empleado.salario_base || "",
     });
     setModalOpen(true);
+  };
+
+  const resetForm = () => {
+    setFormData(INITIAL_FORM_DATA);
+    setEditingEmpleado(null);
+    setError("");
   };
 
   const handleDeactivate = async (id) => {
@@ -118,6 +115,7 @@ export const useEmpleado = () => {
     handleEdit,
     handleDeactivate,
     handleActivate,
+    resetForm,
     fetchEmpleados,
   };
 };
