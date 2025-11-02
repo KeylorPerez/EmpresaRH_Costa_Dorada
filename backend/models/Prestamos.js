@@ -39,7 +39,7 @@ class Prestamos {
   }
 
   // 🔹 Crear nuevo préstamo
-  static async create({ id_empleado, monto, cuotas, interes_porcentaje }) {
+  static async create({ id_empleado, monto, cuotas, interes_porcentaje, fecha_solicitud }) {
     try {
       const pool = await poolPromise;
       const saldo = monto; // saldo inicial = monto total
@@ -49,10 +49,11 @@ class Prestamos {
         .input('cuotas', sql.Int, cuotas)
         .input('interes_porcentaje', sql.Decimal(5,2), interes_porcentaje || 0)
         .input('saldo', sql.Decimal(12,2), saldo)
+        .input('fecha_solicitud', sql.Date, fecha_solicitud ? new Date(fecha_solicitud) : null)
         .input('id_estado', sql.Int, 1) // pendiente por defecto
         .query(`
           INSERT INTO Prestamos (id_empleado, monto, cuotas, interes_porcentaje, saldo, id_estado, fecha_solicitud, created_at, updated_at)
-          VALUES (@id_empleado, @monto, @cuotas, @interes_porcentaje, @saldo, @id_estado, GETDATE(), GETDATE(), GETDATE());
+          VALUES (@id_empleado, @monto, @cuotas, @interes_porcentaje, @saldo, @id_estado, ISNULL(@fecha_solicitud, GETDATE()), GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_prestamo;
         `);
       return result.recordset[0];
