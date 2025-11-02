@@ -20,6 +20,7 @@ const Empleados = () => {
     handleEdit,
     handleDeactivate,
     handleActivate,
+    resetForm,
   } = useEmpleado();
 
   const adminLinks = [
@@ -52,6 +53,7 @@ const Empleados = () => {
               variant="primary"
               size="md"
               onClick={() => {
+                resetForm();
                 setModalOpen(true);
               }}
             >
@@ -144,7 +146,14 @@ const Empleados = () => {
                     return null;
                   })}
                   <div className="flex justify-end space-x-2 mt-2">
-                    <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        resetForm();
+                        setModalOpen(false);
+                      }}
+                    >
                       Cancelar
                     </Button>
                     <Button variant="primary" size="sm" type="submit">
