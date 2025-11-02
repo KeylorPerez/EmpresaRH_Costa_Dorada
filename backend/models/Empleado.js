@@ -10,8 +10,7 @@ class Empleado {
           SELECT e.*, p.nombre AS puesto_nombre
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
-          WHERE e.estado = 1
-          ORDER BY e.nombre, e.apellido
+          ORDER BY e.estado DESC, e.nombre, e.apellido
         `);
       return result.recordset;
     } catch (err) {
@@ -29,7 +28,7 @@ class Empleado {
           SELECT e.*, p.nombre AS puesto_nombre
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
-          WHERE e.id_empleado = @id_empleado AND e.estado = 1
+          WHERE e.id_empleado = @id_empleado
         `);
       return result.recordset[0];
     } catch (err) {
@@ -77,7 +76,7 @@ class Empleado {
         .input('email', sql.VarChar(150), email || null)
         .input('fecha_ingreso', sql.Date, fecha_ingreso)
         .input('salario_base', sql.Decimal(12, 2), salario_base)
-        .input('estado', sql.Bit, estado !== undefined ? estado : 1)
+        .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
           UPDATE Empleados
           SET nombre = @nombre,
@@ -89,7 +88,7 @@ class Empleado {
               email = @email,
               fecha_ingreso = @fecha_ingreso,
               salario_base = @salario_base,
-              estado = @estado,
+              estado = COALESCE(@estado, estado),
               updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
         `);
