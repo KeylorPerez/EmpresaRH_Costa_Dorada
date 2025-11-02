@@ -5,7 +5,7 @@ import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
-import Planilla from "../pages/Planilla";
+import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -34,6 +34,7 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de usuarios (solo admins) */}
       <Route
         path="/admin/usuarios"
         element={
@@ -43,6 +44,7 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de planilla (solo admins) */}
       <Route
         path="/admin/planilla"
         element={
@@ -69,3 +71,5 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+
+

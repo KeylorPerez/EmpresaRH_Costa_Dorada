@@ -61,7 +61,8 @@ const Empleados = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Empleados</h1>
               <p className="text-sm text-gray-500">
-                Administra la información registrada en la tabla <strong>Empleados</strong> de SQL Server.
+                Administra la información registrada en la tabla{" "}
+                <strong>Empleados</strong> de SQL Server.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -126,7 +127,9 @@ const Empleados = () => {
                             <p className="font-semibold text-gray-900">
                               {emp.nombre} {emp.apellido}
                             </p>
-                            <p className="text-xs text-gray-500">ID: {emp.id_empleado}</p>
+                            <p className="text-xs text-gray-500">
+                              ID: {emp.id_empleado}
+                            </p>
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-medium text-gray-800">{emp.cedula}</p>
@@ -136,7 +139,9 @@ const Empleados = () => {
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-gray-800">{emp.telefono || "—"}</p>
-                            <p className="text-xs text-gray-500">{emp.email || "Sin correo"}</p>
+                            <p className="text-xs text-gray-500">
+                              {emp.email || "Sin correo"}
+                            </p>
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-gray-800">
@@ -162,7 +167,11 @@ const Empleados = () => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-2">
-                              <Button variant="warning" size="sm" onClick={() => handleEdit(emp)}>
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => handleEdit(emp)}
+                              >
                                 Editar
                               </Button>
                               {active ? (
@@ -359,9 +368,7 @@ const isActive = (estado) => estado === 1 || estado === true || estado === "1";
 const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("es-CR", {
     year: "numeric",
     month: "2-digit",
@@ -375,14 +382,11 @@ const currencyFormatter = new Intl.NumberFormat("es-CR", {
 });
 
 const formatCurrency = (value) => {
-  if (value === undefined || value === null || value === "") {
-    return "—";
-  }
+  if (value === undefined || value === null || value === "") return "—";
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return value;
-  }
+  if (Number.isNaN(numeric)) return value;
   return `₡ ${currencyFormatter.format(numeric)}`;
 };
 
 export default Empleados;
+

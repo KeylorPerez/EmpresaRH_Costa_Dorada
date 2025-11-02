@@ -12,7 +12,7 @@ const createEmptyFormData = () => ({
   email: "",
   fecha_ingreso: "",
   salario_base: "",
-  estado: "1",
+  estado: "1", // 👈 por defecto activo
 });
 
 export const useEmpleado = () => {
@@ -81,27 +81,17 @@ export const useEmpleado = () => {
         salario_base: Number(formData.salario_base),
       };
 
-      if (formData.fecha_nacimiento) {
-        payload.fecha_nacimiento = formData.fecha_nacimiento;
-      }
-
-      if (formData.telefono) {
-        payload.telefono = formData.telefono.trim();
-      }
-
-      if (formData.email) {
-        payload.email = formData.email.trim();
-      }
-
-      if (editingEmpleado) {
-        payload.estado = Number(formData.estado);
-      }
+      if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
+      if (formData.telefono) payload.telefono = formData.telefono.trim();
+      if (formData.email) payload.email = formData.email.trim();
+      if (editingEmpleado) payload.estado = Number(formData.estado);
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
       } else {
         await empleadoService.create(payload);
       }
+
       setModalOpen(false);
       resetForm();
       fetchEmpleados();
@@ -184,3 +174,4 @@ const normalizeDate = (value) => {
   if (!value) return "";
   return value.split("T")[0];
 };
+
