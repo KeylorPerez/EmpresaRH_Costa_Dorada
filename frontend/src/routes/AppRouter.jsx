@@ -6,6 +6,7 @@ import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
 import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
+import Vacaciones from "../pages/Vacaciones";
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -54,12 +55,32 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de vacaciones (admin) */}
+      <Route
+        path="/admin/vacaciones"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Vacaciones mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Dashboard empleado */}
       <Route
         path="/empleado/*"
         element={
           <PrivateRoute allowedRoles={[2]}>
             <DashboardEmpleado />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de vacaciones (empleado) */}
+      <Route
+        path="/empleado/vacaciones"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Vacaciones mode="empleado" />
           </PrivateRoute>
         }
       />
