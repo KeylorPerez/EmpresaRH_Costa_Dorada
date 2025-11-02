@@ -22,7 +22,7 @@ const Empleados = () => {
     handleDeactivate,
     handleActivate,
     resetForm,
-    setError, // ✅ conservado de tu rama codex
+    setError,
   } = useEmpleado();
 
   const [statusFilter, setStatusFilter] = useState("all");

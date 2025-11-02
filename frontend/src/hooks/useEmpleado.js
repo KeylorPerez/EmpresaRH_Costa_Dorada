@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import empleadoService from "../services/empleadoService";
 import puestoService from "../services/puestoService";
 
-const INITIAL_FORM_DATA = {
+const createEmptyFormData = () => ({
   nombre: "",
   apellido: "",
   id_puesto: "",
@@ -12,20 +12,8 @@ const INITIAL_FORM_DATA = {
   email: "",
   fecha_ingreso: "",
   salario_base: "",
-  estado: "1",
-};
-
-const INITIAL_FORM_DATA = {
-  nombre: "",
-  apellido: "",
-  id_puesto: "",
-  cedula: "",
-  fecha_nacimiento: "",
-  telefono: "",
-  email: "",
-  fecha_ingreso: "",
-  salario_base: "",
-};
+  estado: "1", // 👈 por defecto activo
+});
 
 export const useEmpleado = () => {
   const [empleados, setEmpleados] = useState([]);
@@ -34,7 +22,7 @@ export const useEmpleado = () => {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmpleado, setEditingEmpleado] = useState(null);
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [formData, setFormData] = useState(() => createEmptyFormData());
 
   useEffect(() => {
     fetchEmpleados();
@@ -93,27 +81,17 @@ export const useEmpleado = () => {
         salario_base: Number(formData.salario_base),
       };
 
-      if (formData.fecha_nacimiento) {
-        payload.fecha_nacimiento = formData.fecha_nacimiento;
-      }
-
-      if (formData.telefono) {
-        payload.telefono = formData.telefono.trim();
-      }
-
-      if (formData.email) {
-        payload.email = formData.email.trim();
-      }
-
-      if (editingEmpleado) {
-        payload.estado = Number(formData.estado);
-      }
+      if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
+      if (formData.telefono) payload.telefono = formData.telefono.trim();
+      if (formData.email) payload.email = formData.email.trim();
+      if (editingEmpleado) payload.estado = Number(formData.estado);
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
       } else {
         await empleadoService.create(payload);
       }
+
       setModalOpen(false);
       resetForm();
       fetchEmpleados();
@@ -147,7 +125,7 @@ export const useEmpleado = () => {
   };
 
   const resetForm = () => {
-    setFormData(INITIAL_FORM_DATA);
+    setFormData(createEmptyFormData());
     setEditingEmpleado(null);
     setError("");
   };
@@ -196,3 +174,4 @@ const normalizeDate = (value) => {
   if (!value) return "";
   return value.split("T")[0];
 };
+
