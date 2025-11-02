@@ -61,7 +61,8 @@ const Empleados = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Empleados</h1>
               <p className="text-sm text-gray-500">
-                Administra la información registrada en la tabla <strong>Empleados</strong> de SQL Server.
+                Administra la información registrada en la tabla{" "}
+                <strong>Empleados</strong> de SQL Server.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -126,7 +127,9 @@ const Empleados = () => {
                             <p className="font-semibold text-gray-900">
                               {emp.nombre} {emp.apellido}
                             </p>
-                            <p className="text-xs text-gray-500">ID: {emp.id_empleado}</p>
+                            <p className="text-xs text-gray-500">
+                              ID: {emp.id_empleado}
+                            </p>
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-medium text-gray-800">{emp.cedula}</p>
@@ -136,7 +139,9 @@ const Empleados = () => {
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-gray-800">{emp.telefono || "—"}</p>
-                            <p className="text-xs text-gray-500">{emp.email || "Sin correo"}</p>
+                            <p className="text-xs text-gray-500">
+                              {emp.email || "Sin correo"}
+                            </p>
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-gray-800">
@@ -162,7 +167,11 @@ const Empleados = () => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-2">
-                              <Button variant="warning" size="sm" onClick={() => handleEdit(emp)}>
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => handleEdit(emp)}
+                              >
                                 Editar
                               </Button>
                               {active ? (
@@ -213,15 +222,59 @@ const Empleados = () => {
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField label="Nombre" name="nombre" value={formData.nombre} onChange={handleChange} required />
-                    <FormField label="Apellido" name="apellido" value={formData.apellido} onChange={handleChange} required />
-                    <FormField label="Cédula" name="cedula" value={formData.cedula} onChange={handleChange} required />
-                    <FormField label="Teléfono" name="telefono" value={formData.telefono} onChange={handleChange} />
-                    <FormField label="Correo electrónico" name="email" type="email" value={formData.email} onChange={handleChange} />
-                    <FormField label="Fecha de nacimiento" name="fecha_nacimiento" type="date" value={formData.fecha_nacimiento} onChange={handleChange} />
-                    <FormField label="Fecha de ingreso" name="fecha_ingreso" type="date" value={formData.fecha_ingreso} onChange={handleChange} required />
+                    <FormField
+                      label="Nombre"
+                      name="nombre"
+                      value={formData.nombre}
+                      onChange={handleChange}
+                      required
+                    />
+                    <FormField
+                      label="Apellido"
+                      name="apellido"
+                      value={formData.apellido}
+                      onChange={handleChange}
+                      required
+                    />
+                    <FormField
+                      label="Cédula"
+                      name="cedula"
+                      value={formData.cedula}
+                      onChange={handleChange}
+                      required
+                    />
+                    <FormField
+                      label="Teléfono"
+                      name="telefono"
+                      value={formData.telefono}
+                      onChange={handleChange}
+                    />
+                    <FormField
+                      label="Correo electrónico"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                    <FormField
+                      label="Fecha de nacimiento"
+                      name="fecha_nacimiento"
+                      type="date"
+                      value={formData.fecha_nacimiento}
+                      onChange={handleChange}
+                    />
+                    <FormField
+                      label="Fecha de ingreso"
+                      name="fecha_ingreso"
+                      type="date"
+                      value={formData.fecha_ingreso}
+                      onChange={handleChange}
+                      required
+                    />
                     <div className="flex flex-col">
-                      <label className="text-sm font-medium text-gray-700 mb-1">Puesto</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1">
+                        Puesto
+                      </label>
                       <select
                         name="id_puesto"
                         value={formData.id_puesto}
@@ -237,10 +290,21 @@ const Empleados = () => {
                         ))}
                       </select>
                     </div>
-                    <FormField label="Salario base" name="salario_base" type="number" step="0.01" min="0" value={formData.salario_base} onChange={handleChange} required />
+                    <FormField
+                      label="Salario base"
+                      name="salario_base"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.salario_base}
+                      onChange={handleChange}
+                      required
+                    />
                     {editingEmpleado && (
                       <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700 mb-1">Estado</label>
+                        <label className="text-sm font-medium text-gray-700 mb-1">
+                          Estado
+                        </label>
                         <select
                           name="estado"
                           value={formData.estado}
@@ -255,7 +319,15 @@ const Empleados = () => {
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <Button variant="secondary" size="sm" type="button" onClick={() => { resetForm(); setModalOpen(false); }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      type="button"
+                      onClick={() => {
+                        resetForm();
+                        setModalOpen(false);
+                      }}
+                    >
                       Cancelar
                     </Button>
                     <Button variant="primary" size="sm" type="submit">

@@ -5,6 +5,7 @@ import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
+import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -39,6 +40,16 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <Usuarios />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de planilla (solo admins) */}
+      <Route
+        path="/admin/planilla"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Planilla />
           </PrivateRoute>
         }
       />

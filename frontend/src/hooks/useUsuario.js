@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import usuarioService from "../services/usuarioService";
 import empleadoService from "../services/empleadoService";
 
-const INITIAL_FORM_STATE = {
+// Estado inicial del formulario
+const createInitialFormState = () => ({
   username: "",
   password: "",
   id_rol: "",
   id_empleado: "",
-  estado: "1",
-};
+  estado: "1", // 👈 por defecto activo
+});
 
 export const useUsuario = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -17,13 +18,14 @@ export const useUsuario = () => {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
-  const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+  const [formData, setFormData] = useState(() => createInitialFormState());
 
   useEffect(() => {
     fetchUsuarios();
     fetchEmpleados();
   }, []);
 
+  // === Cargar usuarios ===
   const fetchUsuarios = async () => {
     try {
       setLoading(true);
@@ -38,6 +40,7 @@ export const useUsuario = () => {
     }
   };
 
+  // === Cargar empleados (para asignar a usuario) ===
   const fetchEmpleados = async () => {
     try {
       const data = await empleadoService.getAll();
@@ -47,20 +50,23 @@ export const useUsuario = () => {
     }
   };
 
+  // === Manejar cambios del formulario ===
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // === Resetear formulario ===
   const resetForm = () => {
-    setFormData(INITIAL_FORM_STATE);
+    setFormData(createInitialFormState());
     setEditingUsuario(null);
     setError("");
   };
 
+  // === Construir payload para API ===
   const buildPayload = () => {
     const payload = {
-      username: formData.username,
+      username: formData.username.trim(),
       id_rol: formData.id_rol ? Number(formData.id_rol) : undefined,
       id_empleado: formData.id_empleado ? Number(formData.id_empleado) : undefined,
       estado: Number(formData.estado),
@@ -73,6 +79,7 @@ export const useUsuario = () => {
     return payload;
   };
 
+  // === Crear o editar usuario ===
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -103,6 +110,7 @@ export const useUsuario = () => {
     }
   };
 
+  // === Editar usuario ===
   const handleEdit = (usuario) => {
     setEditingUsuario(usuario);
     setError("");
@@ -111,11 +119,15 @@ export const useUsuario = () => {
       password: "",
       id_rol: usuario.id_rol ? String(usuario.id_rol) : "",
       id_empleado: usuario.id_empleado ? String(usuario.id_empleado) : "",
-      estado: usuario.estado !== undefined ? String(usuario.estado) : "1",
+      estado:
+        usuario.estado === undefined || usuario.estado === null
+          ? "1"
+          : String(Number(usuario.estado)),
     });
     setModalOpen(true);
   };
 
+  // === Cambiar estado (activar/desactivar) ===
   const handleChangeStatus = async (id, estado) => {
     try {
       await usuarioService.changeStatus(id, estado);
@@ -126,6 +138,7 @@ export const useUsuario = () => {
     }
   };
 
+  // === Opciones de roles ===
   const rolesOptions = useMemo(
     () => [
       { value: "1", label: "Administrador" },
@@ -134,6 +147,7 @@ export const useUsuario = () => {
     []
   );
 
+  // === Retorno del hook ===
   return {
     usuarios,
     empleados,
@@ -152,3 +166,4 @@ export const useUsuario = () => {
     setError,
   };
 };
+
