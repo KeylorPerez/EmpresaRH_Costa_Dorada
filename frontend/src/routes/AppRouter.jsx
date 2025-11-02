@@ -4,6 +4,7 @@ import PrivateRoute from "./PrivateRoute";
 import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
+import Usuarios from "../pages/Usuarios";
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -29,6 +30,15 @@ const AppRouter = () => {
           element={
             <PrivateRoute allowedRoles={[1]}>
               <Empleados />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/admin/usuarios"
+          element={
+            <PrivateRoute allowedRoles={[1]}>
+              <Usuarios />
             </PrivateRoute>
           }
         />

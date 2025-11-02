@@ -6,7 +6,7 @@ import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 
 const Empleados = () => {
-  const { user } = useAuth();
+  const { user, logoutUser } = useAuth();
   const {
     empleados,
     loading,
@@ -23,6 +23,8 @@ const Empleados = () => {
   } = useEmpleado();
 
   const adminLinks = [
+    { path: "/admin", label: "Inicio" },
+    { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
     { path: "/admin/planilla", label: "Planilla" },
     { path: "/admin/vacaciones", label: "Vacaciones" },
@@ -37,7 +39,12 @@ const Empleados = () => {
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar links={adminLinks} roleColor="blue" />
       <div className="flex flex-col flex-grow">
-        <Navbar title="Panel de Administración" user={user} roleColor="blue" onLogout={() => {}} />
+        <Navbar
+          title="Panel de Administración"
+          user={user}
+          roleColor="blue"
+          onLogout={logoutUser}
+        />
         <main className="flex-grow p-6">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-bold">Empleados</h1>
