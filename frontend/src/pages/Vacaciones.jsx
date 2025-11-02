@@ -31,24 +31,23 @@ const Vacaciones = ({ mode }) => {
   const isAdmin = mode === "admin";
 
   const sidebarLinks = useMemo(() => {
-    const adminLinks = [
-      { path: "/admin", label: "Inicio" },
-      { path: "/admin/usuarios", label: "Usuarios" },
-      { path: "/admin/empleados", label: "Empleados" },
-      { path: "/admin/planilla", label: "Planilla" },
-      { path: "/admin/vacaciones", label: "Vacaciones" },
-      { path: "/admin/prestamos", label: "Préstamos" },
-      { path: "/admin/liquidaciones", label: "Liquidaciones" },
-    ];
-
-    const employeeLinks = [
+    if (isAdmin) {
+      return [
+        { path: "/admin", label: "Inicio" },
+        { path: "/admin/usuarios", label: "Usuarios" },
+        { path: "/admin/empleados", label: "Empleados" },
+        { path: "/admin/planilla", label: "Planilla" },
+        { path: "/admin/vacaciones", label: "Vacaciones" },
+        { path: "/admin/prestamos", label: "Préstamos" },
+        { path: "/admin/liquidaciones", label: "Liquidaciones" },
+      ];
+    }
+    return [
       { path: "/empleado/asistencia", label: "Asistencia" },
       { path: "/empleado/vacaciones", label: "Vacaciones" },
       { path: "/empleado/prestamos", label: "Préstamos" },
       { path: "/empleado/liquidaciones", label: "Liquidaciones" },
     ];
-
-    return isAdmin ? adminLinks : employeeLinks;
   }, [isAdmin]);
 
   const roleColor = isAdmin ? "blue" : "green";
@@ -60,7 +59,10 @@ const Vacaciones = ({ mode }) => {
 
   const onApprove = async (solicitud) => {
     const raw = diasAprobados[solicitud.id_vacacion];
-    const defaultDias = diasSolicitados(solicitud.fecha_inicio, solicitud.fecha_fin);
+    const defaultDias = diasSolicitados(
+      solicitud.fecha_inicio,
+      solicitud.fecha_fin
+    );
     const parsed = raw === undefined || raw === "" ? defaultDias : Number(raw);
 
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -104,10 +106,12 @@ const Vacaciones = ({ mode }) => {
         <main className="flex-grow p-6 space-y-6">
           <section className="bg-white rounded-xl shadow-sm p-6">
             <header className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">Solicitar vacaciones</h1>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Solicitar vacaciones
+              </h1>
               <p className="text-sm text-gray-500">
-                Selecciona el rango de fechas y envía la solicitud al departamento de
-                recursos humanos.
+                Selecciona el rango de fechas y envía la solicitud al
+                departamento de recursos humanos.
               </p>
             </header>
             <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-4">
@@ -171,12 +175,17 @@ const Vacaciones = ({ mode }) => {
           <section className="bg-white rounded-xl shadow-sm p-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">Historial de solicitudes</h2>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Historial de solicitudes
+                </h2>
                 <p className="text-sm text-gray-500">
-                  Consulta el estado de cada solicitud y su historial de aprobación.
+                  Consulta el estado de cada solicitud y su historial de
+                  aprobación.
                 </p>
               </div>
-              {loading && <p className="text-sm text-gray-500">Cargando solicitudes...</p>}
+              {loading && (
+                <p className="text-sm text-gray-500">Cargando solicitudes...</p>
+              )}
             </header>
 
             {solicitudes.length === 0 && !loading ? (
@@ -219,7 +228,8 @@ const Vacaciones = ({ mode }) => {
                           {isAdmin && (
                             <td className="px-4 py-3 text-gray-800">
                               <p className="font-semibold">
-                                {solicitud.nombre || "Empleado"} {solicitud.apellido || ""}
+                                {solicitud.nombre || "Empleado"}{" "}
+                                {solicitud.apellido || ""}
                               </p>
                               <p className="text-xs text-gray-500">
                                 ID: {solicitud.id_empleado}
@@ -228,7 +238,7 @@ const Vacaciones = ({ mode }) => {
                           )}
                           <td className="px-4 py-3 text-gray-800">
                             <p className="font-medium">
-                              {formatearFecha(solicitud.fecha_inicio)} - {" "}
+                              {formatearFecha(solicitud.fecha_inicio)} -{" "}
                               {formatearFecha(solicitud.fecha_fin)}
                             </p>
                           </td>
@@ -244,7 +254,9 @@ const Vacaciones = ({ mode }) => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-800">
-                            {formatearFecha(solicitud.updated_at || solicitud.created_at)}
+                            {formatearFecha(
+                              solicitud.updated_at || solicitud.created_at
+                            )}
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             {solicitud.aprobado_por_username || "—"}
@@ -258,10 +270,15 @@ const Vacaciones = ({ mode }) => {
                                       type="number"
                                       min="1"
                                       className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                      value={diasAprobados[solicitud.id_vacacion] ?? ""}
+                                      value={
+                                        diasAprobados[solicitud.id_vacacion] ?? ""
+                                      }
                                       placeholder={String(dias)}
                                       onChange={(event) =>
-                                        handleDiasChange(solicitud.id_vacacion, event.target.value)
+                                        handleDiasChange(
+                                          solicitud.id_vacacion,
+                                          event.target.value
+                                        )
                                       }
                                     />
                                     <span className="text-xs text-gray-500">días</span>
@@ -309,3 +326,4 @@ Vacaciones.propTypes = {
 };
 
 export default Vacaciones;
+

@@ -5,7 +5,7 @@ import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
-import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
+import Planilla from "../pages/Planilla";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
