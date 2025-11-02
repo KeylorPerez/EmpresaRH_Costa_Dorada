@@ -8,7 +8,7 @@ import Usuarios from "../pages/Usuarios";
 import Planilla from "../pages/Planilla";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
-import Liquidaciones from "../pages/Liquidaciones"; // ✅ agregado correctamente
+import Liquidaciones from "../pages/Liquidaciones";
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -134,4 +134,5 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
+
 

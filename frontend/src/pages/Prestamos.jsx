@@ -46,7 +46,7 @@ const Prestamos = ({ mode }) => {
       ];
     }
 
-    // ✅ bloque de rutas para empleados
+    // bloque de rutas para empleados
     return [
       { path: "/empleado/asistencia", label: "Asistencia" },
       { path: "/empleado/vacaciones", label: "Vacaciones" },
@@ -106,7 +106,7 @@ const Prestamos = ({ mode }) => {
             try {
               await rejectPrestamo(prestamo.id_prestamo);
             } catch (_) {
-              // Error ya mostrado
+              // Error gestionado en el hook
             }
           }}
         >
@@ -304,7 +304,8 @@ const Prestamos = ({ mode }) => {
                         {isAdmin && (
                           <td className="px-4 py-3 text-gray-800">
                             <p className="font-semibold">
-                              {prestamo.nombre || "Empleado"} {prestamo.apellido || ""}
+                              {prestamo.nombre || "Empleado"}{" "}
+                              {prestamo.apellido || ""}
                             </p>
                             <p className="text-xs text-gray-500">
                               ID #{prestamo.id_empleado}
@@ -356,5 +357,3 @@ Prestamos.defaultProps = {
 };
 
 export default Prestamos;
-
-
