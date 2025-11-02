@@ -88,7 +88,20 @@ const DashboardAdmin = () => {
                 >
                   Vacaciones
                 </Button>
-                {/* Agregá más botones según módulos */}
+                <Button
+                  onClick={() => navigate("/admin/prestamos")}
+                  variant="primary"
+                  size="md"
+                >
+                  Préstamos
+                </Button>
+                <Button
+                  onClick={() => navigate("/admin/liquidaciones")}
+                  variant="primary"
+                  size="md"
+                >
+                  Liquidaciones
+                </Button>
               </div>
             </div>
           ) : (

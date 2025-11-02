@@ -4,7 +4,8 @@ const {
   getPrestamos,
   getPrestamoById,
   createPrestamo,
-  pagarPrestamo
+  pagarPrestamo,
+  updateEstadoPrestamo
 } = require('../controllers/prestamosController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
@@ -20,5 +21,8 @@ router.post('/', authenticateToken, createPrestamo);
 
 // PUT /api/prestamos/:id/pagar -> registrar pago de préstamo (autenticado)
 router.put('/:id/pagar', authenticateToken, pagarPrestamo);
+
+// PUT /api/prestamos/:id/estado -> actualizar estado (solo admin)
+router.put('/:id/estado', authenticateToken, authorizeRoles(1), updateEstadoPrestamo);
 
 module.exports = router;

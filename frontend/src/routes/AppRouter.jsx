@@ -6,6 +6,9 @@ import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
 import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
+import Vacaciones from "../pages/Vacaciones";
+import Prestamos from "../pages/Prestamos";
+import Liquidaciones from "../pages/Liquidaciones";
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -54,12 +57,72 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de vacaciones (admin) */}
+      <Route
+        path="/admin/vacaciones"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Vacaciones mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de préstamos (admin) */}
+      <Route
+        path="/admin/prestamos"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Prestamos mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de liquidaciones (admin) */}
+      <Route
+        path="/admin/liquidaciones"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Liquidaciones mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Dashboard empleado */}
       <Route
         path="/empleado/*"
         element={
           <PrivateRoute allowedRoles={[2]}>
             <DashboardEmpleado />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de vacaciones (empleado) */}
+      <Route
+        path="/empleado/vacaciones"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Vacaciones mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de préstamos (empleado) */}
+      <Route
+        path="/empleado/prestamos"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Prestamos mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de liquidaciones (empleado) */}
+      <Route
+        path="/empleado/liquidaciones"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Liquidaciones mode="empleado" />
           </PrivateRoute>
         }
       />
