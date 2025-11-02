@@ -22,7 +22,7 @@ const Empleados = () => {
     handleDeactivate,
     handleActivate,
     resetForm,
-    setError,
+    setError, // ✅ conservado de tu rama codex
   } = useEmpleado();
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -213,59 +213,15 @@ const Empleados = () => {
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      label="Nombre"
-                      name="nombre"
-                      value={formData.nombre}
-                      onChange={handleChange}
-                      required
-                    />
-                    <FormField
-                      label="Apellido"
-                      name="apellido"
-                      value={formData.apellido}
-                      onChange={handleChange}
-                      required
-                    />
-                    <FormField
-                      label="Cédula"
-                      name="cedula"
-                      value={formData.cedula}
-                      onChange={handleChange}
-                      required
-                    />
-                    <FormField
-                      label="Teléfono"
-                      name="telefono"
-                      value={formData.telefono}
-                      onChange={handleChange}
-                    />
-                    <FormField
-                      label="Correo electrónico"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                    />
-                    <FormField
-                      label="Fecha de nacimiento"
-                      name="fecha_nacimiento"
-                      type="date"
-                      value={formData.fecha_nacimiento}
-                      onChange={handleChange}
-                    />
-                    <FormField
-                      label="Fecha de ingreso"
-                      name="fecha_ingreso"
-                      type="date"
-                      value={formData.fecha_ingreso}
-                      onChange={handleChange}
-                      required
-                    />
+                    <FormField label="Nombre" name="nombre" value={formData.nombre} onChange={handleChange} required />
+                    <FormField label="Apellido" name="apellido" value={formData.apellido} onChange={handleChange} required />
+                    <FormField label="Cédula" name="cedula" value={formData.cedula} onChange={handleChange} required />
+                    <FormField label="Teléfono" name="telefono" value={formData.telefono} onChange={handleChange} />
+                    <FormField label="Correo electrónico" name="email" type="email" value={formData.email} onChange={handleChange} />
+                    <FormField label="Fecha de nacimiento" name="fecha_nacimiento" type="date" value={formData.fecha_nacimiento} onChange={handleChange} />
+                    <FormField label="Fecha de ingreso" name="fecha_ingreso" type="date" value={formData.fecha_ingreso} onChange={handleChange} required />
                     <div className="flex flex-col">
-                      <label className="text-sm font-medium text-gray-700 mb-1">
-                        Puesto
-                      </label>
+                      <label className="text-sm font-medium text-gray-700 mb-1">Puesto</label>
                       <select
                         name="id_puesto"
                         value={formData.id_puesto}
@@ -281,21 +237,10 @@ const Empleados = () => {
                         ))}
                       </select>
                     </div>
-                    <FormField
-                      label="Salario base"
-                      name="salario_base"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.salario_base}
-                      onChange={handleChange}
-                      required
-                    />
+                    <FormField label="Salario base" name="salario_base" type="number" step="0.01" min="0" value={formData.salario_base} onChange={handleChange} required />
                     {editingEmpleado && (
                       <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700 mb-1">
-                          Estado
-                        </label>
+                        <label className="text-sm font-medium text-gray-700 mb-1">Estado</label>
                         <select
                           name="estado"
                           value={formData.estado}
@@ -310,15 +255,7 @@ const Empleados = () => {
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      type="button"
-                      onClick={() => {
-                        resetForm();
-                        setModalOpen(false);
-                      }}
-                    >
+                    <Button variant="secondary" size="sm" type="button" onClick={() => { resetForm(); setModalOpen(false); }}>
                       Cancelar
                     </Button>
                     <Button variant="primary" size="sm" type="submit">
@@ -359,9 +296,7 @@ const isActive = (estado) => estado === 1 || estado === true || estado === "1";
 const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("es-CR", {
     year: "numeric",
     month: "2-digit",
@@ -375,14 +310,11 @@ const currencyFormatter = new Intl.NumberFormat("es-CR", {
 });
 
 const formatCurrency = (value) => {
-  if (value === undefined || value === null || value === "") {
-    return "—";
-  }
+  if (value === undefined || value === null || value === "") return "—";
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return value;
-  }
+  if (Number.isNaN(numeric)) return value;
   return `₡ ${currencyFormatter.format(numeric)}`;
 };
 
 export default Empleados;
+

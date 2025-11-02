@@ -15,6 +15,18 @@ const INITIAL_FORM_DATA = {
   estado: "1",
 };
 
+const INITIAL_FORM_DATA = {
+  nombre: "",
+  apellido: "",
+  id_puesto: "",
+  cedula: "",
+  fecha_nacimiento: "",
+  telefono: "",
+  email: "",
+  fecha_ingreso: "",
+  salario_base: "",
+};
+
 export const useEmpleado = () => {
   const [empleados, setEmpleados] = useState([]);
   const [puestos, setPuestos] = useState([]);
