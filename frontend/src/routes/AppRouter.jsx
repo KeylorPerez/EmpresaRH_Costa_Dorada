@@ -5,8 +5,9 @@ import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
-import Planilla from "../pages/Planilla"; // ✅ agregado correctamente
+import Planilla from "../pages/Planilla";
 import Vacaciones from "../pages/Vacaciones";
+import Prestamos from "../pages/Prestamos"; // ✅ integrado correctamente
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -65,6 +66,16 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de préstamos (admin) */}
+      <Route
+        path="/admin/prestamos"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Prestamos mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Dashboard empleado */}
       <Route
         path="/empleado/*"
@@ -85,6 +96,16 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de préstamos (empleado) */}
+      <Route
+        path="/empleado/prestamos"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Prestamos mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Redirección por defecto a login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -92,5 +113,3 @@ const AppRouter = () => {
 };
 
 export default AppRouter;
-
-
