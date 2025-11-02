@@ -24,11 +24,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      console.warn('Sesión expirada o token inválido');
+    const status = error.response?.status;
+    const message = error.response?.data?.error?.toLowerCase?.() || '';
+
+    const shouldLogout =
+      status === 401 ||
+      (status === 403 && message.includes('inactivo'));
+
+    if (shouldLogout) {
+      console.warn('Sesión expirada o usuario inactivo');
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
+
     return Promise.reject(error);
   }
 );

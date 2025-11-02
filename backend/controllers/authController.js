@@ -16,7 +16,7 @@ const login = async (req, res) => {
         if (!user) return res.status(400).json({ error: 'Usuario no encontrado' });
 
         // Verificar si el usuario está activo
-        if (user.estado === 0) {
+        if (!user.estado) {
             return res.status(403).json({ error: 'Usuario inactivo, contacte al administrador' });
         }
 
