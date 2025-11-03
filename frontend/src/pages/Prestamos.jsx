@@ -37,6 +37,7 @@ const Prestamos = ({ mode }) => {
     if (isAdmin) {
       return [
         { path: "/admin", label: "Inicio" },
+        { path: "/admin/asistencia", label: "Asistencia" },
         { path: "/admin/usuarios", label: "Usuarios" },
         { path: "/admin/empleados", label: "Empleados" },
         { path: "/admin/planilla", label: "Planilla" },
