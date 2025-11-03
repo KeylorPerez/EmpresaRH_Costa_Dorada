@@ -27,6 +27,7 @@ const DashboardAdmin = () => {
   // Links del Sidebar
   const adminLinks = [
     { path: "/admin", label: "Inicio" },
+    { path: "/admin/asistencia", label: "Asistencia" },
     { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
     { path: "/admin/planilla", label: "Planilla" },
@@ -60,6 +61,13 @@ const DashboardAdmin = () => {
 
               {/* Links rápidos del panel con Button */}
               <div className="flex flex-col space-y-2 mt-4">
+                <Button
+                  onClick={() => navigate("/admin/asistencia")}
+                  variant="primary"
+                  size="md"
+                >
+                  Gestionar Asistencia
+                </Button>
                 <Button
                   onClick={() => navigate("/admin/usuarios")}
                   variant="primary"

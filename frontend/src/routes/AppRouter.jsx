@@ -9,6 +9,7 @@ import Planilla from "../pages/Planilla";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
+import Asistencia from "../pages/Asistencia";
 import AuthForm from "../components/AuthForm"; // Login
 
 const AppRouter = () => {
@@ -23,6 +24,26 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <DashboardAdmin />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de asistencia (solo admins) */}
+      <Route
+        path="/admin/asistencia"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Asistencia mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de asistencia (empleado) */}
+      <Route
+        path="/empleado/asistencia"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Asistencia mode="empleado" />
           </PrivateRoute>
         }
       />
