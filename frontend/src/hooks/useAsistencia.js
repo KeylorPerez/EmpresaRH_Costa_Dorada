@@ -33,13 +33,23 @@ export const formatearHora = (value) => {
   return value;
 };
 
-const createInitialForm = (isAdmin) => ({
-  id_empleado: isAdmin ? "" : undefined,
-  fecha: "",
-  hora: "",
-  tipo_marca: "",
-  observaciones: "",
-});
+const pad = (value) => value.toString().padStart(2, "0");
+
+const createInitialForm = (isAdmin) => {
+  const now = new Date();
+  const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+    now.getDate()
+  )}`;
+  const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  return {
+    id_empleado: isAdmin ? "" : undefined,
+    fecha,
+    hora,
+    tipo_marca: "entrada",
+    observaciones: "",
+  };
+};
 
 export const useAsistencia = ({ mode } = {}) => {
   const isAdmin = mode === "admin";
@@ -125,6 +135,9 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (!isAdmin && (name === "fecha" || name === "hora")) {
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 

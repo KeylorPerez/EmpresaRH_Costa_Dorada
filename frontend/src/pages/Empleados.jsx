@@ -38,6 +38,7 @@ const Empleados = () => {
     { path: "/admin/asistencia", label: "Asistencia" },
     { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
+    { path: "/admin/puestos", label: "Puestos" },
     { path: "/admin/planilla", label: "Planilla" },
     { path: "/admin/vacaciones", label: "Vacaciones" },
     { path: "/admin/prestamos", label: "Préstamos" },
@@ -104,7 +105,9 @@ const Empleados = () => {
                     <th className="px-4 py-3">Puesto</th>
                     <th className="px-4 py-3">Contacto</th>
                     <th className="px-4 py-3">Fechas</th>
+                    <th className="px-4 py-3">Tipo de Pago</th>
                     <th className="px-4 py-3">Salario Base</th>
+                    <th className="px-4 py-3">Bonificación Fija</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Acciones</th>
                   </tr>
@@ -112,7 +115,7 @@ const Empleados = () => {
                 <tbody>
                   {filteredEmpleados.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="px-4 py-6 text-center text-gray-500">
+                      <td colSpan="10" className="px-4 py-6 text-center text-gray-500">
                         No hay empleados registrados con el filtro seleccionado.
                       </td>
                     </tr>
@@ -152,8 +155,16 @@ const Empleados = () => {
                               Nacimiento: {formatDate(emp.fecha_nacimiento)}
                             </p>
                           </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              {emp.tipo_pago || '—'}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(emp.salario_base)}
+                            {formatCurrency(emp.salario_monto)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">
+                            {formatCurrency(emp.bonificacion_fija)}
                           </td>
                           <td className="px-4 py-3">
                             <span
@@ -293,13 +304,37 @@ const Empleados = () => {
                     </div>
                     <FormField
                       label="Salario base"
-                      name="salario_base"
+                      name="salario_monto"
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.salario_base}
+                      value={formData.salario_monto}
                       onChange={handleChange}
                       required
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm font-medium text-gray-700 mb-1">
+                        Tipo de pago<span className="text-red-500"> *</span>
+                      </label>
+                      <select
+                        name="tipo_pago"
+                        value={formData.tipo_pago}
+                        onChange={handleChange}
+                        required
+                        className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="Diario">Diario</option>
+                        <option value="Quincenal">Quincenal</option>
+                      </select>
+                    </div>
+                    <FormField
+                      label="Bonificación fija"
+                      name="bonificacion_fija"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.bonificacion_fija}
+                      onChange={handleChange}
                     />
                     {editingEmpleado && (
                       <div className="flex flex-col">

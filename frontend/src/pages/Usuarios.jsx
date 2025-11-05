@@ -10,6 +10,7 @@ const Usuarios = () => {
   const {
     usuarios,
     empleados,
+    availableEmpleados,
     rolesOptions,
     loading,
     error,
@@ -23,6 +24,8 @@ const Usuarios = () => {
     handleChangeStatus,
     resetForm,
     setError,
+    statusFilter,
+    setStatusFilter,
   } = useUsuario();
 
   const adminLinks = [
@@ -30,6 +33,7 @@ const Usuarios = () => {
     { path: "/admin/asistencia", label: "Asistencia" },
     { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
+    { path: "/admin/puestos", label: "Puestos" },
     { path: "/admin/planilla", label: "Planilla" },
     { path: "/admin/vacaciones", label: "Vacaciones" },
     { path: "/admin/prestamos", label: "Préstamos" },
@@ -55,19 +59,36 @@ const Usuarios = () => {
           onLogout={logoutUser}
         />
         <main className="flex-grow p-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             <h1 className="text-xl font-bold">Usuarios</h1>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => {
-                setError("");
-                resetForm();
-                setModalOpen(true);
-              }}
-            >
-              Agregar Usuario
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex flex-col">
+                <label htmlFor="statusFilter" className="text-sm font-semibold text-gray-700">
+                  Mostrar
+                </label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border px-2 py-1 rounded"
+                >
+                  <option value="1">Activos</option>
+                  <option value="0">Inactivos</option>
+                  <option value="todos">Todos</option>
+                </select>
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  setError("");
+                  resetForm();
+                  setModalOpen(true);
+                }}
+              >
+                Agregar Usuario
+              </Button>
+            </div>
           </div>
 
           {error && <p className="text-red-500 mb-2">{error}</p>}
@@ -89,7 +110,7 @@ const Usuarios = () => {
                 {usuarios.length === 0 && (
                   <tr>
                     <td colSpan="5" className="text-center p-2">
-                      No hay usuarios disponibles
+                      No hay usuarios {statusFilter === "todos" ? "disponibles" : "con el estado seleccionado"}
                     </td>
                   </tr>
                 )}
@@ -210,7 +231,7 @@ const Usuarios = () => {
                       required
                     >
                       <option value="">Seleccione un empleado</option>
-                      {empleados.map((empleado) => (
+                      {availableEmpleados.map((empleado) => (
                         <option key={empleado.id_empleado} value={empleado.id_empleado}>
                           {empleado.nombre} {empleado.apellido}
                         </option>

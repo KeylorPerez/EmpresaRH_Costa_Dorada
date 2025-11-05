@@ -8,7 +8,7 @@ class Liquidacion {
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
-          SELECT l.*, e.nombre, e.apellido, e.salario_base
+          SELECT l.*, e.nombre, e.apellido, e.salario_monto
           FROM Liquidaciones l
           LEFT JOIN Empleados e ON l.id_empleado = e.id_empleado
           ORDER BY l.fecha_liquidacion DESC

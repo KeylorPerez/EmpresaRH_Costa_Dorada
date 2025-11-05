@@ -81,12 +81,12 @@ const updatePlanilla = async (req, res) => {
 
     const id_empleado = planillaRes.recordset[0].id_empleado;
 
-    // 🔹 Obtener salario_base del empleado
+    // 🔹 Obtener salario_monto del empleado
     const empleadoRes = await pool.request()
       .input('id_empleado', sql.Int, id_empleado)
-      .query('SELECT salario_base FROM Empleados WHERE id_empleado = @id_empleado');
+      .query('SELECT salario_monto FROM Empleados WHERE id_empleado = @id_empleado');
 
-    const salario_base = empleadoRes.recordset[0]?.salario_base || 0;
+    const salario_base = empleadoRes.recordset[0]?.salario_monto || 0;
 
     // 🔹 Recalcular salario_bruto y pago_neto
     const salario_bruto = salario_base + bonificaciones + (horas_extras * (salario_base / 160));

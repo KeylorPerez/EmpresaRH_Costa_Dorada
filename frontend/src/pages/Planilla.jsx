@@ -51,6 +51,7 @@ const Planilla = () => {
       { path: "/admin/asistencia", label: "Asistencia" },
       { path: "/admin/usuarios", label: "Usuarios" },
       { path: "/admin/empleados", label: "Empleados" },
+      { path: "/admin/puestos", label: "Puestos" },
       { path: "/admin/planilla", label: "Planilla" },
       { path: "/admin/vacaciones", label: "Vacaciones" },
       { path: "/admin/prestamos", label: "Préstamos" },
@@ -69,7 +70,7 @@ const Planilla = () => {
     [empleados, formData.id_empleado]
   );
 
-  const salarioBase = Number(selectedEmpleado?.salario_base) || 0;
+  const salarioBase = Number(selectedEmpleado?.salario_monto) || 0;
   const horasExtras = Number(formData.horas_extras || 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
   const deducciones = Number(formData.deducciones || 0);
@@ -163,7 +164,7 @@ const Planilla = () => {
                           {formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
-                          {formatCurrency(planilla.salario_base)}
+                          {formatCurrency(planilla.salario_monto)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
                           {planilla.horas_extras ?? 0}
