@@ -5,6 +5,7 @@ import DashboardAdmin from "../pages/DashboardAdmin";
 import DashboardEmpleado from "../pages/DashboardEmpleado";
 import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
+import Puestos from "../pages/Puestos";
 import Planilla from "../pages/Planilla";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
@@ -54,6 +55,16 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <Empleados />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Módulo de puestos (solo admins) */}
+      <Route
+        path="/admin/puestos"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Puestos />
           </PrivateRoute>
         }
       />

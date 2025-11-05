@@ -19,6 +19,7 @@ export const useUsuario = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [formData, setFormData] = useState(() => createInitialFormState());
+  const [statusFilter, setStatusFilter] = useState("1");
 
   useEffect(() => {
     fetchUsuarios();
@@ -88,6 +89,17 @@ export const useUsuario = () => {
         return;
       }
 
+      const empleadoAsignado = usuarios.find(
+        (usuario) =>
+          usuario.id_empleado === Number(formData.id_empleado) &&
+          (!editingUsuario || usuario.id_usuario !== editingUsuario.id_usuario)
+      );
+
+      if (empleadoAsignado) {
+        setError("El empleado seleccionado ya está asociado a otro usuario");
+        return;
+      }
+
       const payload = buildPayload();
 
       if (!editingUsuario && !payload.password) {
@@ -147,10 +159,34 @@ export const useUsuario = () => {
     []
   );
 
+  const availableEmpleados = useMemo(() => {
+    const empleadosOcupados = new Set(
+      usuarios
+        .filter(
+          (usuario) =>
+            usuario.id_empleado != null &&
+            (!editingUsuario || usuario.id_usuario !== editingUsuario.id_usuario)
+        )
+        .map((usuario) => usuario.id_empleado)
+    );
+
+    return empleados.filter((empleado) => !empleadosOcupados.has(empleado.id_empleado));
+  }, [empleados, usuarios, editingUsuario]);
+
+  const filteredUsuarios = useMemo(() => {
+    if (statusFilter === "todos") {
+      return usuarios;
+    }
+
+    const estadoObjetivo = Number(statusFilter);
+    return usuarios.filter((usuario) => Number(usuario.estado) === estadoObjetivo);
+  }, [usuarios, statusFilter]);
+
   // === Retorno del hook ===
   return {
-    usuarios,
+    usuarios: filteredUsuarios,
     empleados,
+    availableEmpleados,
     rolesOptions,
     loading,
     error,
@@ -164,6 +200,8 @@ export const useUsuario = () => {
     handleChangeStatus,
     resetForm,
     setError,
+    statusFilter,
+    setStatusFilter,
   };
 };
 
