@@ -28,10 +28,43 @@ const getEmpleadoById = async (req, res) => {
 // Crear un nuevo empleado (solo admin)
 const createEmpleado = async (req, res) => {
   try {
-    const { nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_base } = req.body;
+    const {
+      nombre,
+      apellido,
+      id_puesto,
+      cedula,
+      fecha_nacimiento,
+      telefono,
+      email,
+      fecha_ingreso,
+      salario_base,
+      tipo_pago,
+      bonificacion_fija,
+    } = req.body;
 
-    if (!nombre || !apellido || !id_puesto || !cedula || !fecha_ingreso || !salario_base) {
+    if (
+      !nombre ||
+      !apellido ||
+      !id_puesto ||
+      !cedula ||
+      !fecha_ingreso ||
+      !salario_base ||
+      !tipo_pago
+    ) {
       return res.status(400).json({ error: 'Faltan datos requeridos' });
+    }
+
+    if (!['Diario', 'Quincenal'].includes(tipo_pago)) {
+      return res.status(400).json({ error: 'Tipo de pago inválido' });
+    }
+
+    const bonificacionValue =
+      bonificacion_fija !== undefined && bonificacion_fija !== null
+        ? Number(bonificacion_fija)
+        : 0;
+
+    if (Number.isNaN(bonificacionValue)) {
+      return res.status(400).json({ error: 'Bonificación fija inválida' });
     }
 
     const empleado = await Empleado.create({
@@ -43,7 +76,9 @@ const createEmpleado = async (req, res) => {
       telefono: telefono || null,
       email: email || null,
       fecha_ingreso,
-      salario_base
+      salario_base,
+      tipo_pago,
+      bonificacion_fija: bonificacionValue,
     });
 
     res.status(201).json({
@@ -71,8 +106,23 @@ const updateEmpleado = async (req, res) => {
       email,
       fecha_ingreso,
       salario_base,
+      tipo_pago,
+      bonificacion_fija,
       estado
     } = req.body;
+
+    if (tipo_pago && !['Diario', 'Quincenal'].includes(tipo_pago)) {
+      return res.status(400).json({ error: 'Tipo de pago inválido' });
+    }
+
+    const bonificacionValue =
+      bonificacion_fija !== undefined && bonificacion_fija !== null
+        ? Number(bonificacion_fija)
+        : null;
+
+    if (bonificacionValue !== null && Number.isNaN(bonificacionValue)) {
+      return res.status(400).json({ error: 'Bonificación fija inválida' });
+    }
 
     await Empleado.update(id, {
       nombre,
@@ -84,6 +134,8 @@ const updateEmpleado = async (req, res) => {
       email: email || null,
       fecha_ingreso,
       salario_base,
+      tipo_pago,
+      bonificacion_fija: bonificacionValue,
       estado
     });
 

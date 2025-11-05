@@ -12,6 +12,8 @@ const createEmptyFormData = () => ({
   email: "",
   fecha_ingreso: "",
   salario_base: "",
+  tipo_pago: "Diario",
+  bonificacion_fija: "0",
   estado: "1", // 👈 por defecto activo
 });
 
@@ -66,9 +68,16 @@ export const useEmpleado = () => {
         !formData.id_puesto ||
         !formData.cedula ||
         !formData.fecha_ingreso ||
-        !formData.salario_base
+        !formData.salario_base ||
+        !formData.tipo_pago
       ) {
         setError("Por favor completa los campos obligatorios");
+        return;
+      }
+
+      const bonificacionValue = Number(formData.bonificacion_fija || 0);
+      if (Number.isNaN(bonificacionValue)) {
+        setError("La bonificación fija debe ser un número válido");
         return;
       }
 
@@ -79,6 +88,8 @@ export const useEmpleado = () => {
         cedula: formData.cedula.trim(),
         fecha_ingreso: formData.fecha_ingreso,
         salario_base: Number(formData.salario_base),
+        tipo_pago: formData.tipo_pago,
+        bonificacion_fija: bonificacionValue,
       };
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
@@ -116,6 +127,11 @@ export const useEmpleado = () => {
         empleado.salario_base !== undefined && empleado.salario_base !== null
           ? String(empleado.salario_base)
           : "",
+      tipo_pago: empleado.tipo_pago || "Diario",
+      bonificacion_fija:
+        empleado.bonificacion_fija !== undefined && empleado.bonificacion_fija !== null
+          ? String(empleado.bonificacion_fija)
+          : "0",
       estado:
         empleado.estado !== undefined && empleado.estado !== null
           ? String(Number(empleado.estado))
