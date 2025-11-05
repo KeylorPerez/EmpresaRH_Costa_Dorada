@@ -161,7 +161,10 @@ const Empleados = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(emp.salario_base)}
+                            {formatCurrency(emp.salario_monto)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">
+                            {formatCurrency(emp.bonificacion_fija)}
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-900">
                             {formatCurrency(emp.bonificacion_fija)}
@@ -304,11 +307,11 @@ const Empleados = () => {
                     </div>
                     <FormField
                       label="Salario base"
-                      name="salario_base"
+                      name="salario_monto"
                       type="number"
                       step="0.01"
                       min="0"
-                      value={formData.salario_base}
+                      value={formData.salario_monto}
                       onChange={handleChange}
                       required
                     />

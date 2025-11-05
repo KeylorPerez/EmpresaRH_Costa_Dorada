@@ -11,7 +11,7 @@ const createEmptyFormData = () => ({
   telefono: "",
   email: "",
   fecha_ingreso: "",
-  salario_base: "",
+  salario_monto: "",
   tipo_pago: "Diario",
   bonificacion_fija: "0",
   estado: "1", // 👈 por defecto activo
@@ -68,7 +68,7 @@ export const useEmpleado = () => {
         !formData.id_puesto ||
         !formData.cedula ||
         !formData.fecha_ingreso ||
-        !formData.salario_base ||
+        !formData.salario_monto ||
         !formData.tipo_pago
       ) {
         setError("Por favor completa los campos obligatorios");
@@ -87,7 +87,7 @@ export const useEmpleado = () => {
         id_puesto: Number(formData.id_puesto),
         cedula: formData.cedula.trim(),
         fecha_ingreso: formData.fecha_ingreso,
-        salario_base: Number(formData.salario_base),
+        salario_monto: Number(formData.salario_monto),
         tipo_pago: formData.tipo_pago,
         bonificacion_fija: bonificacionValue,
       };
@@ -123,9 +123,9 @@ export const useEmpleado = () => {
       telefono: empleado.telefono || "",
       email: empleado.email || "",
       fecha_ingreso: normalizeDate(empleado.fecha_ingreso),
-      salario_base:
-        empleado.salario_base !== undefined && empleado.salario_base !== null
-          ? String(empleado.salario_base)
+      salario_monto:
+        empleado.salario_monto !== undefined && empleado.salario_monto !== null
+          ? String(empleado.salario_monto)
           : "",
       tipo_pago: empleado.tipo_pago || "Diario",
       bonificacion_fija:

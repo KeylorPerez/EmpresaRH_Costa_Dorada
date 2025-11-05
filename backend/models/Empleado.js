@@ -46,7 +46,7 @@ class Empleado {
     telefono,
     email,
     fecha_ingreso,
-    salario_base,
+    salario_monto,
     tipo_pago,
     bonificacion_fija,
   }) {
@@ -61,12 +61,15 @@ class Empleado {
         .input('telefono', sql.VarChar(30), telefono || null)
         .input('email', sql.VarChar(150), email || null)
         .input('fecha_ingreso', sql.Date, fecha_ingreso)
-        .input('salario_base', sql.Decimal(12, 2), salario_base)
+        .input('salario_monto', sql.Decimal(12, 2), salario_monto)
         .input('tipo_pago', sql.NVarChar(20), tipo_pago)
         .input('bonificacion_fija', sql.Decimal(10, 2), bonificacion_fija)
         .query(`
-          INSERT INTO Empleados (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_base, tipo_pago, bonificacion_fija, estado, created_at, updated_at)
-          VALUES (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_base, @tipo_pago, @bonificacion_fija, 1, GETDATE(), GETDATE());
+          INSERT INTO Empleados 
+          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, estado, created_at, updated_at)
+          VALUES 
+          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, 1, GETDATE(), GETDATE());
+          
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
       return result.recordset[0];
@@ -87,7 +90,7 @@ class Empleado {
       telefono,
       email,
       fecha_ingreso,
-      salario_base,
+      salario_monto,
       tipo_pago,
       bonificacion_fija,
       estado,
@@ -105,25 +108,26 @@ class Empleado {
         .input('telefono', sql.VarChar(30), telefono || null)
         .input('email', sql.VarChar(150), email || null)
         .input('fecha_ingreso', sql.Date, fecha_ingreso)
-        .input('salario_base', sql.Decimal(12, 2), salario_base)
+        .input('salario_monto', sql.Decimal(12, 2), salario_monto)
         .input('tipo_pago', sql.NVarChar(20), tipo_pago !== undefined ? tipo_pago : null)
         .input('bonificacion_fija', sql.Decimal(10, 2), bonificacion_fija !== undefined ? bonificacion_fija : null)
         .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
           UPDATE Empleados
-          SET nombre = @nombre,
-              apellido = @apellido,
-              id_puesto = @id_puesto,
-              cedula = @cedula,
-              fecha_nacimiento = @fecha_nacimiento,
-              telefono = @telefono,
-              email = @email,
-              fecha_ingreso = @fecha_ingreso,
-              salario_base = @salario_base,
-              tipo_pago = COALESCE(@tipo_pago, tipo_pago),
-              bonificacion_fija = COALESCE(@bonificacion_fija, bonificacion_fija),
-              estado = COALESCE(@estado, estado),
-              updated_at = GETDATE()
+          SET 
+            nombre = @nombre,
+            apellido = @apellido,
+            id_puesto = @id_puesto,
+            cedula = @cedula,
+            fecha_nacimiento = @fecha_nacimiento,
+            telefono = @telefono,
+            email = @email,
+            fecha_ingreso = @fecha_ingreso,
+            salario_monto = @salario_monto,
+            tipo_pago = COALESCE(@tipo_pago, tipo_pago),
+            bonificacion_fija = COALESCE(@bonificacion_fija, bonificacion_fija),
+            estado = COALESCE(@estado, estado),
+            updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
         `);
       return { message: 'Empleado actualizado' };
@@ -170,3 +174,4 @@ class Empleado {
 }
 
 module.exports = Empleado;
+

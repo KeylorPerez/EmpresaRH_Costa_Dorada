@@ -37,7 +37,7 @@ const createEmpleado = async (req, res) => {
       telefono,
       email,
       fecha_ingreso,
-      salario_base,
+      salario_monto,
       tipo_pago,
       bonificacion_fija,
     } = req.body;
@@ -48,7 +48,7 @@ const createEmpleado = async (req, res) => {
       !id_puesto ||
       !cedula ||
       !fecha_ingreso ||
-      !salario_base ||
+      !salario_monto ||
       !tipo_pago
     ) {
       return res.status(400).json({ error: 'Faltan datos requeridos' });
@@ -76,7 +76,7 @@ const createEmpleado = async (req, res) => {
       telefono: telefono || null,
       email: email || null,
       fecha_ingreso,
-      salario_base,
+      salario_monto,
       tipo_pago,
       bonificacion_fija: bonificacionValue,
     });
@@ -105,7 +105,7 @@ const updateEmpleado = async (req, res) => {
       telefono,
       email,
       fecha_ingreso,
-      salario_base,
+      salario_monto,
       tipo_pago,
       bonificacion_fija,
       estado
@@ -133,7 +133,7 @@ const updateEmpleado = async (req, res) => {
       telefono: telefono || null,
       email: email || null,
       fecha_ingreso,
-      salario_base,
+      salario_monto,
       tipo_pago,
       bonificacion_fija: bonificacionValue,
       estado

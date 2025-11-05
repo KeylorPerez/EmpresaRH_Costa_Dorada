@@ -7,7 +7,7 @@ class Planilla {
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
-          SELECT pl.*, e.nombre, e.apellido, e.salario_base
+          SELECT pl.*, e.nombre, e.apellido, e.salario_monto
           FROM Planilla pl
           LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
           ORDER BY pl.periodo_inicio DESC
@@ -41,11 +41,11 @@ class Planilla {
     try {
       const pool = await poolPromise;
 
-      // obtener salario_base
+      // obtener salario_monto
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
-        .query('SELECT salario_base FROM Empleados WHERE id_empleado = @id_empleado');
-      const salario_base = empleadoRes.recordset[0]?.salario_base || 0;
+        .query('SELECT salario_monto FROM Empleados WHERE id_empleado = @id_empleado');
+      const salario_base = empleadoRes.recordset[0]?.salario_monto || 0;
 
       // calcular bruto y neto
       const salario_bruto = salario_base + bonificaciones + (horas_extras * (salario_base / 160)); // ejemplo: 160h/mes
