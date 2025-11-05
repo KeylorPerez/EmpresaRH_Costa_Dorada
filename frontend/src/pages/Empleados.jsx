@@ -166,6 +166,9 @@ const Empleados = () => {
                           <td className="px-4 py-3 font-semibold text-gray-900">
                             {formatCurrency(emp.bonificacion_fija)}
                           </td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">
+                            {formatCurrency(emp.bonificacion_fija)}
+                          </td>
                           <td className="px-4 py-3">
                             <span
                               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
