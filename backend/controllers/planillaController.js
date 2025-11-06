@@ -35,7 +35,16 @@ const calcularPlanilla = async (req, res) => {
     if (!user) return res.status(401).json({ error: 'No autenticado' });
     if (user.id_rol !== 1) return res.status(403).json({ error: 'Solo admin puede calcular planilla' });
 
-    const { id_empleado, periodo_inicio, periodo_fin, horas_extras = 0, bonificaciones = 0, deducciones = 0, fecha_pago } = req.body;
+    const {
+      id_empleado,
+      periodo_inicio,
+      periodo_fin,
+      horas_extras = 0,
+      bonificaciones = 0,
+      deducciones = 0,
+      fecha_pago,
+      prestamos = [],
+    } = req.body;
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
       return res.status(400).json({ error: 'Faltan datos requeridos: id_empleado, periodo_inicio y periodo_fin' });
@@ -50,7 +59,8 @@ const calcularPlanilla = async (req, res) => {
       horas_extras,
       bonificaciones,
       deducciones,
-      fecha_pago: fechaPagoFinal
+      fecha_pago: fechaPagoFinal,
+      prestamos,
     });
 
     return res.status(201).json({
