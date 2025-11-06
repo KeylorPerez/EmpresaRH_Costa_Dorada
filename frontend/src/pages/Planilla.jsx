@@ -275,10 +275,10 @@ const Planilla = () => {
                   </Button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex h-full flex-col">
+                <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
                   <div
                     ref={modalScrollRef}
-                    className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+                    className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"
                   >
                     {error && (
                       <p className="text-red-500 text-sm bg-red-100 border border-red-200 px-3 py-2 rounded-lg">
