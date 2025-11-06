@@ -50,6 +50,25 @@ class Planilla {
     try {
       const pool = await poolPromise;
 
+      // Verificar si ya existe una planilla que cubra el mismo periodo
+      const existingPlanilla = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('periodo_inicio', sql.Date, periodo_inicio)
+        .input('periodo_fin', sql.Date, periodo_fin)
+        .query(`
+          SELECT id_planilla
+          FROM Planilla
+          WHERE id_empleado = @id_empleado
+            AND periodo_inicio <= @periodo_fin
+            AND periodo_fin >= @periodo_inicio
+        `);
+
+      if (existingPlanilla.recordset.length > 0) {
+        const error = new Error('Ya existe una planilla registrada para este periodo');
+        error.statusCode = 409;
+        throw error;
+      }
+
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`

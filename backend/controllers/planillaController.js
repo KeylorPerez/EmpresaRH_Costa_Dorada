@@ -68,6 +68,9 @@ const calcularPlanilla = async (req, res) => {
       id_planilla: planilla.id_planilla
     });
   } catch (err) {
+    if (err.statusCode === 409) {
+      return res.status(409).json({ error: err.message });
+    }
     return res.status(500).json({ error: err.message });
   }
 };

@@ -14,6 +14,37 @@ const createEmptyForm = (defaults = {}) => ({
   ...defaults,
 });
 
+const parseDateSafe = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
+  const inicioDate = parseDateSafe(inicio);
+  const finDate = parseDateSafe(fin);
+
+  if (!inicioDate || !finDate) {
+    return false;
+  }
+
+  return planillas.some((planilla) => {
+    if (Number(planilla.id_empleado) !== Number(idEmpleado)) {
+      return false;
+    }
+
+    const planillaInicio = parseDateSafe(planilla.periodo_inicio);
+    const planillaFin = parseDateSafe(planilla.periodo_fin);
+
+    if (!planillaInicio || !planillaFin) {
+      return false;
+    }
+
+    return !(finDate < planillaInicio || inicioDate > planillaFin);
+  });
+};
+
 export const usePlanilla = () => {
   const [planillas, setPlanillas] = useState([]);
   const [empleados, setEmpleados] = useState([]);
@@ -241,6 +272,18 @@ export const usePlanilla = () => {
           return;
         }
 
+        if (
+          hasOverlappingPlanilla(
+            planillas,
+            formData.id_empleado,
+            formData.periodo_inicio,
+            formData.periodo_fin
+          )
+        ) {
+          setError("Este colaborador ya tiene una planilla generada para el periodo seleccionado");
+          return;
+        }
+
         const prestamosPayload = prestamosSeleccionados.map((prestamo) => {
           if (prestamo.monto_pago > prestamo.saldo_actual) {
             throw new Error("El monto de pago supera el saldo disponible del préstamo");
@@ -283,7 +326,12 @@ export const usePlanilla = () => {
       await fetchPrestamos();
     } catch (err) {
       console.error(err);
-      const message = err.response?.data?.error || err.message || "Error al guardar la planilla";
+      const isConflict = err.response?.status === 409;
+      const message = err.response?.data?.error ||
+        (isConflict
+          ? "Este colaborador ya tiene una planilla registrada en ese periodo"
+          : err.message) ||
+        "Error al guardar la planilla";
       setError(message);
     }
   };
