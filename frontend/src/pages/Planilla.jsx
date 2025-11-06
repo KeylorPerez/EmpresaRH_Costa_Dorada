@@ -15,6 +15,16 @@ const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
 const formatDate = (value) => {
   if (!value) return "-";
+
+  if (typeof value === "string") {
+    const [datePart] = value.split("T");
+
+    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      const [year, month, day] = datePart.split("-");
+      return `${day}/${month}/${year}`;
+    }
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
@@ -142,6 +152,7 @@ const Planilla = () => {
             </article>
           </section>
 
+          {/* Tabla */}
           <section className="bg-white shadow rounded-xl overflow-hidden">
             {loading ? (
               <p className="p-6">Cargando planillas...</p>
@@ -169,41 +180,41 @@ const Planilla = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {planillas.map((planilla) => (
                       <tr key={planilla.id_planilla} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 whitespace-nowrap">
-                          <p className="text-sm font-medium text-gray-800">
-                            {planilla.nombre ? `${planilla.nombre} ${planilla.apellido}` : planilla.id_empleado}
-                          </p>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
+                          {planilla.nombre
+                            ? `${planilla.nombre} ${planilla.apellido}`
+                            : planilla.id_empleado}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
                           {formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.salario_monto)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {planilla.horas_extras ?? 0}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.bonificaciones)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.ccss_deduccion)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.deducciones)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(
                             Number(planilla.deducciones || 0) + Number(planilla.ccss_deduccion || 0)
                           )}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                        <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.salario_bruto)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-800 font-semibold">
+                        <td className="px-4 py-2 text-right text-sm font-semibold text-gray-800">
                           {formatCurrency(planilla.pago_neto)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-4 py-2 text-sm text-gray-600">
                           {planilla.fecha_pago ? formatDate(planilla.fecha_pago) : "Pendiente"}
                         </td>
                         <td className="px-4 py-2 text-center">
@@ -241,8 +252,8 @@ const Planilla = () => {
                     )}
 
                     {/* Campos */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-2 md:col-span-3">
                         <label htmlFor="id_empleado" className="text-sm font-medium text-gray-700">
                           Empleado
                         </label>
@@ -251,41 +262,17 @@ const Planilla = () => {
                           name="id_empleado"
                           value={formData.id_empleado}
                           onChange={handleChange}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                           disabled={Boolean(editingPlanilla)}
                           required={!editingPlanilla}
                         >
                           <option value="">Selecciona un empleado</option>
                           {empleados.map((empleado) => (
                             <option key={empleado.id_empleado} value={empleado.id_empleado}>
-                              {empleado.nombre && empleado.apellido
-                                ? `${empleado.nombre} ${empleado.apellido}`
-                                : empleado.identificacion
-                                ? `${empleado.identificacion} - Empleado ${empleado.id_empleado}`
-                                : `Empleado ${empleado.id_empleado}`}
+                              {empleado.nombre} {empleado.apellido}
                             </option>
                           ))}
                         </select>
-                        {!empleados.length && (
-                          <p className="text-xs text-amber-600">
-                            No hay empleados registrados. Debes registrar empleados antes de generar la
-                            planilla.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="fecha_pago" className="text-sm font-medium text-gray-700">
-                          Fecha de pago
-                        </label>
-                        <input
-                          type="date"
-                          id="fecha_pago"
-                          name="fecha_pago"
-                          value={formData.fecha_pago}
-                          onChange={handleChange}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
                       </div>
 
                       <div className="flex flex-col gap-2">
@@ -298,7 +285,7 @@ const Planilla = () => {
                           name="periodo_inicio"
                           value={formData.periodo_inicio}
                           onChange={handleChange}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                           disabled={Boolean(editingPlanilla)}
                           required={!editingPlanilla}
                         />
@@ -314,9 +301,23 @@ const Planilla = () => {
                           name="periodo_fin"
                           value={formData.periodo_fin}
                           onChange={handleChange}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                           disabled={Boolean(editingPlanilla)}
                           required={!editingPlanilla}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="fecha_pago" className="text-sm font-medium text-gray-700">
+                          Fecha de pago
+                        </label>
+                        <input
+                          type="date"
+                          id="fecha_pago"
+                          name="fecha_pago"
+                          value={formData.fecha_pago}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
@@ -332,7 +333,7 @@ const Planilla = () => {
                           name="horas_extras"
                           value={formData.horas_extras}
                           onChange={handleChange}
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
@@ -340,42 +341,32 @@ const Planilla = () => {
                         <label htmlFor="bonificaciones" className="text-sm font-medium text-gray-700">
                           Bonificaciones
                         </label>
-                        <div className="relative">
-                          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
-                            ₡
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            id="bonificaciones"
-                            name="bonificaciones"
-                            value={formData.bonificaciones}
-                            onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 pl-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          id="bonificaciones"
+                          name="bonificaciones"
+                          value={formData.bonificaciones}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                        />
                       </div>
 
                       <div className="flex flex-col gap-2">
                         <label htmlFor="deducciones" className="text-sm font-medium text-gray-700">
                           Deducciones manuales
                         </label>
-                        <div className="relative">
-                          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
-                            ₡
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            id="deducciones"
-                            name="deducciones"
-                            value={formData.deducciones}
-                            onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 pl-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          id="deducciones"
+                          name="deducciones"
+                          value={formData.deducciones}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                        />
                       </div>
                     </div>
 
