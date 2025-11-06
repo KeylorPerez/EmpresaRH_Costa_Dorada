@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
@@ -11,8 +11,42 @@ const createEmptyForm = (defaults = {}) => ({
   bonificaciones: "0",
   deducciones: "0",
   fecha_pago: "",
+  dias_trabajados: "",
+  dias_descuento: "0",
+  monto_descuento_dias: "",
   ...defaults,
 });
+
+const parseDateSafe = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
+  const inicioDate = parseDateSafe(inicio);
+  const finDate = parseDateSafe(fin);
+
+  if (!inicioDate || !finDate) {
+    return false;
+  }
+
+  return planillas.some((planilla) => {
+    if (Number(planilla.id_empleado) !== Number(idEmpleado)) {
+      return false;
+    }
+
+    const planillaInicio = parseDateSafe(planilla.periodo_inicio);
+    const planillaFin = parseDateSafe(planilla.periodo_fin);
+
+    if (!planillaInicio || !planillaFin) {
+      return false;
+    }
+
+    return !(finDate < planillaInicio || inicioDate > planillaFin);
+  });
+};
 
 export const usePlanilla = () => {
   const [planillas, setPlanillas] = useState([]);
@@ -24,6 +58,10 @@ export const usePlanilla = () => {
   const [editingPlanilla, setEditingPlanilla] = useState(null);
   const [formData, setFormData] = useState(() => createEmptyForm(calculateQuincenaDefaults()));
   const [prestamoSelections, setPrestamoSelections] = useState({});
+  const [attendanceState, setAttendanceState] = useState({ loading: false, dias: null, error: "" });
+  const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
+  const autoDiasRef = useRef(null);
+  const autoMontoDescuentoRef = useRef(null);
 
   useEffect(() => {
     fetchPlanillas();
@@ -65,6 +103,26 @@ export const usePlanilla = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === "id_empleado") {
+      autoDiasRef.current = null;
+      autoMontoDescuentoRef.current = null;
+      setAttendanceState({ loading: false, dias: null, error: "" });
+      setFormData((prev) => ({
+        ...prev,
+        id_empleado: value,
+        dias_trabajados: "",
+        dias_descuento: "0",
+        monto_descuento_dias: "",
+      }));
+      return;
+    }
+
+    if (name === "periodo_inicio" || name === "periodo_fin") {
+      autoDiasRef.current = null;
+      setAttendanceState((prev) => ({ ...prev, dias: null, error: "" }));
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -73,6 +131,10 @@ export const usePlanilla = () => {
     setEditingPlanilla(null);
     setError("");
     setPrestamoSelections({});
+    setAttendanceState({ loading: false, dias: null, error: "" });
+    setAttendanceReloadKey(0);
+    autoDiasRef.current = null;
+    autoMontoDescuentoRef.current = null;
   };
 
   const openCreateModal = () => {
@@ -90,6 +152,9 @@ export const usePlanilla = () => {
       bonificaciones: normalizeNumber(planilla.bonificaciones),
       deducciones: normalizeNumber(planilla.deducciones),
       fecha_pago: normalizeDate(planilla.fecha_pago),
+      dias_trabajados: "",
+      dias_descuento: "0",
+      monto_descuento_dias: "",
     });
     setError("");
     setModalOpen(true);
@@ -220,10 +285,187 @@ export const usePlanilla = () => {
     });
   }, [modalOpen, editingPlanilla, formData.id_empleado, empleados]);
 
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+
+    if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
+      setAttendanceState((prev) => {
+        if (!prev.loading && prev.dias === null && !prev.error) {
+          return prev;
+        }
+        return { loading: false, dias: null, error: "" };
+      });
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === formData.id_empleado
+    );
+
+    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Diario") {
+      setAttendanceState((prev) => {
+        if (!prev.loading && prev.dias === null && !prev.error) {
+          return prev;
+        }
+        return { loading: false, dias: null, error: "" };
+      });
+      return;
+    }
+
+    const inicio = parseDateSafe(formData.periodo_inicio);
+    const fin = parseDateSafe(formData.periodo_fin);
+
+    if (!inicio || !fin || fin < inicio) {
+      setAttendanceState((prev) => ({ ...prev, dias: null }));
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchDias = async () => {
+      setAttendanceState((prev) => ({ ...prev, loading: true, error: "" }));
+      try {
+        const data = await planillaService.getAttendanceSummary({
+          id_empleado: formData.id_empleado,
+          periodo_inicio: formData.periodo_inicio,
+          periodo_fin: formData.periodo_fin,
+        });
+
+        if (cancelled) return;
+
+        const dias = Number(data?.dias) || 0;
+        const previousAuto = autoDiasRef.current;
+        autoDiasRef.current = dias;
+
+        setAttendanceState({ loading: false, dias, error: "" });
+
+        setFormData((prev) => {
+          const actualNumero = Number(prev.dias_trabajados);
+          if (
+            prev.dias_trabajados === "" ||
+            Number.isNaN(actualNumero) ||
+            actualNumero === previousAuto
+          ) {
+            return { ...prev, dias_trabajados: dias ? dias.toString() : "0" };
+          }
+          return prev;
+        });
+      } catch (err) {
+        if (cancelled) return;
+        console.error(err);
+        setAttendanceState({
+          loading: false,
+          dias: null,
+          error: "No fue posible obtener los días de asistencia",
+        });
+      }
+    };
+
+    fetchDias();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    empleados,
+    attendanceReloadKey,
+  ]);
+
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === formData.id_empleado
+    );
+
+    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Quincenal") {
+      return;
+    }
+
+    const dias = Number(formData.dias_descuento);
+    if (!Number.isFinite(dias) || dias < 0) {
+      return;
+    }
+
+    const salarioBase = Number(empleadoSeleccionado.salario_monto) || 0;
+    if (salarioBase <= 0) {
+      return;
+    }
+
+    const montoCalculado = salarioBase / 15 * dias;
+    if (!Number.isFinite(montoCalculado)) {
+      return;
+    }
+
+    const montoRedondeado = Number(montoCalculado.toFixed(2));
+    const montoTexto = montoRedondeado.toFixed(2);
+    const previousAuto = autoMontoDescuentoRef.current;
+    autoMontoDescuentoRef.current = montoRedondeado;
+
+    setFormData((prev) => {
+      const actualNumero = Number(prev.monto_descuento_dias);
+      if (
+        prev.monto_descuento_dias === "" ||
+        Number.isNaN(actualNumero) ||
+        actualNumero === previousAuto
+      ) {
+        return { ...prev, monto_descuento_dias: montoTexto };
+      }
+      return prev;
+    });
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData.dias_descuento,
+    formData.id_empleado,
+    empleados,
+  ]);
+
   const buildNumber = (value) => {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? 0 : parsed;
   };
+
+  const parseNonNegative = (value) => {
+    const parsed = Number(value);
+    if (Number.isNaN(parsed) || parsed < 0) return 0;
+    return parsed;
+  };
+
+  const parseOptionalNonNegative = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    return parseNonNegative(value);
+  };
+
+  const refreshAttendance = useCallback(() => {
+    if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
+      setAttendanceState((prev) => ({
+        ...prev,
+        error: "Selecciona empleado y fechas para consultar asistencia",
+      }));
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === formData.id_empleado
+    );
+
+    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Diario") {
+      setAttendanceState((prev) => ({
+        ...prev,
+        error: "La asistencia automática solo aplica para colaboradores con pago diario",
+      }));
+      return;
+    }
+
+    setAttendanceState((prev) => ({ ...prev, error: "" }));
+    setAttendanceReloadKey((key) => key + 1);
+  }, [empleados, formData.id_empleado, formData.periodo_inicio, formData.periodo_fin]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -238,6 +480,18 @@ export const usePlanilla = () => {
 
         if (new Date(formData.periodo_fin) < new Date(formData.periodo_inicio)) {
           setError("La fecha fin debe ser mayor o igual a la fecha inicio");
+          return;
+        }
+
+        if (
+          hasOverlappingPlanilla(
+            planillas,
+            formData.id_empleado,
+            formData.periodo_inicio,
+            formData.periodo_fin
+          )
+        ) {
+          setError("Este colaborador ya tiene una planilla generada para el periodo seleccionado");
           return;
         }
 
@@ -263,6 +517,9 @@ export const usePlanilla = () => {
           deducciones: deduccionesManuales,
           fecha_pago: formData.fecha_pago || null,
           prestamos: prestamosPayload,
+          dias_trabajados: parseOptionalNonNegative(formData.dias_trabajados),
+          dias_descuento: parseNonNegative(formData.dias_descuento),
+          monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
         };
 
         await planillaService.create(payload);
@@ -283,7 +540,12 @@ export const usePlanilla = () => {
       await fetchPrestamos();
     } catch (err) {
       console.error(err);
-      const message = err.response?.data?.error || err.message || "Error al guardar la planilla";
+      const isConflict = err.response?.status === 409;
+      const message = err.response?.data?.error ||
+        (isConflict
+          ? "Este colaborador ya tiene una planilla registrada en ese periodo"
+          : err.message) ||
+        "Error al guardar la planilla";
       setError(message);
     }
   };
@@ -325,6 +587,8 @@ export const usePlanilla = () => {
     togglePrestamo,
     updateMontoPrestamo,
     totalPrestamosSeleccionados,
+    attendanceState,
+    refreshAttendance,
   };
 };
 

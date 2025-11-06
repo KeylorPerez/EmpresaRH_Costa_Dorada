@@ -1,4 +1,5 @@
 const { poolPromise, sql } = require('../db/db');
+const Asistencia = require('./Asistencia');
 
 class Planilla {
   // 🔹 Obtener todas las planillas (admin)
@@ -46,14 +47,36 @@ class Planilla {
     deducciones = 0,
     fecha_pago = null,
     prestamos = [],
+    dias_trabajados = null,
+    dias_descuento = 0,
+    monto_descuento_dias = null,
   }) {
     try {
       const pool = await poolPromise;
 
+      // Verificar si ya existe una planilla que cubra el mismo periodo
+      const existingPlanilla = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('periodo_inicio', sql.Date, periodo_inicio)
+        .input('periodo_fin', sql.Date, periodo_fin)
+        .query(`
+          SELECT id_planilla
+          FROM Planilla
+          WHERE id_empleado = @id_empleado
+            AND periodo_inicio <= @periodo_fin
+            AND periodo_fin >= @periodo_inicio
+        `);
+
+      if (existingPlanilla.recordset.length > 0) {
+        const error = new Error('Ya existe una planilla registrada para este periodo');
+        error.statusCode = 409;
+        throw error;
+      }
+
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago
           FROM Empleados
           WHERE id_empleado = @id_empleado
         `);
@@ -66,6 +89,74 @@ class Planilla {
           : 9.34;
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
+      const tipo_pago = empleado.tipo_pago || 'Quincenal';
+
+      const HORAS_POR_DIA = 8;
+      const DIAS_POR_QUINCENA = 15;
+      const HORAS_POR_QUINCENA = HORAS_POR_DIA * DIAS_POR_QUINCENA;
+
+      let diasTrabajadosCalculados = null;
+      if (dias_trabajados === null || dias_trabajados === undefined) {
+        diasTrabajadosCalculados = null;
+      } else {
+        const diasValor = Number(dias_trabajados);
+        diasTrabajadosCalculados = Number.isFinite(diasValor) && diasValor >= 0 ? diasValor : 0;
+      }
+
+      const diasDescuentoValor = (() => {
+        const valor = Number(dias_descuento);
+        if (!Number.isFinite(valor) || valor <= 0) return 0;
+        return valor;
+      })();
+
+      const montoDescuentoDiasValor = (() => {
+        if (monto_descuento_dias === null || monto_descuento_dias === undefined) return null;
+        const valor = Number(monto_descuento_dias);
+        if (!Number.isFinite(valor) || valor < 0) return null;
+        return valor;
+      })();
+
+      let salarioBasePeriodo = salario_base;
+      let deduccionDiasMonto = 0;
+
+      if (tipo_pago === 'Diario') {
+        let diasParaPago = diasTrabajadosCalculados;
+
+        if (diasParaPago === null) {
+          const diasAsistencia = await Asistencia.countDistinctDays(id_empleado, periodo_inicio, periodo_fin);
+          diasParaPago = diasAsistencia;
+        }
+
+        if (!Number.isFinite(diasParaPago) || diasParaPago < 0) {
+          diasParaPago = 0;
+        }
+
+        salarioBasePeriodo = Number((salario_base * diasParaPago).toFixed(2));
+      } else {
+        const salarioDiarioEstimado = salario_base > 0 ? salario_base / DIAS_POR_QUINCENA : 0;
+
+        if (montoDescuentoDiasValor !== null) {
+          deduccionDiasMonto = montoDescuentoDiasValor;
+        } else if (diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
+          deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
+        }
+
+        if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+          deduccionDiasMonto = 0;
+        }
+
+        deduccionDiasMonto = Number(Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2));
+      }
+
+      const horasExtrasNumber = Math.max(Number(horas_extras) || 0, 0);
+      const bonificacionesNumber = Math.max(Number(bonificaciones) || 0, 0);
+      const deduccionesBase = Math.max(Number(deducciones) || 0, 0);
+
+      const horasPorBase = tipo_pago === 'Diario' ? HORAS_POR_DIA : HORAS_POR_QUINCENA;
+      const valorHora = horasPorBase > 0 ? salario_base / horasPorBase : 0;
+      const pagoHorasExtras = Number((horasExtrasNumber * valorHora).toFixed(2));
+
+      const salario_bruto_base = Number((salarioBasePeriodo + bonificacionesNumber + pagoHorasExtras).toFixed(2));
 
       const prestamosValidos = Array.isArray(prestamos)
         ? prestamos
@@ -86,17 +177,13 @@ class Planilla {
         0
       );
 
-      const horasExtrasNumber = Number(horas_extras) || 0;
-      const bonificacionesNumber = Number(bonificaciones) || 0;
-      const deduccionesBase = Number(deducciones) || 0;
-
-      const salario_bruto = salario_base + bonificacionesNumber + (horasExtrasNumber * (salario_base / 160));
+      const ccssBase = Math.max(salario_bruto_base - deduccionDiasMonto, 0);
       const ccss_deduccion = usa_deduccion_fija
         ? deduccion_fija
-        : Number((salario_bruto * (porcentaje_ccss / 100)).toFixed(2));
-      const deducciones_totales = Number((deduccionesBase + deduccionesPrestamos).toFixed(2));
-      const total_deducciones_para_pago = deducciones_totales + ccss_deduccion;
-      const pago_neto = salario_bruto - total_deducciones_para_pago;
+        : Number((ccssBase * (porcentaje_ccss / 100)).toFixed(2));
+      const deducciones_totales = Number((deduccionesBase + deduccionesPrestamos + deduccionDiasMonto).toFixed(2));
+      const total_deducciones_para_pago = Number((deducciones_totales + ccss_deduccion).toFixed(2));
+      const pago_neto = Number((salario_bruto_base - total_deducciones_para_pago).toFixed(2));
 
       const transaction = new sql.Transaction(pool);
       await transaction.begin();

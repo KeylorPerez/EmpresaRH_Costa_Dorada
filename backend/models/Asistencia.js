@@ -20,6 +20,31 @@ class Asistencia {
     }
   }
 
+  static async countDistinctDays(id_empleado, startDate, endDate) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('start', sql.Date, startDate)
+        .input('end', sql.Date, endDate)
+        .query(`
+          SELECT COUNT(DISTINCT fecha) AS dias
+          FROM Asistencia
+          WHERE id_empleado = @id_empleado
+            AND fecha BETWEEN @start AND @end
+        `);
+
+      const dias = Number(result.recordset[0]?.dias);
+      if (!Number.isFinite(dias) || dias < 0) {
+        return 0;
+      }
+
+      return dias;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // Obtener marcas por empleado
   static async getByEmpleado(id_empleado) {
     try {

@@ -55,6 +55,8 @@ const Planilla = () => {
     togglePrestamo,
     updateMontoPrestamo,
     totalPrestamosSeleccionados,
+    attendanceState,
+    refreshAttendance,
   } = usePlanilla();
 
   const isEditing = Boolean(editingPlanilla);
@@ -101,27 +103,64 @@ const Planilla = () => {
     [empleados, formData.id_empleado]
   );
 
-  const salarioBase = Number(selectedEmpleado?.salario_monto) || 0;
+  const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
+  const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
   const horasExtras = Number(formData.horas_extras || 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
   const deduccionesManualInput = Number(formData.deducciones || 0);
-  const valorHora = salarioBase ? salarioBase / 160 : 0;
+  const diasTrabajadosValor = Number(formData.dias_trabajados);
+  const diasTrabajadosAplicados =
+    Number.isNaN(diasTrabajadosValor) || diasTrabajadosValor < 0 ? 0 : diasTrabajadosValor;
+  const diasDescuentoValor = Number(formData.dias_descuento);
+  const diasDescuentoAplicados =
+    Number.isNaN(diasDescuentoValor) || diasDescuentoValor < 0 ? 0 : diasDescuentoValor;
+  const montoDescuentoDiasValor =
+    formData.monto_descuento_dias === "" || formData.monto_descuento_dias === null
+      ? null
+      : Number(formData.monto_descuento_dias);
+  const montoDescuentoDiasAplicado =
+    montoDescuentoDiasValor === null || Number.isNaN(montoDescuentoDiasValor) || montoDescuentoDiasValor < 0
+      ? null
+      : montoDescuentoDiasValor;
+  const salarioDiarioReferencia =
+    tipoPago === "Diario" ? salarioBaseReferencia : salarioBaseReferencia / 15;
+  const salarioBasePeriodo =
+    tipoPago === "Diario"
+      ? salarioDiarioReferencia * diasTrabajadosAplicados
+      : salarioBaseReferencia;
+  let deduccionDiasCalculada = 0;
+  if (tipoPago === "Quincenal") {
+    if (montoDescuentoDiasAplicado !== null) {
+      deduccionDiasCalculada = montoDescuentoDiasAplicado;
+    } else {
+      deduccionDiasCalculada = salarioDiarioReferencia * diasDescuentoAplicados;
+    }
+  }
+  deduccionDiasCalculada = Math.max(
+    0,
+    Math.min(deduccionDiasCalculada, Math.max(salarioBasePeriodo, 0))
+  );
+  const horasReferencia = tipoPago === "Diario" ? 8 : 8 * 15;
+  const valorHora = horasReferencia > 0 ? salarioBaseReferencia / horasReferencia : 0;
   const montoHorasExtras = horasExtras * valorHora;
-  const salarioBrutoEstimado = salarioBase + bonificaciones + montoHorasExtras;
+  const salarioBrutoEstimado = salarioBasePeriodo + bonificaciones + montoHorasExtras;
   const usaDeduccionFija = Boolean(Number(selectedEmpleado?.usa_deduccion_fija));
   const porcentajeCCSS = Number(selectedEmpleado?.porcentaje_ccss);
   const deduccionFija = Number(selectedEmpleado?.deduccion_fija);
   const porcentajeAplicable = Number.isNaN(porcentajeCCSS) ? 0 : porcentajeCCSS;
   const deduccionFijaAplicable = Number.isNaN(deduccionFija) ? 0 : deduccionFija;
-  const deduccionesManualesAplicables = Number.isNaN(deduccionesManualInput)
-    ? 0
-    : deduccionesManualInput;
+  const deduccionesManualesAplicables =
+    Number.isNaN(deduccionesManualInput) || deduccionesManualInput < 0
+      ? 0
+      : deduccionesManualInput;
   const deduccionesPrestamos = Number(totalPrestamosSeleccionados || 0);
+  const salarioBaseParaCCSS = Math.max(salarioBrutoEstimado - deduccionDiasCalculada, 0);
   const ccssDeduccionEstimado = usaDeduccionFija
     ? deduccionFijaAplicable
-    : salarioBrutoEstimado * (porcentajeAplicable / 100);
+    : salarioBaseParaCCSS * (porcentajeAplicable / 100);
+  const deduccionDiasResumen = tipoPago === "Quincenal" ? deduccionDiasCalculada : 0;
   const totalDeduccionesEstimado =
-    deduccionesManualesAplicables + deduccionesPrestamos + ccssDeduccionEstimado;
+    deduccionesManualesAplicables + deduccionesPrestamos + deduccionDiasResumen + ccssDeduccionEstimado;
   const pagoNetoEstimado = salarioBrutoEstimado - totalDeduccionesEstimado;
 
   const obtenerCuotaSugerida = (prestamo) => {
@@ -275,10 +314,10 @@ const Planilla = () => {
                   </Button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex h-full flex-col">
+                <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
                   <div
                     ref={modalScrollRef}
-                    className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+                    className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4"
                   >
                     {error && (
                       <p className="text-red-500 text-sm bg-red-100 border border-red-200 px-3 py-2 rounded-lg">
@@ -404,6 +443,94 @@ const Planilla = () => {
                         />
                       </div>
 
+                      {!isEditing && selectedEmpleado?.tipo_pago === "Diario" && (
+                        <div className="md:col-span-3 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <label
+                              htmlFor="dias_trabajados"
+                              className="text-sm font-medium text-gray-700"
+                            >
+                              Días trabajados en el periodo
+                            </label>
+                            <button
+                              type="button"
+                              onClick={refreshAttendance}
+                              disabled={attendanceState.loading}
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-blue-300"
+                            >
+                              {attendanceState.loading ? "Consultando…" : "Actualizar asistencia"}
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              id="dias_trabajados"
+                              name="dias_trabajados"
+                              value={formData.dias_trabajados}
+                              onChange={handleChange}
+                              className="w-full sm:w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="text-xs text-gray-500 flex-1">
+                              {attendanceState.error ? (
+                                <span className="text-red-600">{attendanceState.error}</span>
+                              ) : attendanceState.loading ? (
+                                "Consultando asistencia…"
+                              ) : attendanceState.dias !== null ? (
+                                <>Se detectaron {attendanceState.dias} días marcados en asistencia.</>
+                              ) : (
+                                "Ingresa los días trabajados o sincroniza la asistencia para precargarlos."
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Ajusta el valor si necesitas reconocer medios días o ausencias no registradas.
+                          </p>
+                        </div>
+                      )}
+
+                      {!isEditing && selectedEmpleado?.tipo_pago === "Quincenal" && (
+                        <div className="md:col-span-3 grid gap-4 md:grid-cols-2">
+                          <div className="flex flex-col gap-2">
+                            <label htmlFor="dias_descuento" className="text-sm font-medium text-gray-700">
+                              Días a descontar
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              id="dias_descuento"
+                              name="dias_descuento"
+                              value={formData.dias_descuento}
+                              onChange={handleChange}
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label
+                              htmlFor="monto_descuento_dias"
+                              className="text-sm font-medium text-gray-700"
+                            >
+                              Monto por días descontados
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              id="monto_descuento_dias"
+                              name="monto_descuento_dias"
+                              value={formData.monto_descuento_dias}
+                              onChange={handleChange}
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p className="text-xs text-gray-500">
+                              El monto se recalcula según los días indicados, pero puedes ajustarlo para reflejar medios días u otros acuerdos.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {!isEditing && (
                         <div className="md:col-span-3 space-y-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -499,9 +626,21 @@ const Planilla = () => {
                     {/* Totales */}
                     <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <p className="text-sm text-gray-500">Salario base</p>
-                        <p className="text-lg font-semibold text-gray-800">{formatCurrency(salarioBase)}</p>
+                        <p className="text-sm text-gray-500">Salario base del periodo</p>
+                        <p className="text-lg font-semibold text-gray-800">{formatCurrency(salarioBasePeriodo)}</p>
                       </div>
+                      {tipoPago === "Diario" && (
+                        <div>
+                          <p className="text-sm text-gray-500">Días pagados</p>
+                          <p className="text-lg font-semibold text-gray-800">{diasTrabajadosAplicados}</p>
+                        </div>
+                      )}
+                      {tipoPago === "Quincenal" && (
+                        <div>
+                          <p className="text-sm text-gray-500">Días a descontar</p>
+                          <p className="text-lg font-semibold text-gray-800">{diasDescuentoAplicados}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">Monto horas extras</p>
                         <p className="text-lg font-semibold text-gray-800">{formatCurrency(montoHorasExtras)}</p>
@@ -510,6 +649,12 @@ const Planilla = () => {
                         <p className="text-sm text-gray-500">Bonificaciones</p>
                         <p className="text-lg font-semibold text-gray-800">{formatCurrency(bonificaciones)}</p>
                       </div>
+                      {tipoPago === "Quincenal" && (
+                        <div>
+                          <p className="text-sm text-gray-500">Deducción por días</p>
+                          <p className="text-lg font-semibold text-gray-800">{formatCurrency(deduccionDiasResumen)}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">CCSS estimado</p>
                         <p className="text-lg font-semibold text-gray-800">{formatCurrency(ccssDeduccionEstimado)}</p>
