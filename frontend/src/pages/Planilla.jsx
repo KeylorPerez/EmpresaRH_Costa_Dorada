@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
@@ -15,16 +15,13 @@ const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
 const formatDate = (value) => {
   if (!value) return "-";
-
   if (typeof value === "string") {
     const [datePart] = value.split("T");
-
     if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
       const [year, month, day] = datePart.split("-");
       return `${day}/${month}/${year}`;
     }
   }
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
@@ -61,6 +58,23 @@ const Planilla = () => {
   } = usePlanilla();
 
   const isEditing = Boolean(editingPlanilla);
+
+  // ✅ Mantener este bloque (resuelve el conflicto)
+  const modalScrollRef = useRef(null);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const scrollContainer = modalScrollRef.current;
+    if (!scrollContainer) return;
+    scrollContainer.scrollTo({ top: 0, behavior: "auto" });
+  }, [modalOpen]);
+
+  useEffect(() => {
+    if (!modalOpen || !error) return;
+    const scrollContainer = modalScrollRef.current;
+    if (!scrollContainer) return;
+    scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+  }, [error, modalOpen]);
 
   const adminLinks = useMemo(
     () => [
@@ -115,11 +129,7 @@ const Planilla = () => {
     const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
     const monto = Math.max(Number(prestamo?.monto) || saldo, saldo);
     const cuota = monto / cuotas;
-
-    if (!Number.isFinite(cuota) || cuota <= 0) {
-      return saldo;
-    }
-
+    if (!Number.isFinite(cuota) || cuota <= 0) return saldo;
     return Math.min(Number(cuota.toFixed(2)), saldo);
   };
 
@@ -266,7 +276,10 @@ const Planilla = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex h-full flex-col">
-                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                  <div
+                    ref={modalScrollRef}
+                    className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+                  >
                     {error && (
                       <p className="text-red-500 text-sm bg-red-100 border border-red-200 px-3 py-2 rounded-lg">
                         {error}
