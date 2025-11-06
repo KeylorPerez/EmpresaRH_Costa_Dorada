@@ -37,7 +37,16 @@ class Planilla {
   }
 
   // 🔹 Generar o calcular planilla
-  static async calcularPlanilla({ id_empleado, periodo_inicio, periodo_fin, horas_extras = 0, bonificaciones = 0, deducciones = 0, fecha_pago = null }) {
+  static async calcularPlanilla({
+    id_empleado,
+    periodo_inicio,
+    periodo_fin,
+    horas_extras = 0,
+    bonificaciones = 0,
+    deducciones = 0,
+    fecha_pago = null,
+    prestamos = [],
+  }) {
     try {
       const pool = await poolPromise;
 
@@ -58,31 +67,102 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
 
-      const salario_bruto = salario_base + bonificaciones + (horas_extras * (salario_base / 160));
+      const prestamosValidos = Array.isArray(prestamos)
+        ? prestamos
+            .map((prestamo) => ({
+              id_prestamo: Number(prestamo.id_prestamo),
+              monto_pago: Number(Number(prestamo.monto_pago || 0).toFixed(2)),
+            }))
+            .filter(
+              (prestamo) =>
+                Number.isInteger(prestamo.id_prestamo) &&
+                !Number.isNaN(prestamo.monto_pago) &&
+                prestamo.monto_pago > 0
+            )
+        : [];
+
+      const deduccionesPrestamos = prestamosValidos.reduce(
+        (sum, prestamo) => sum + prestamo.monto_pago,
+        0
+      );
+
+      const horasExtrasNumber = Number(horas_extras) || 0;
+      const bonificacionesNumber = Number(bonificaciones) || 0;
+      const deduccionesBase = Number(deducciones) || 0;
+
+      const salario_bruto = salario_base + bonificacionesNumber + (horasExtrasNumber * (salario_base / 160));
       const ccss_deduccion = usa_deduccion_fija
         ? deduccion_fija
         : Number((salario_bruto * (porcentaje_ccss / 100)).toFixed(2));
-      const deducciones_totales = deducciones + ccss_deduccion;
-      const pago_neto = salario_bruto - deducciones_totales;
+      const deducciones_totales = Number((deduccionesBase + deduccionesPrestamos).toFixed(2));
+      const total_deducciones_para_pago = deducciones_totales + ccss_deduccion;
+      const pago_neto = salario_bruto - total_deducciones_para_pago;
 
-      const result = await pool.request()
-        .input('id_empleado', sql.Int, id_empleado)
-        .input('periodo_inicio', sql.Date, periodo_inicio)
-        .input('periodo_fin', sql.Date, periodo_fin)
-        .input('salario_bruto', sql.Decimal(12,2), salario_bruto)
-        .input('bonificaciones', sql.Decimal(12,2), bonificaciones)
-        .input('deducciones', sql.Decimal(12,2), deducciones)
-        .input('ccss_deduccion', sql.Decimal(10,2), ccss_deduccion)
-        .input('horas_extras', sql.Decimal(6,2), horas_extras)
-        .input('pago_neto', sql.Decimal(12,2), pago_neto)
-        .input('fecha_pago', sql.Date, fecha_pago)
-        .query(`
+      const transaction = new sql.Transaction(pool);
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+
+        request
+          .input('id_empleado', sql.Int, id_empleado)
+          .input('periodo_inicio', sql.Date, periodo_inicio)
+          .input('periodo_fin', sql.Date, periodo_fin)
+          .input('salario_bruto', sql.Decimal(12, 2), salario_bruto)
+          .input('bonificaciones', sql.Decimal(12, 2), bonificacionesNumber)
+          .input('deducciones', sql.Decimal(12, 2), deducciones_totales)
+          .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
+          .input('horas_extras', sql.Decimal(6, 2), horasExtrasNumber)
+          .input('pago_neto', sql.Decimal(12, 2), pago_neto)
+          .input('fecha_pago', sql.Date, fecha_pago);
+
+        const result = await request.query(`
           INSERT INTO Planilla (id_empleado, periodo_inicio, periodo_fin, salario_bruto, deducciones, ccss_deduccion, horas_extras, bonificaciones, pago_neto, fecha_pago, created_at, updated_at)
           VALUES (@id_empleado, @periodo_inicio, @periodo_fin, @salario_bruto, @deducciones, @ccss_deduccion, @horas_extras, @bonificaciones, @pago_neto, @fecha_pago, GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_planilla;
         `);
 
-      return result.recordset[0];
+        for (const prestamo of prestamosValidos) {
+          const saldoRequest = new sql.Request(transaction);
+          const saldoResult = await saldoRequest
+            .input('id_prestamo', sql.Int, prestamo.id_prestamo)
+            .query(`
+              SELECT saldo
+              FROM Prestamos WITH (ROWLOCK, UPDLOCK)
+              WHERE id_prestamo = @id_prestamo
+            `);
+
+          if (!saldoResult.recordset[0]) {
+            throw new Error('Préstamo no encontrado');
+          }
+
+          const saldoActual = Number(saldoResult.recordset[0].saldo);
+          if (Number.isNaN(saldoActual)) {
+            throw new Error('Saldo del préstamo inválido');
+          }
+
+          if (prestamo.monto_pago > saldoActual) {
+            throw new Error('El monto a descontar supera el saldo del préstamo');
+          }
+
+          await new sql.Request(transaction)
+            .input('id_prestamo', sql.Int, prestamo.id_prestamo)
+            .input('monto_pago', sql.Decimal(12, 2), prestamo.monto_pago)
+            .query(`
+              UPDATE Prestamos
+              SET saldo = CASE WHEN saldo - @monto_pago < 0 THEN 0 ELSE saldo - @monto_pago END,
+                  fecha_ultimo_pago = GETDATE(),
+                  updated_at = GETDATE()
+              WHERE id_prestamo = @id_prestamo
+            `);
+        }
+
+        await transaction.commit();
+        return result.recordset[0];
+      } catch (err) {
+        await transaction.rollback();
+        throw err;
+      }
     } catch (err) {
       throw err;
     }
@@ -120,18 +200,22 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
 
-      const salario_bruto = salario_base + bonificaciones + (horas_extras * (salario_base / 160));
+      const horasExtrasNumber = Number(horas_extras) || 0;
+      const bonificacionesNumber = Number(bonificaciones) || 0;
+      const deduccionesNumber = Number(deducciones) || 0;
+
+      const salario_bruto = salario_base + bonificacionesNumber + (horasExtrasNumber * (salario_base / 160));
       const ccss_deduccion = usa_deduccion_fija
         ? deduccion_fija
         : Number((salario_bruto * (porcentaje_ccss / 100)).toFixed(2));
-      const deducciones_totales = deducciones + ccss_deduccion;
+      const deducciones_totales = deduccionesNumber + ccss_deduccion;
       const pago_neto = salario_bruto - deducciones_totales;
 
       await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
-        .input('horas_extras', sql.Decimal(6,2), horas_extras)
-        .input('bonificaciones', sql.Decimal(12,2), bonificaciones)
-        .input('deducciones', sql.Decimal(12,2), deducciones)
+        .input('horas_extras', sql.Decimal(6,2), horasExtrasNumber)
+        .input('bonificaciones', sql.Decimal(12,2), bonificacionesNumber)
+        .input('deducciones', sql.Decimal(12,2), deduccionesNumber)
         .input('ccss_deduccion', sql.Decimal(10,2), ccss_deduccion)
         .input('salario_bruto', sql.Decimal(12,2), salario_bruto)
         .input('pago_neto', sql.Decimal(12,2), pago_neto)

@@ -66,12 +66,34 @@ class Prestamos {
   static async pagarCuota(id_prestamo, monto_pago) {
     try {
       const pool = await poolPromise;
+      const request = pool.request();
+      const prestamoResult = await request
+        .input('id_prestamo', sql.Int, id_prestamo)
+        .query(`
+          SELECT saldo
+          FROM Prestamos
+          WHERE id_prestamo = @id_prestamo
+        `);
+
+      if (!prestamoResult.recordset[0]) {
+        throw new Error('Préstamo no encontrado');
+      }
+
+      const saldoActual = Number(prestamoResult.recordset[0].saldo);
+      if (Number.isNaN(saldoActual)) {
+        throw new Error('Saldo del préstamo inválido');
+      }
+
+      if (monto_pago > saldoActual) {
+        throw new Error('El monto de pago excede el saldo pendiente');
+      }
+
       await pool.request()
         .input('id_prestamo', sql.Int, id_prestamo)
         .input('monto_pago', sql.Decimal(12,2), monto_pago)
         .query(`
           UPDATE Prestamos
-          SET saldo = saldo - @monto_pago,
+          SET saldo = CASE WHEN saldo - @monto_pago < 0 THEN 0 ELSE saldo - @monto_pago END,
               fecha_ultimo_pago = GETDATE(),
               updated_at = GETDATE()
           WHERE id_prestamo = @id_prestamo
