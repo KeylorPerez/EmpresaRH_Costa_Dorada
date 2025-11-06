@@ -108,6 +108,8 @@ const Empleados = () => {
                     <th className="px-4 py-3">Tipo de Pago</th>
                     <th className="px-4 py-3">Salario Base</th>
                     <th className="px-4 py-3">Bonificación Fija</th>
+                    <th className="px-4 py-3">% CCSS</th>
+                    <th className="px-4 py-3">Deducción CCSS</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Acciones</th>
                   </tr>
@@ -167,7 +169,10 @@ const Empleados = () => {
                             {formatCurrency(emp.bonificacion_fija)}
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(emp.bonificacion_fija)}
+                            {formatPercentage(emp)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">
+                            {formatCurrency(calculateCCSSDeduccion(emp))}
                           </td>
                           <td className="px-4 py-3">
                             <span
@@ -339,6 +344,40 @@ const Empleados = () => {
                       value={formData.bonificacion_fija}
                       onChange={handleChange}
                     />
+                    <FormField
+                      label="Porcentaje CCSS (%)"
+                      name="porcentaje_ccss"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.porcentaje_ccss}
+                      onChange={handleChange}
+                      disabled={formData.usa_deduccion_fija === "1"}
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm font-medium text-gray-700 mb-1">
+                        Usa deducción fija CCSS
+                      </label>
+                      <select
+                        name="usa_deduccion_fija"
+                        value={formData.usa_deduccion_fija}
+                        onChange={handleChange}
+                        className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="0">No</option>
+                        <option value="1">Sí</option>
+                      </select>
+                    </div>
+                    <FormField
+                      label="Deducción fija CCSS"
+                      name="deduccion_fija"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.deduccion_fija}
+                      onChange={handleChange}
+                      disabled={formData.usa_deduccion_fija !== "1"}
+                    />
                     {editingEmpleado && (
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-700 mb-1">
@@ -383,7 +422,7 @@ const Empleados = () => {
   );
 };
 
-const FormField = ({ label, name, value, onChange, type = "text", required = false, step, min }) => (
+const FormField = ({ label, name, value, onChange, type = "text", required = false, step, min, disabled = false }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium text-gray-700 mb-1">
       {label}
@@ -397,6 +436,7 @@ const FormField = ({ label, name, value, onChange, type = "text", required = fal
       required={required}
       step={step}
       min={min}
+      disabled={disabled}
       className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     />
   </div>
@@ -425,6 +465,29 @@ const formatCurrency = (value) => {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return value;
   return `₡ ${currencyFormatter.format(numeric)}`;
+};
+
+const usesFixedDeduction = (empleado) => {
+  if (!empleado) return false;
+  return Boolean(Number(empleado.usa_deduccion_fija));
+};
+
+const formatPercentage = (empleado) => {
+  if (!empleado) return "—";
+  if (usesFixedDeduction(empleado)) return "Monto fijo";
+  const value = Number(empleado.porcentaje_ccss);
+  if (Number.isNaN(value)) return "—";
+  return `${value.toFixed(2)}%`;
+};
+
+const calculateCCSSDeduccion = (empleado) => {
+  if (!empleado) return 0;
+  if (usesFixedDeduction(empleado)) {
+    return Number(empleado.deduccion_fija || 0);
+  }
+  const salarioBase = Number(empleado.salario_monto) || 0;
+  const porcentaje = Number(empleado.porcentaje_ccss) || 0;
+  return salarioBase * (porcentaje / 100);
 };
 
 export default Empleados;

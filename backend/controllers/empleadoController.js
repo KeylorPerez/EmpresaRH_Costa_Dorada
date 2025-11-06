@@ -40,6 +40,9 @@ const createEmpleado = async (req, res) => {
       salario_monto,
       tipo_pago,
       bonificacion_fija,
+      porcentaje_ccss,
+      usa_deduccion_fija,
+      deduccion_fija,
     } = req.body;
 
     if (
@@ -67,6 +70,27 @@ const createEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Bonificación fija inválida' });
     }
 
+    const porcentajeValue =
+      porcentaje_ccss !== undefined && porcentaje_ccss !== null
+        ? Number(porcentaje_ccss)
+        : 9.34;
+    if (Number.isNaN(porcentajeValue) || porcentajeValue < 0) {
+      return res.status(400).json({ error: 'Porcentaje CCSS inválido' });
+    }
+
+    const usaDeduccionFijaValue =
+      usa_deduccion_fija !== undefined && usa_deduccion_fija !== null
+        ? Number(usa_deduccion_fija) === 1 || usa_deduccion_fija === true
+        : false;
+
+    const deduccionFijaValue =
+      deduccion_fija !== undefined && deduccion_fija !== null
+        ? Number(deduccion_fija)
+        : 0;
+    if (Number.isNaN(deduccionFijaValue) || deduccionFijaValue < 0) {
+      return res.status(400).json({ error: 'Deducción fija inválida' });
+    }
+
     const empleado = await Empleado.create({
       nombre,
       apellido,
@@ -79,6 +103,9 @@ const createEmpleado = async (req, res) => {
       salario_monto,
       tipo_pago,
       bonificacion_fija: bonificacionValue,
+      porcentaje_ccss: porcentajeValue,
+      usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
+      deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
     });
 
     res.status(201).json({
@@ -108,6 +135,9 @@ const updateEmpleado = async (req, res) => {
       salario_monto,
       tipo_pago,
       bonificacion_fija,
+      porcentaje_ccss,
+      usa_deduccion_fija,
+      deduccion_fija,
       estado
     } = req.body;
 
@@ -124,6 +154,27 @@ const updateEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Bonificación fija inválida' });
     }
 
+    const porcentajeValue =
+      porcentaje_ccss !== undefined && porcentaje_ccss !== null
+        ? Number(porcentaje_ccss)
+        : null;
+    if (porcentajeValue !== null && (Number.isNaN(porcentajeValue) || porcentajeValue < 0)) {
+      return res.status(400).json({ error: 'Porcentaje CCSS inválido' });
+    }
+
+    const usaDeduccionFijaValue =
+      usa_deduccion_fija !== undefined && usa_deduccion_fija !== null
+        ? Number(usa_deduccion_fija) === 1 || usa_deduccion_fija === true
+        : null;
+
+    const deduccionFijaValue =
+      deduccion_fija !== undefined && deduccion_fija !== null
+        ? Number(deduccion_fija)
+        : null;
+    if (deduccionFijaValue !== null && (Number.isNaN(deduccionFijaValue) || deduccionFijaValue < 0)) {
+      return res.status(400).json({ error: 'Deducción fija inválida' });
+    }
+
     await Empleado.update(id, {
       nombre,
       apellido,
@@ -136,6 +187,19 @@ const updateEmpleado = async (req, res) => {
       salario_monto,
       tipo_pago,
       bonificacion_fija: bonificacionValue,
+      porcentaje_ccss: porcentajeValue,
+      usa_deduccion_fija:
+        usaDeduccionFijaValue === null
+          ? null
+          : usaDeduccionFijaValue
+          ? 1
+          : 0,
+      deduccion_fija:
+        deduccionFijaValue === null
+          ? null
+          : usaDeduccionFijaValue
+          ? deduccionFijaValue || 0
+          : 0,
       estado
     });
 

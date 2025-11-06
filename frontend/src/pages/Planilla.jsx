@@ -73,11 +73,23 @@ const Planilla = () => {
   const salarioBase = Number(selectedEmpleado?.salario_monto) || 0;
   const horasExtras = Number(formData.horas_extras || 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
-  const deducciones = Number(formData.deducciones || 0);
+  const deduccionesManuales = Number(formData.deducciones || 0);
   const valorHora = salarioBase ? salarioBase / 160 : 0;
   const montoHorasExtras = horasExtras * valorHora;
   const salarioBrutoEstimado = salarioBase + bonificaciones + montoHorasExtras;
-  const pagoNetoEstimado = salarioBrutoEstimado - deducciones;
+  const usaDeduccionFija = Boolean(Number(selectedEmpleado?.usa_deduccion_fija));
+  const porcentajeCCSS = Number(selectedEmpleado?.porcentaje_ccss);
+  const deduccionFija = Number(selectedEmpleado?.deduccion_fija);
+  const porcentajeAplicable = Number.isNaN(porcentajeCCSS) ? 0 : porcentajeCCSS;
+  const deduccionFijaAplicable = Number.isNaN(deduccionFija) ? 0 : deduccionFija;
+  const deduccionesManualesAplicables = Number.isNaN(deduccionesManuales)
+    ? 0
+    : deduccionesManuales;
+  const ccssDeduccionEstimado = usaDeduccionFija
+    ? deduccionFijaAplicable
+    : salarioBrutoEstimado * (porcentajeAplicable / 100);
+  const totalDeduccionesEstimado = deduccionesManualesAplicables + ccssDeduccionEstimado;
+  const pagoNetoEstimado = salarioBrutoEstimado - totalDeduccionesEstimado;
 
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
@@ -145,7 +157,9 @@ const Planilla = () => {
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario base</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Horas extras</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Bonificaciones</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Deducciones</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">CCSS</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Deducciones manuales</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Total deducciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario bruto</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Pago neto</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Fecha pago</th>
@@ -173,7 +187,15 @@ const Planilla = () => {
                           {formatCurrency(planilla.bonificaciones)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                          {formatCurrency(planilla.ccss_deduccion)}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
                           {formatCurrency(planilla.deducciones)}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
+                          {formatCurrency(
+                            Number(planilla.deducciones || 0) + Number(planilla.ccss_deduccion || 0)
+                          )}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-600">
                           {formatCurrency(planilla.salario_bruto)}
@@ -335,7 +357,7 @@ const Planilla = () => {
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Salario base</p>
                   <p className="text-lg font-semibold text-gray-800">{formatCurrency(salarioBase)}</p>
@@ -343,6 +365,22 @@ const Planilla = () => {
                 <div>
                   <p className="text-sm text-gray-500">Monto horas extras</p>
                   <p className="text-lg font-semibold text-gray-800">{formatCurrency(montoHorasExtras)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Bonificaciones</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(bonificaciones)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">CCSS estimado</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(ccssDeduccionEstimado)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Deducciones manuales</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(deduccionesManualesAplicables)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total deducciones</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(totalDeduccionesEstimado)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Salario bruto estimado</p>
