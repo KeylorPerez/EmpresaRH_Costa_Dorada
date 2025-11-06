@@ -15,16 +15,13 @@ const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
 const formatDate = (value) => {
   if (!value) return "-";
-
   if (typeof value === "string") {
     const [datePart] = value.split("T");
-
     if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
       const [year, month, day] = datePart.split("-");
       return `${day}/${month}/${year}`;
     }
   }
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
@@ -61,23 +58,21 @@ const Planilla = () => {
   } = usePlanilla();
 
   const isEditing = Boolean(editingPlanilla);
+
+  // ✅ Mantener este bloque (resuelve el conflicto)
   const modalScrollRef = useRef(null);
 
   useEffect(() => {
     if (!modalOpen) return;
-
     const scrollContainer = modalScrollRef.current;
     if (!scrollContainer) return;
-
     scrollContainer.scrollTo({ top: 0, behavior: "auto" });
   }, [modalOpen]);
 
   useEffect(() => {
     if (!modalOpen || !error) return;
-
     const scrollContainer = modalScrollRef.current;
     if (!scrollContainer) return;
-
     scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
   }, [error, modalOpen]);
 
@@ -134,11 +129,7 @@ const Planilla = () => {
     const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
     const monto = Math.max(Number(prestamo?.monto) || saldo, saldo);
     const cuota = monto / cuotas;
-
-    if (!Number.isFinite(cuota) || cuota <= 0) {
-      return saldo;
-    }
-
+    if (!Number.isFinite(cuota) || cuota <= 0) return saldo;
     return Math.min(Number(cuota.toFixed(2)), saldo);
   };
 
