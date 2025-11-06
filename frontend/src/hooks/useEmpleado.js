@@ -14,6 +14,9 @@ const createEmptyFormData = () => ({
   salario_monto: "",
   tipo_pago: "Diario",
   bonificacion_fija: "0",
+  porcentaje_ccss: "9.34",
+  usa_deduccion_fija: "0",
+  deduccion_fija: "0",
   estado: "1", // 👈 por defecto activo
 });
 
@@ -56,7 +59,12 @@ export const useEmpleado = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      if (name === "usa_deduccion_fija" && value !== "1") {
+        return { ...prev, [name]: value, deduccion_fija: "0" };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -81,6 +89,23 @@ export const useEmpleado = () => {
         return;
       }
 
+      const porcentajeValue = Number(
+        formData.porcentaje_ccss === ""
+          ? 9.34
+          : formData.porcentaje_ccss
+      );
+      if (Number.isNaN(porcentajeValue) || porcentajeValue < 0) {
+        setError("El porcentaje de CCSS debe ser un número válido");
+        return;
+      }
+
+      const usaDeduccionFija = formData.usa_deduccion_fija === "1";
+      const deduccionFijaValue = Number(formData.deduccion_fija || 0);
+      if (Number.isNaN(deduccionFijaValue) || deduccionFijaValue < 0) {
+        setError("La deducción fija debe ser un número válido");
+        return;
+      }
+
       const payload = {
         nombre: formData.nombre.trim(),
         apellido: formData.apellido.trim(),
@@ -90,6 +115,9 @@ export const useEmpleado = () => {
         salario_monto: Number(formData.salario_monto),
         tipo_pago: formData.tipo_pago,
         bonificacion_fija: bonificacionValue,
+        porcentaje_ccss: porcentajeValue,
+        usa_deduccion_fija: usaDeduccionFija ? 1 : 0,
+        deduccion_fija: usaDeduccionFija ? deduccionFijaValue : 0,
       };
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
@@ -131,6 +159,18 @@ export const useEmpleado = () => {
       bonificacion_fija:
         empleado.bonificacion_fija !== undefined && empleado.bonificacion_fija !== null
           ? String(empleado.bonificacion_fija)
+          : "0",
+      porcentaje_ccss:
+        empleado.porcentaje_ccss !== undefined && empleado.porcentaje_ccss !== null
+          ? String(empleado.porcentaje_ccss)
+          : "9.34",
+      usa_deduccion_fija:
+        empleado.usa_deduccion_fija !== undefined && empleado.usa_deduccion_fija !== null
+          ? String(Number(Boolean(empleado.usa_deduccion_fija)))
+          : "0",
+      deduccion_fija:
+        empleado.deduccion_fija !== undefined && empleado.deduccion_fija !== null
+          ? String(empleado.deduccion_fija)
           : "0",
       estado:
         empleado.estado !== undefined && empleado.estado !== null

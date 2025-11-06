@@ -49,6 +49,9 @@ class Empleado {
     salario_monto,
     tipo_pago,
     bonificacion_fija,
+    porcentaje_ccss,
+    usa_deduccion_fija,
+    deduccion_fija,
   }) {
     try {
       const pool = await poolPromise;
@@ -64,12 +67,15 @@ class Empleado {
         .input('salario_monto', sql.Decimal(12, 2), salario_monto)
         .input('tipo_pago', sql.NVarChar(20), tipo_pago)
         .input('bonificacion_fija', sql.Decimal(10, 2), bonificacion_fija)
+        .input('porcentaje_ccss', sql.Decimal(5, 2), porcentaje_ccss)
+        .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija)
+        .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija)
         .query(`
-          INSERT INTO Empleados 
-          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, estado, created_at, updated_at)
-          VALUES 
-          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, 1, GETDATE(), GETDATE());
-          
+          INSERT INTO Empleados
+          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, estado, created_at, updated_at)
+          VALUES
+          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, 1, GETDATE(), GETDATE());
+
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
       return result.recordset[0];
@@ -93,6 +99,9 @@ class Empleado {
       salario_monto,
       tipo_pago,
       bonificacion_fija,
+      porcentaje_ccss,
+      usa_deduccion_fija,
+      deduccion_fija,
       estado,
     }
   ) {
@@ -111,6 +120,9 @@ class Empleado {
         .input('salario_monto', sql.Decimal(12, 2), salario_monto)
         .input('tipo_pago', sql.NVarChar(20), tipo_pago !== undefined ? tipo_pago : null)
         .input('bonificacion_fija', sql.Decimal(10, 2), bonificacion_fija !== undefined ? bonificacion_fija : null)
+        .input('porcentaje_ccss', sql.Decimal(5, 2), porcentaje_ccss !== undefined ? porcentaje_ccss : null)
+        .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija !== undefined ? usa_deduccion_fija : null)
+        .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija !== undefined ? deduccion_fija : null)
         .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
           UPDATE Empleados
@@ -126,6 +138,9 @@ class Empleado {
             salario_monto = @salario_monto,
             tipo_pago = COALESCE(@tipo_pago, tipo_pago),
             bonificacion_fija = COALESCE(@bonificacion_fija, bonificacion_fija),
+            porcentaje_ccss = COALESCE(@porcentaje_ccss, porcentaje_ccss),
+            usa_deduccion_fija = COALESCE(@usa_deduccion_fija, usa_deduccion_fija),
+            deduccion_fija = COALESCE(@deduccion_fija, deduccion_fija),
             estado = COALESCE(@estado, estado),
             updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
