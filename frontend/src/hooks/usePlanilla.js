@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 
-const createEmptyForm = () => ({
+const createEmptyForm = (defaults = {}) => ({
   id_empleado: "",
   periodo_inicio: "",
   periodo_fin: "",
@@ -10,6 +10,7 @@ const createEmptyForm = () => ({
   bonificaciones: "0",
   deducciones: "0",
   fecha_pago: "",
+  ...defaults,
 });
 
 export const usePlanilla = () => {
@@ -19,7 +20,7 @@ export const usePlanilla = () => {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlanilla, setEditingPlanilla] = useState(null);
-  const [formData, setFormData] = useState(() => createEmptyForm());
+  const [formData, setFormData] = useState(() => createEmptyForm(calculateQuincenaDefaults()));
 
   useEffect(() => {
     fetchPlanillas();
@@ -55,7 +56,7 @@ export const usePlanilla = () => {
   };
 
   const resetForm = () => {
-    setFormData(createEmptyForm());
+    setFormData(createEmptyForm(calculateQuincenaDefaults()));
     setEditingPlanilla(null);
     setError("");
   };
@@ -79,6 +80,34 @@ export const usePlanilla = () => {
     setError("");
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+    if (!formData.id_empleado) return;
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === formData.id_empleado
+    );
+
+    if (!empleadoSeleccionado) return;
+
+    const bonificacionDefault = empleadoSeleccionado.bonificacion_fija;
+
+    if (bonificacionDefault === undefined || bonificacionDefault === null) return;
+
+    const valorNormalizado = normalizeNumber(bonificacionDefault);
+
+    setFormData((prev) => {
+      if (prev.bonificaciones === valorNormalizado) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        bonificaciones: valorNormalizado,
+      };
+    });
+  }, [modalOpen, editingPlanilla, formData.id_empleado, empleados]);
 
   const buildNumber = (value) => {
     const parsed = Number(value);
@@ -175,4 +204,40 @@ const normalizeDate = (value) => {
 const normalizeNumber = (value) => {
   if (value === null || value === undefined) return "0";
   return String(value);
+};
+
+const calculateQuincenaDefaults = () => {
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  const mes = hoy.getMonth();
+  const dia = hoy.getDate();
+
+  if (dia <= 15) {
+    const inicio = new Date(anio, mes, 1);
+    const fin = new Date(anio, mes, 15);
+    const pago = new Date(anio, mes, 15);
+
+    return {
+      periodo_inicio: formatDateInput(inicio),
+      periodo_fin: formatDateInput(fin),
+      fecha_pago: formatDateInput(pago),
+    };
+  }
+
+  const inicio = new Date(anio, mes, 16);
+  const fin = new Date(anio, mes + 1, 0);
+
+  return {
+    periodo_inicio: formatDateInput(inicio),
+    periodo_fin: formatDateInput(fin),
+    fecha_pago: formatDateInput(fin),
+  };
+};
+
+const formatDateInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 };
