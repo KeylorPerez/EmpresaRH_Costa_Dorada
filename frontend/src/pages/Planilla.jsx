@@ -15,6 +15,16 @@ const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
 const formatDate = (value) => {
   if (!value) return "-";
+
+  if (typeof value === "string") {
+    const [datePart] = value.split("T");
+
+    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      const [year, month, day] = datePart.split("-");
+      return `${day}/${month}/${year}`;
+    }
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
@@ -241,9 +251,142 @@ const Planilla = () => {
                     )}
 
                     {/* Campos */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* empleado, fechas, bonificaciones, etc */}
-                      {/* (dejé esta parte igual) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex flex-col gap-2 md:col-span-3">
+                        <label htmlFor="id_empleado" className="text-sm font-medium text-gray-700">
+                          Empleado
+                        </label>
+                        <select
+                          id="id_empleado"
+                          name="id_empleado"
+                          value={formData.id_empleado}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={Boolean(editingPlanilla)}
+                          required={!editingPlanilla}
+                        >
+                          <option value="">Selecciona un empleado</option>
+                          {empleados.map((empleado) => (
+                            <option key={empleado.id_empleado} value={empleado.id_empleado}>
+                              {empleado.nombre && empleado.apellido
+                                ? `${empleado.nombre} ${empleado.apellido}`
+                                : empleado.identificacion
+                                ? `${empleado.identificacion} - Empleado ${empleado.id_empleado}`
+                                : `Empleado ${empleado.id_empleado}`}
+                            </option>
+                          ))}
+                        </select>
+                        {!empleados.length && (
+                          <p className="text-xs text-amber-600">
+                            No hay empleados registrados. Debes registrar empleados antes de generar la
+                            planilla.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="periodo_inicio" className="text-sm font-medium text-gray-700">
+                          Fecha inicio del periodo
+                        </label>
+                        <input
+                          type="date"
+                          id="periodo_inicio"
+                          name="periodo_inicio"
+                          value={formData.periodo_inicio}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={Boolean(editingPlanilla)}
+                          required={!editingPlanilla}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="periodo_fin" className="text-sm font-medium text-gray-700">
+                          Fecha fin del periodo
+                        </label>
+                        <input
+                          type="date"
+                          id="periodo_fin"
+                          name="periodo_fin"
+                          value={formData.periodo_fin}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={Boolean(editingPlanilla)}
+                          required={!editingPlanilla}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="fecha_pago" className="text-sm font-medium text-gray-700">
+                          Fecha de pago
+                        </label>
+                        <input
+                          type="date"
+                          id="fecha_pago"
+                          name="fecha_pago"
+                          value={formData.fecha_pago}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="horas_extras" className="text-sm font-medium text-gray-700">
+                          Horas extras
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          id="horas_extras"
+                          name="horas_extras"
+                          value={formData.horas_extras}
+                          onChange={handleChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="bonificaciones" className="text-sm font-medium text-gray-700">
+                          Bonificaciones
+                        </label>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+                            ₡
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            id="bonificaciones"
+                            name="bonificaciones"
+                            value={formData.bonificaciones}
+                            onChange={handleChange}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 pl-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="deducciones" className="text-sm font-medium text-gray-700">
+                          Deducciones manuales
+                        </label>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+                            ₡
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            id="deducciones"
+                            name="deducciones"
+                            value={formData.deducciones}
+                            onChange={handleChange}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 pl-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Totales */}
