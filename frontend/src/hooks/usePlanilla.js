@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
+import prestamosService from "../services/prestamosService";
 
 const createEmptyForm = (defaults = {}) => ({
   id_empleado: "",
@@ -16,15 +17,18 @@ const createEmptyForm = (defaults = {}) => ({
 export const usePlanilla = () => {
   const [planillas, setPlanillas] = useState([]);
   const [empleados, setEmpleados] = useState([]);
+  const [prestamos, setPrestamos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlanilla, setEditingPlanilla] = useState(null);
   const [formData, setFormData] = useState(() => createEmptyForm(calculateQuincenaDefaults()));
+  const [prestamoSelections, setPrestamoSelections] = useState({});
 
   useEffect(() => {
     fetchPlanillas();
     fetchEmpleados();
+    fetchPrestamos();
   }, []);
 
   const fetchPlanillas = async () => {
@@ -50,6 +54,15 @@ export const usePlanilla = () => {
     }
   };
 
+  const fetchPrestamos = async () => {
+    try {
+      const data = await prestamosService.getAll();
+      setPrestamos(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -59,6 +72,7 @@ export const usePlanilla = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
     setEditingPlanilla(null);
     setError("");
+    setPrestamoSelections({});
   };
 
   const openCreateModal = () => {
@@ -80,6 +94,103 @@ export const usePlanilla = () => {
     setError("");
     setModalOpen(true);
   };
+
+  const prestamosEmpleado = useMemo(() => {
+    if (!formData.id_empleado) return [];
+    return prestamos.filter((prestamo) => {
+      const saldo = Number(prestamo.saldo);
+      return (
+        String(prestamo.id_empleado) === formData.id_empleado &&
+        Number.isFinite(saldo) &&
+        saldo > 0 &&
+        Number(prestamo.id_estado) === 2
+      );
+    });
+  }, [prestamos, formData.id_empleado]);
+
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+
+    if (!formData.id_empleado) {
+      setPrestamoSelections({});
+      return;
+    }
+
+    setPrestamoSelections((prev) => {
+      const updated = {};
+
+      prestamosEmpleado.forEach((prestamo) => {
+        const saldo = Math.max(Number(prestamo.saldo) || 0, 0);
+        const cuotaSugerida = calcularCuotaSugerida(prestamo);
+        const anterior = prev[prestamo.id_prestamo] || {};
+
+        updated[prestamo.id_prestamo] = {
+          aplicar: anterior.aplicar !== undefined ? anterior.aplicar : true,
+          monto: clampMonto(anterior.monto ?? cuotaSugerida, saldo),
+        };
+      });
+
+      return updated;
+    });
+  }, [modalOpen, prestamosEmpleado, formData.id_empleado, editingPlanilla]);
+
+  const obtenerSaldoPrestamo = (id_prestamo) => {
+    const prestamo = prestamosEmpleado.find((item) => item.id_prestamo === id_prestamo);
+    return Math.max(Number(prestamo?.saldo) || 0, 0);
+  };
+
+  const togglePrestamo = (id_prestamo) => {
+    setPrestamoSelections((prev) => {
+      const actual = prev[id_prestamo] || { aplicar: false, monto: 0 };
+      return {
+        ...prev,
+        [id_prestamo]: {
+          ...actual,
+          aplicar: !actual.aplicar,
+        },
+      };
+    });
+  };
+
+  const updateMontoPrestamo = (id_prestamo, value) => {
+    const saldo = obtenerSaldoPrestamo(id_prestamo);
+    const monto = clampMonto(value, saldo);
+
+    setPrestamoSelections((prev) => {
+      const actual = prev[id_prestamo] || { aplicar: true, monto: 0 };
+      return {
+        ...prev,
+        [id_prestamo]: {
+          ...actual,
+          monto,
+        },
+      };
+    });
+  };
+
+  const prestamosSeleccionados = useMemo(() => {
+    return prestamosEmpleado
+      .map((prestamo) => {
+        const seleccion = prestamoSelections[prestamo.id_prestamo];
+        if (!seleccion || !seleccion.aplicar) return null;
+
+        const saldo = Math.max(Number(prestamo.saldo) || 0, 0);
+        const monto = clampMonto(seleccion.monto, saldo);
+
+        if (monto <= 0) return null;
+
+        return {
+          id_prestamo: prestamo.id_prestamo,
+          monto_pago: monto,
+          saldo_actual: saldo,
+        };
+      })
+      .filter(Boolean);
+  }, [prestamosEmpleado, prestamoSelections]);
+
+  const totalPrestamosSeleccionados = useMemo(() => {
+    return prestamosSeleccionados.reduce((sum, prestamo) => sum + prestamo.monto_pago, 0);
+  }, [prestamosSeleccionados]);
 
   useEffect(() => {
     if (!modalOpen || editingPlanilla) return;
@@ -130,14 +241,28 @@ export const usePlanilla = () => {
           return;
         }
 
+        const prestamosPayload = prestamosSeleccionados.map((prestamo) => {
+          if (prestamo.monto_pago > prestamo.saldo_actual) {
+            throw new Error("El monto de pago supera el saldo disponible del préstamo");
+          }
+
+          return {
+            id_prestamo: prestamo.id_prestamo,
+            monto_pago: Number(prestamo.monto_pago.toFixed(2)),
+          };
+        });
+
+        const deduccionesManuales = buildNumber(formData.deducciones);
+
         const payload = {
           id_empleado: Number(formData.id_empleado),
           periodo_inicio: formData.periodo_inicio,
           periodo_fin: formData.periodo_fin,
           horas_extras: buildNumber(formData.horas_extras),
           bonificaciones: buildNumber(formData.bonificaciones),
-          deducciones: buildNumber(formData.deducciones),
+          deducciones: deduccionesManuales,
           fecha_pago: formData.fecha_pago || null,
+          prestamos: prestamosPayload,
         };
 
         await planillaService.create(payload);
@@ -155,9 +280,11 @@ export const usePlanilla = () => {
       setModalOpen(false);
       resetForm();
       await fetchPlanillas();
+      await fetchPrestamos();
     } catch (err) {
       console.error(err);
-      setError("Error al guardar la planilla");
+      const message = err.response?.data?.error || err.message || "Error al guardar la planilla";
+      setError(message);
     }
   };
 
@@ -193,6 +320,11 @@ export const usePlanilla = () => {
     fetchPlanillas,
     setError,
     totals,
+    prestamosEmpleado,
+    prestamoSelections,
+    togglePrestamo,
+    updateMontoPrestamo,
+    totalPrestamosSeleccionados,
   };
 };
 
@@ -240,4 +372,27 @@ const formatDateInput = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+};
+
+const calcularCuotaSugerida = (prestamo) => {
+  const saldo = Math.max(Number(prestamo?.saldo) || 0, 0);
+  const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
+  const monto = Math.max(Number(prestamo?.monto) || saldo, saldo);
+  const cuota = monto / cuotas;
+
+  if (!Number.isFinite(cuota) || cuota <= 0) {
+    return saldo;
+  }
+
+  return Math.min(Number(cuota.toFixed(2)), saldo);
+};
+
+const clampMonto = (value, saldoMaximo) => {
+  const numero = Number(value);
+  if (Number.isNaN(numero) || numero <= 0) return 0;
+
+  if (!Number.isFinite(saldoMaximo) || saldoMaximo <= 0) return 0;
+
+  const maximo = Number(saldoMaximo.toFixed(2));
+  return Math.min(Number(numero.toFixed(2)), maximo);
 };

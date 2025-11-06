@@ -53,7 +53,14 @@ const Planilla = () => {
     resetForm,
     setError,
     totals,
+    prestamosEmpleado,
+    prestamoSelections,
+    togglePrestamo,
+    updateMontoPrestamo,
+    totalPrestamosSeleccionados,
   } = usePlanilla();
+
+  const isEditing = Boolean(editingPlanilla);
 
   const adminLinks = useMemo(
     () => [
@@ -83,7 +90,7 @@ const Planilla = () => {
   const salarioBase = Number(selectedEmpleado?.salario_monto) || 0;
   const horasExtras = Number(formData.horas_extras || 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
-  const deduccionesManuales = Number(formData.deducciones || 0);
+  const deduccionesManualInput = Number(formData.deducciones || 0);
   const valorHora = salarioBase ? salarioBase / 160 : 0;
   const montoHorasExtras = horasExtras * valorHora;
   const salarioBrutoEstimado = salarioBase + bonificaciones + montoHorasExtras;
@@ -92,14 +99,29 @@ const Planilla = () => {
   const deduccionFija = Number(selectedEmpleado?.deduccion_fija);
   const porcentajeAplicable = Number.isNaN(porcentajeCCSS) ? 0 : porcentajeCCSS;
   const deduccionFijaAplicable = Number.isNaN(deduccionFija) ? 0 : deduccionFija;
-  const deduccionesManualesAplicables = Number.isNaN(deduccionesManuales)
+  const deduccionesManualesAplicables = Number.isNaN(deduccionesManualInput)
     ? 0
-    : deduccionesManuales;
+    : deduccionesManualInput;
+  const deduccionesPrestamos = Number(totalPrestamosSeleccionados || 0);
   const ccssDeduccionEstimado = usaDeduccionFija
     ? deduccionFijaAplicable
     : salarioBrutoEstimado * (porcentajeAplicable / 100);
-  const totalDeduccionesEstimado = deduccionesManualesAplicables + ccssDeduccionEstimado;
+  const totalDeduccionesEstimado =
+    deduccionesManualesAplicables + deduccionesPrestamos + ccssDeduccionEstimado;
   const pagoNetoEstimado = salarioBrutoEstimado - totalDeduccionesEstimado;
+
+  const obtenerCuotaSugerida = (prestamo) => {
+    const saldo = Math.max(Number(prestamo?.saldo) || 0, 0);
+    const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
+    const monto = Math.max(Number(prestamo?.monto) || saldo, saldo);
+    const cuota = monto / cuotas;
+
+    if (!Number.isFinite(cuota) || cuota <= 0) {
+      return saldo;
+    }
+
+    return Math.min(Number(cuota.toFixed(2)), saldo);
+  };
 
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
@@ -169,7 +191,7 @@ const Planilla = () => {
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Horas extras</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Bonificaciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">CCSS</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Deducciones manuales</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Otras deducciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Total deducciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario bruto</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Pago neto</th>
@@ -233,7 +255,7 @@ const Planilla = () => {
           {/* Modal */}
           {modalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-4 py-6">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between border-b px-6 py-4">
                   <h2 className="text-xl font-semibold text-gray-800">
                     {editingPlanilla ? "Actualizar planilla" : "Generar planilla"}
@@ -355,7 +377,7 @@ const Planilla = () => {
 
                       <div className="flex flex-col gap-2">
                         <label htmlFor="deducciones" className="text-sm font-medium text-gray-700">
-                          Deducciones manuales
+                          Deducciones adicionales
                         </label>
                         <input
                           type="number"
@@ -368,6 +390,97 @@ const Planilla = () => {
                           className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
+
+                      {!isEditing && (
+                        <div className="md:col-span-3 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-sm font-semibold text-gray-700">Préstamos asociados a la planilla</h3>
+                            {deduccionesPrestamos > 0 && (
+                              <span className="text-xs font-semibold text-blue-600">
+                                Total seleccionado: {formatCurrency(deduccionesPrestamos)}
+                              </span>
+                            )}
+                          </div>
+
+                          {prestamosEmpleado.length === 0 ? (
+                            <p className="text-sm text-gray-500">
+                              Este colaborador no tiene préstamos aprobados con saldo pendiente.
+                            </p>
+                          ) : (
+                            <div className="space-y-3">
+                              {prestamosEmpleado.map((prestamo) => {
+                                const seleccion = prestamoSelections[prestamo.id_prestamo];
+                                const estaSeleccionado = Boolean(seleccion?.aplicar);
+                                const cuotaSugerida = obtenerCuotaSugerida(prestamo);
+                                const montoSeleccionado = estaSeleccionado
+                                  ? seleccion?.monto ?? cuotaSugerida
+                                  : cuotaSugerida;
+
+                                return (
+                                  <div
+                                    key={prestamo.id_prestamo}
+                                    className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={estaSeleccionado}
+                                        onChange={() => togglePrestamo(prestamo.id_prestamo)}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                      />
+                                      <div className="flex-1 space-y-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                          <div>
+                                            <p className="text-sm font-semibold text-gray-800">
+                                              Préstamo #{prestamo.id_prestamo}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              Solicitado el {formatDate(prestamo.fecha_solicitud)} · {prestamo.cuotas} cuotas
+                                            </p>
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="text-xs text-gray-500">Saldo pendiente</p>
+                                            <p className="text-sm font-semibold text-gray-800">
+                                              {formatCurrency(prestamo.saldo)}
+                                            </p>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                          <p className="text-xs text-gray-500">
+                                            Cuota sugerida: {formatCurrency(cuotaSugerida)}
+                                          </p>
+                                          <div className="flex items-center gap-2">
+                                            <label className="text-xs text-gray-500" htmlFor={`prestamo-${prestamo.id_prestamo}`}>
+                                              Monto a descontar
+                                            </label>
+                                            <input
+                                              id={`prestamo-${prestamo.id_prestamo}`}
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={Number(montoSeleccionado || 0).toString()}
+                                              onChange={(event) =>
+                                                updateMontoPrestamo(prestamo.id_prestamo, event.target.value)
+                                              }
+                                              disabled={!estaSeleccionado}
+                                              className="w-32 rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              <p className="text-xs text-gray-500">
+                                Los montos seleccionados se sumarán automáticamente a las deducciones de esta planilla.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Totales */}
@@ -389,8 +502,12 @@ const Planilla = () => {
                         <p className="text-lg font-semibold text-gray-800">{formatCurrency(ccssDeduccionEstimado)}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Deducciones manuales</p>
+                        <p className="text-sm text-gray-500">Deducciones adicionales</p>
                         <p className="text-lg font-semibold text-gray-800">{formatCurrency(deduccionesManualesAplicables)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Deducciones por préstamos</p>
+                        <p className="text-lg font-semibold text-gray-800">{formatCurrency(deduccionesPrestamos)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Total deducciones</p>
@@ -407,7 +524,7 @@ const Planilla = () => {
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 px-6 pb-6 pt-4 border-t">
+                  <div className="flex justify-end gap-2 px-6 pb-6 pt-4 border-t bg-white">
                     <Button variant="secondary" size="sm" type="button" onClick={closeModal}>
                       Cancelar
                     </Button>
