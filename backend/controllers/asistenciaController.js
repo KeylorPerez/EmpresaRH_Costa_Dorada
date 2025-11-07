@@ -54,9 +54,9 @@ function formatDateToSql(dateInput) {
   }
 
   if (dateInput instanceof Date) {
-    const yyyy = dateInput.getFullYear();
-    const mm = String(dateInput.getMonth() + 1).padStart(2, '0');
-    const dd = String(dateInput.getDate()).padStart(2, '0');
+    const yyyy = dateInput.getUTCFullYear();
+    const mm = String(dateInput.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dateInput.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
 
@@ -150,7 +150,8 @@ const createMarca = async (req, res) => {
     }
 
     const now = new Date();
-    const fechaSql = formatDateToSql(fechaBody || now);
+    const fecha = fechaBody ? new Date(fechaBody) : now;
+    const fechaSql = formatDateToSql(fecha);
     const hora = horaBody
       ? parseTimeForSqlServer(horaBody)
       : parseTimeForSqlServer(now);
