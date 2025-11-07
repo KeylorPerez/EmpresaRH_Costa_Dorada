@@ -119,16 +119,13 @@ class Asistencia {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
-.input('fecha', sql.Date, fecha)
-.input('tipo_marca', sql.VarChar(20), tipo_marca)
-.query(`
-  SELECT TOP 1 *
-  FROM Asistencia
-  WHERE id_empleado = @id_empleado
-    AND fecha = @fecha
-    AND tipo_marca = @tipo_marca
-`);
-
+        .input('fecha', sql.VarChar(10), fecha)
+        .input('tipo_marca', sql.VarChar(20), tipo_marca)
+        .query(`
+          SELECT TOP 1 *
+          FROM Asistencia
+          WHERE id_empleado = @id_empleado
+            AND fecha = CONVERT(date, @fecha, 23)
             AND tipo_marca = @tipo_marca
         `);
       return result.recordset[0] || null;
