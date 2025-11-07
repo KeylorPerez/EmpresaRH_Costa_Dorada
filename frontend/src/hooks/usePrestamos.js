@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import prestamosService from "../services/prestamosService";
+import { formatDateValue } from "../utils/dateUtils";
 
 const createInitialForm = () => ({
   monto: "",
@@ -14,16 +15,7 @@ export const estadosPrestamo = {
   3: { label: "Rechazado", badgeClass: "bg-red-100 text-red-800" },
 };
 
-export const formatearFecha = (value) => {
-  if (!value) return "";
-  const fecha = new Date(value);
-  if (Number.isNaN(fecha.getTime())) return value;
-  return fecha.toLocaleDateString("es-CR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
+export const formatearFecha = (value) => formatDateValue(value);
 
 export const formatearMonto = (value) => {
   if (value === undefined || value === null || value === "") return "₡0.00";

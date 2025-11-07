@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import vacacionesService from "../services/vacacionesService";
+import { formatDateValue } from "../utils/dateUtils";
 
 const initialForm = {
   fecha_inicio: "",
@@ -161,16 +162,7 @@ export const estadoVacaciones = {
   3: { label: "Rechazado", badgeClass: "bg-red-100 text-red-800" },
 };
 
-export const formatearFecha = (value) => {
-  if (!value) return "";
-  const fecha = new Date(value);
-  if (Number.isNaN(fecha.getTime())) return value;
-  return fecha.toLocaleDateString("es-CR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
+export const formatearFecha = (value) => formatDateValue(value);
 
 export const diasSolicitados = (inicio, fin) => {
   const start = new Date(inicio);

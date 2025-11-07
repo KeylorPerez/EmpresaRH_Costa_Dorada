@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import liquidacionesService from "../services/liquidacionesService";
 import empleadoService from "../services/empleadoService";
+import { formatDateValue } from "../utils/dateUtils";
 import { useAuth } from "./useAuth";
 
 const createInitialForm = () => ({
@@ -60,18 +61,7 @@ export const formatearMontoCRC = (value) => {
   });
 };
 
-export const formatearFechaCorta = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString("es-CR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
+export const formatearFechaCorta = (value) => formatDateValue(value);
 
 export const calcularTotalLiquidacion = (registro) => {
   if (!registro) return 0;
