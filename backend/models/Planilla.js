@@ -157,6 +157,7 @@ class Planilla {
       const pagoHorasExtras = Number((horasExtrasNumber * valorHora).toFixed(2));
 
       const salario_bruto_base = Number((salarioBasePeriodo + bonificacionesNumber + pagoHorasExtras).toFixed(2));
+      const salario_bruto = salario_bruto_base;
 
       const prestamosValidos = Array.isArray(prestamos)
         ? prestamos

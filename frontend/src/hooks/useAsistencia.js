@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import asistenciaService from "../services/asistenciaService";
 import empleadoService from "../services/empleadoService";
+import { formatDateValue } from "../utils/dateUtils";
 
 export const tipoMarcaOptions = [
   { value: "entrada", label: "Entrada" },
@@ -14,16 +15,7 @@ const tipoMarcaMap = tipoMarcaOptions.reduce((acc, option) => {
   return acc;
 }, {});
 
-export const formatearFecha = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("es-CR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
+export const formatearFecha = (value) => formatDateValue(value);
 
 export const formatearHora = (value) => {
   if (!value) return "";
