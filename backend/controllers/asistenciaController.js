@@ -3,12 +3,40 @@ const Usuario = require('../models/Usuario'); // para resolver id_empleado del u
 const allowedTypes = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 
 // helpers para fecha/hora
-function formatDateToSql(date) {
-  // date: JS Date -> YYYY-MM-DD
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+function formatDateToSql(dateInput) {
+  if (!dateInput) {
+    const now = new Date();
+    return formatDateToSql(now);
+  }
+
+  if (typeof dateInput === 'string') {
+    const trimmed = dateInput.trim();
+    if (!trimmed) {
+      const now = new Date();
+      return formatDateToSql(now);
+    }
+
+    const dateOnlyMatch = trimmed.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (dateOnlyMatch) {
+      return trimmed;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return formatDateToSql(parsed);
+    }
+
+    throw new Error('Formato de fecha inválido');
+  }
+
+  if (dateInput instanceof Date) {
+    const yyyy = dateInput.getFullYear();
+    const mm = String(dateInput.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateInput.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  throw new Error('Formato de fecha inválido');
 }
 
 function parseTimeForSqlServer(timeInput) {
@@ -93,12 +121,17 @@ const createMarca = async (req, res) => {
     }
 
     const now = new Date();
-    const fecha = fechaBody ? new Date(fechaBody) : now;
+    const fechaSql = fechaBody ? formatDateToSql(fechaBody) : formatDateToSql(now);
     const hora = horaBody ? parseTimeForSqlServer(horaBody) : parseTimeForSqlServer(now);
+
+    const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
+    if (existingMarca) {
+      return res.status(409).json({ error: 'Esta marca ya fue registrada para la fecha seleccionada' });
+    }
 
     const created = await Asistencia.create({
       id_empleado: id_empleado_final,
-      fecha: formatDateToSql(fecha),
+      fecha: fechaSql,
       hora: hora,
       tipo_marca,
       observaciones

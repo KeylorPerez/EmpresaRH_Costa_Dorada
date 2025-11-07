@@ -9,7 +9,15 @@ class Asistencia {
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
-          SELECT a.*, e.nombre, e.apellido
+          SELECT
+            a.id_asistencia,
+            CONVERT(varchar(10), a.fecha, 23) AS fecha,
+            CONVERT(varchar(8), a.hora, 108) AS hora,
+            a.id_empleado,
+            a.tipo_marca,
+            a.observaciones,
+            e.nombre,
+            e.apellido
           FROM Asistencia a
           INNER JOIN Empleados e ON a.id_empleado = e.id_empleado
           ORDER BY a.fecha DESC, a.hora DESC
@@ -25,13 +33,13 @@ class Asistencia {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
-        .input('start', sql.Date, startDate)
-        .input('end', sql.Date, endDate)
+        .input('start', sql.VarChar(10), startDate)
+        .input('end', sql.VarChar(10), endDate)
         .query(`
           SELECT COUNT(DISTINCT fecha) AS dias
           FROM Asistencia
           WHERE id_empleado = @id_empleado
-            AND fecha BETWEEN @start AND @end
+            AND fecha BETWEEN CONVERT(date, @start, 23) AND CONVERT(date, @end, 23)
         `);
 
       const dias = Number(result.recordset[0]?.dias);
@@ -52,7 +60,14 @@ class Asistencia {
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT * FROM Asistencia
+          SELECT
+            id_asistencia,
+            CONVERT(varchar(10), fecha, 23) AS fecha,
+            CONVERT(varchar(8), hora, 108) AS hora,
+            id_empleado,
+            tipo_marca,
+            observaciones
+          FROM Asistencia
           WHERE id_empleado = @id_empleado
           ORDER BY fecha DESC, hora DESC
         `);
@@ -67,14 +82,22 @@ class Asistencia {
     try {
       const pool = await poolPromise;
       const req = pool.request()
-        .input('start', sql.Date, startDate)
-        .input('end', sql.Date, endDate);
+        .input('start', sql.VarChar(10), startDate)
+        .input('end', sql.VarChar(10), endDate);
 
       let query = `
-        SELECT a.*, e.nombre, e.apellido
+        SELECT
+          a.id_asistencia,
+          CONVERT(varchar(10), a.fecha, 23) AS fecha,
+          CONVERT(varchar(8), a.hora, 108) AS hora,
+          a.id_empleado,
+          a.tipo_marca,
+          a.observaciones,
+          e.nombre,
+          e.apellido
         FROM Asistencia a
         LEFT JOIN Empleados e ON a.id_empleado = e.id_empleado
-        WHERE a.fecha BETWEEN @start AND @end
+        WHERE a.fecha BETWEEN CONVERT(date, @start, 23) AND CONVERT(date, @end, 23)
       `;
 
       if (id_empleado) {
@@ -86,6 +109,32 @@ class Asistencia {
 
       const result = await req.query(query);
       return result.recordset;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  static async findByEmpleadoFechaTipo(id_empleado, fecha, tipo_marca) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('fecha', sql.VarChar(10), fecha)
+        .input('tipo_marca', sql.VarChar(20), tipo_marca)
+        .query(`
+          SELECT TOP 1
+            id_asistencia,
+            CONVERT(varchar(10), fecha, 23) AS fecha,
+            CONVERT(varchar(8), hora, 108) AS hora,
+            id_empleado,
+            tipo_marca,
+            observaciones
+          FROM Asistencia
+          WHERE id_empleado = @id_empleado
+            AND fecha = CONVERT(date, @fecha, 23)
+            AND tipo_marca = @tipo_marca
+        `);
+      return result.recordset[0] || null;
     } catch (err) {
       throw err;
     }
@@ -117,13 +166,19 @@ class Asistencia {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
-        .input('fecha', sql.Date, fecha) // Si es null, DB aplicará GETDATE()
+        .input('fecha', sql.VarChar(10), fecha)
         .input('hora', sql.Time, horaSql)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
         .query(`
           INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, observaciones)
-          VALUES (@id_empleado, ISNULL(@fecha, GETDATE()), @hora, @tipo_marca, @observaciones);
+          VALUES (
+            @id_empleado,
+            COALESCE(CONVERT(date, @fecha, 23), CAST(GETDATE() AS date)),
+            @hora,
+            @tipo_marca,
+            @observaciones
+          );
           SELECT SCOPE_IDENTITY() AS id_asistencia;
         `);
       return result.recordset[0];
