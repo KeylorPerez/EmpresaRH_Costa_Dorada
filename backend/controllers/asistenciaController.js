@@ -120,10 +120,12 @@ const createMarca = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado para marcar asistencia de otro empleado' });
     }
 
-const now = new Date();
-const fecha = fechaBody ? new Date(fechaBody) : now;
-const fechaSql = formatDateToSql(fecha);
-const hora = horaBody ? parseTimeForSqlServer(horaBody) : parseTimeForSqlServer(now);
+    const now = new Date();
+    const fecha = fechaBody ? new Date(fechaBody) : now;
+    const fechaSql = formatDateToSql(fecha);
+    const hora = horaBody
+      ? parseTimeForSqlServer(horaBody)
+      : parseTimeForSqlServer(now);
 
     const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
     if (existingMarca) {
