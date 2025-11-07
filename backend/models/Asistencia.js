@@ -91,6 +91,26 @@ class Asistencia {
     }
   }
 
+  static async findByEmpleadoFechaTipo(id_empleado, fecha, tipo_marca) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('fecha', sql.Date, fecha)
+        .input('tipo_marca', sql.VarChar(20), tipo_marca)
+        .query(`
+          SELECT TOP 1 *
+          FROM Asistencia
+          WHERE id_empleado = @id_empleado
+            AND fecha = @fecha
+            AND tipo_marca = @tipo_marca
+        `);
+      return result.recordset[0] || null;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // Crear nueva marca de asistencia
   static async create({ id_empleado, fecha = null, hora, tipo_marca, observaciones = null }) {
     try {
