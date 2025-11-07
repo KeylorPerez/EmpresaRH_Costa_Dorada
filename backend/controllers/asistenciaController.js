@@ -4,35 +4,59 @@ const allowedTypes = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 
 // helpers para fecha/hora
 function formatDateToSql(dateInput) {
+  const ensureDate = (value) => {
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+        const [day, month, year] = trimmed.split('/');
+        return `${year}-${month}-${day}`;
+      }
+
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+
+      throw new Error('Formato de fecha inválido');
+    }
+
+    return null;
+  };
+
   if (!dateInput) {
     const now = new Date();
     return formatDateToSql(now);
   }
 
   if (typeof dateInput === 'string') {
-    const trimmed = dateInput.trim();
-    if (!trimmed) {
+    const normalized = ensureDate(dateInput);
+    if (typeof normalized === 'string') {
+      return normalized;
+    }
+    if (normalized instanceof Date) {
+      return formatDateToSql(normalized);
+    }
+    if (normalized === null) {
       const now = new Date();
       return formatDateToSql(now);
     }
-
-    const dateOnlyMatch = trimmed.match(/^\d{4}-\d{2}-\d{2}$/);
-    if (dateOnlyMatch) {
-      return trimmed;
-    }
-
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) {
-      return formatDateToSql(parsed);
-    }
-
     throw new Error('Formato de fecha inválido');
   }
 
   if (dateInput instanceof Date) {
-    const yyyy = dateInput.getFullYear();
-    const mm = String(dateInput.getMonth() + 1).padStart(2, '0');
-    const dd = String(dateInput.getDate()).padStart(2, '0');
+    const yyyy = dateInput.getUTCFullYear();
+    const mm = String(dateInput.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dateInput.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
 
@@ -42,22 +66,27 @@ function formatDateToSql(dateInput) {
 function parseTimeForSqlServer(timeInput) {
   if (!timeInput) return null;
 
-  let date;
+  const buildFromParts = (hours, minutes, seconds) => {
+    const h = String(Number(hours) || 0).padStart(2, '0');
+    const m = String(Number(minutes) || 0).padStart(2, '0');
+    const s = String(Number(seconds) || 0).padStart(2, '0');
+    return `${h}:${m}:${s}.000`;
+  };
+
   if (timeInput instanceof Date) {
-    date = timeInput;
-  } else if (typeof timeInput === 'string') {
-    const parts = timeInput.split(':');
-    const h = parseInt(parts[0], 10);
-    const m = parseInt(parts[1] || '0', 10);
-    const s = parseInt(parts[2] || '0', 10);
-    date = new Date();
-    date.setHours(h, m, s, 0);
-  } else {
-    throw new Error('Formato de hora inválido');
+    return buildFromParts(timeInput.getHours(), timeInput.getMinutes(), timeInput.getSeconds());
   }
 
-  // SQL Server TIME -> formato HH:MM:SS.mmm
-  return date.toTimeString().split(' ')[0] + '.000';
+  if (typeof timeInput === 'string') {
+    const trimmed = timeInput.trim();
+    if (!trimmed) return null;
+
+    const [h = '0', m = '0', rest = '0'] = trimmed.split(':');
+    const s = rest.includes('.') ? rest.split('.')[0] : rest;
+    return buildFromParts(h, m, s);
+  }
+
+  throw new Error('Formato de hora inválido');
 }
 
 // GET /api/asistencia
@@ -120,10 +149,11 @@ const createMarca = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado para marcar asistencia de otro empleado' });
     }
 
-const now = new Date();
-const fecha = fechaBody ? new Date(fechaBody) : now;
-const fechaSql = formatDateToSql(fecha);
-const hora = horaBody ? parseTimeForSqlServer(horaBody) : parseTimeForSqlServer(now);
+    const now = new Date();
+    const fechaSql = formatDateToSql(fechaBody || now);
+    const hora = horaBody
+      ? parseTimeForSqlServer(horaBody)
+      : parseTimeForSqlServer(now);
 
     const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
     if (existingMarca) {
