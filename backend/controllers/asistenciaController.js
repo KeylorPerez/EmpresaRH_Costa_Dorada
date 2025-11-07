@@ -121,7 +121,8 @@ const createMarca = async (req, res) => {
     }
 
     const now = new Date();
-    const fechaSql = fechaBody ? formatDateToSql(fechaBody) : formatDateToSql(now);
+    const fecha = fechaBody ? new Date(fechaBody) : now;
+    const fechaSql = formatDateToSql(fecha);
     const hora = horaBody ? parseTimeForSqlServer(horaBody) : parseTimeForSqlServer(now);
 
     const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
