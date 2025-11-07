@@ -94,11 +94,17 @@ const createMarca = async (req, res) => {
 
     const now = new Date();
     const fecha = fechaBody ? new Date(fechaBody) : now;
+    const fechaSql = formatDateToSql(fecha);
     const hora = horaBody ? parseTimeForSqlServer(horaBody) : parseTimeForSqlServer(now);
+
+    const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
+    if (existingMarca) {
+      return res.status(409).json({ error: 'Esta marca ya fue registrada para la fecha seleccionada' });
+    }
 
     const created = await Asistencia.create({
       id_empleado: id_empleado_final,
-      fecha: formatDateToSql(fecha),
+      fecha: fechaSql,
       hora: hora,
       tipo_marca,
       observaciones
