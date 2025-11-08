@@ -11,6 +11,11 @@ const planillaService = {
     return response.data;
   },
 
+  getDetalle: async (id) => {
+    const response = await api.get(`/planilla/${id}/detalle`);
+    return response.data;
+  },
+
   getAttendanceSummary: async ({ id_empleado, periodo_inicio, periodo_fin }) => {
     const response = await api.get("/planilla/asistencia", {
       params: { id_empleado, periodo_inicio, periodo_fin },
