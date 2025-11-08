@@ -40,6 +40,12 @@ const Asistencia = ({ mode }) => {
     editLoading,
     setError,
     setSuccessMessage,
+    location,
+    locationStatus,
+    supportsGeolocation,
+    requestLocation,
+    updateLocationField,
+    resetLocation,
   } = useAsistencia({ mode });
 
   const sidebarLinks = useMemo(() => {
@@ -66,6 +72,21 @@ const Asistencia = ({ mode }) => {
 
   const roleColor = isAdmin ? "blue" : "green";
   const tituloPagina = isAdmin ? "Gestión de Asistencia" : "Mi Asistencia";
+
+  const formatUbicacion = (latitud, longitud) => {
+    if (latitud === null || latitud === undefined || longitud === null || longitud === undefined) {
+      return "—";
+    }
+    const lat = Number(latitud);
+    const lon = Number(longitud);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    }
+    const latString = latitud?.toString().trim();
+    const lonString = longitud?.toString().trim();
+    if (!latString && !lonString) return "—";
+    return [latString, lonString].filter(Boolean).join(", ");
+  };
 
   if (!user) {
     return <p className="p-6">Cargando información del usuario...</p>;
@@ -193,6 +214,71 @@ const Asistencia = ({ mode }) => {
                 />
               </div>
 
+              <div className="md:col-span-2 flex flex-col gap-2">
+                <p className="text-sm font-medium text-gray-700">Ubicación de marcación</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-gray-600 mb-1" htmlFor="latitud">
+                      Latitud
+                    </label>
+                    <input
+                      id="latitud"
+                      name="latitud"
+                      type="text"
+                      value={location.latitud}
+                      onChange={(event) => updateLocationField("latitud", event.target.value)}
+                      disabled={!isAdmin && supportsGeolocation}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
+                      placeholder="Ej. 9.935000"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-gray-600 mb-1" htmlFor="longitud">
+                      Longitud
+                    </label>
+                    <input
+                      id="longitud"
+                      name="longitud"
+                      type="text"
+                      value={location.longitud}
+                      onChange={(event) => updateLocationField("longitud", event.target.value)}
+                      disabled={!isAdmin && supportsGeolocation}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
+                      placeholder="Ej. -84.091000"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={requestLocation}
+                    disabled={locationStatus.loading}
+                  >
+                    {locationStatus.loading ? "Obteniendo ubicación..." : "Obtener ubicación actual"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={resetLocation}
+                    disabled={!location.latitud && !location.longitud}
+                  >
+                    Limpiar ubicación
+                  </Button>
+                  {!supportsGeolocation && (
+                    <span className="text-sm text-yellow-600">
+                      Tu navegador no soporta geolocalización automática; ingresa la ubicación manualmente.
+                    </span>
+                  )}
+                </div>
+                {locationStatus.error && (
+                  <p className="text-sm text-red-500">{locationStatus.error}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  La latitud y longitud registradas se almacenarán junto con la marca de asistencia.
+                </p>
+              </div>
+
               <div className="md:col-span-2 flex flex-col">
                 <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="observaciones">
                   Observaciones (opcional)
@@ -290,6 +376,7 @@ const Asistencia = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Fecha</th>
                       <th className="px-4 py-3 text-left">Hora</th>
                       <th className="px-4 py-3 text-left">Tipo</th>
+                      <th className="px-4 py-3 text-left">Ubicación</th>
                       <th className="px-4 py-3 text-left">Observaciones</th>
                       {isAdmin && <th className="px-4 py-3 text-left">Empleado</th>}
                       {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
@@ -308,6 +395,9 @@ const Asistencia = ({ mode }) => {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
                             {obtenerEtiquetaTipo(registro.tipo_marca)}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {formatUbicacion(registro.latitud, registro.longitud)}
                         </td>
                         <td className="px-4 py-3 text-gray-600 max-w-xs">
                           {registro.observaciones || "-"}

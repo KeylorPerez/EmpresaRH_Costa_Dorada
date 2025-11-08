@@ -17,6 +17,7 @@ const createEmptyFormData = () => ({
   porcentaje_ccss: "9.34",
   usa_deduccion_fija: "0",
   deduccion_fija: "0",
+  permitir_marcacion_fuera: "0",
   estado: "1", // 👈 por defecto activo
 });
 
@@ -118,6 +119,7 @@ export const useEmpleado = () => {
         porcentaje_ccss: porcentajeValue,
         usa_deduccion_fija: usaDeduccionFija ? 1 : 0,
         deduccion_fija: usaDeduccionFija ? deduccionFijaValue : 0,
+        permitir_marcacion_fuera: formData.permitir_marcacion_fuera === "1" ? 1 : 0,
       };
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
@@ -171,6 +173,10 @@ export const useEmpleado = () => {
       deduccion_fija:
         empleado.deduccion_fija !== undefined && empleado.deduccion_fija !== null
           ? String(empleado.deduccion_fija)
+          : "0",
+      permitir_marcacion_fuera:
+        empleado.permitir_marcacion_fuera !== undefined && empleado.permitir_marcacion_fuera !== null
+          ? String(Number(Boolean(empleado.permitir_marcacion_fuera)))
           : "0",
       estado:
         empleado.estado !== undefined && empleado.estado !== null
