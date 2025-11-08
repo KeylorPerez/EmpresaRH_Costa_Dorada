@@ -27,6 +27,35 @@ export const formatearHora = (value) => {
 
 const pad = (value) => value.toString().padStart(2, "0");
 
+const parseCoordinateInput = (value) => {
+  if (value === undefined || value === null) return null;
+  const asString = value.toString().trim();
+  if (!asString) return null;
+  const parsed = Number(asString);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeDefaultCoordinate = (value) => {
+  if (value === undefined || value === null || value === "") return "";
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return numeric.toFixed(6);
+  }
+  return value.toString();
+};
+
+const resolveDefaultAdminLocation = () => {
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    const lat = import.meta.env.VITE_EMPRESA_LATITUD;
+    const lon = import.meta.env.VITE_EMPRESA_LONGITUD;
+    return {
+      latitud: normalizeDefaultCoordinate(lat),
+      longitud: normalizeDefaultCoordinate(lon),
+    };
+  }
+  return { latitud: "", longitud: "" };
+};
+
 const createInitialForm = (isAdmin) => {
   const now = new Date();
   const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
@@ -58,6 +87,39 @@ export const useAsistencia = ({ mode } = {}) => {
   const [editingRegistro, setEditingRegistro] = useState(null);
   const [editForm, setEditForm] = useState({ tipo_marca: "", observaciones: "" });
   const [editLoading, setEditLoading] = useState(false);
+
+  const defaultAdminLocation = useMemo(() => resolveDefaultAdminLocation(), []);
+  const createInitialLocation = useCallback(
+    () => (isAdmin ? { ...defaultAdminLocation } : { latitud: "", longitud: "" }),
+    [isAdmin, defaultAdminLocation]
+  );
+
+  const [location, setLocation] = useState(() => createInitialLocation());
+  const [locationStatus, setLocationStatus] = useState({ loading: false, error: "" });
+  const [supportsGeolocation] = useState(
+    () => typeof window !== "undefined" && typeof navigator !== "undefined" && "geolocation" in navigator
+  );
+
+  useEffect(() => {
+    if (!supportsGeolocation && !isAdmin) {
+      setLocationStatus({
+        loading: false,
+        error:
+          "Tu navegador no soporta geolocalización automática. Comunícate con tu administrador para registrar la asistencia.",
+      });
+    }
+  }, [supportsGeolocation, isAdmin]);
+
+  const resetLocation = useCallback(() => {
+    setLocation(createInitialLocation());
+    setLocationStatus({
+      loading: false,
+      error:
+        !supportsGeolocation && !isAdmin
+          ? "Tu navegador no soporta geolocalización automática. Comunícate con tu administrador para registrar la asistencia."
+          : "",
+    });
+  }, [createInitialLocation, supportsGeolocation, isAdmin]);
 
   const fetchRegistros = useCallback(async (range) => {
     try {
@@ -135,6 +197,7 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const resetForm = () => {
     setFormData(createInitialForm(isAdmin));
+    resetLocation();
   };
 
   const handleSubmit = async (event) => {
@@ -161,6 +224,42 @@ export const useAsistencia = ({ mode } = {}) => {
 
     if (formData.hora) {
       payload.hora = formData.hora;
+    }
+
+    let latitudValue = parseCoordinateInput(location.latitud);
+    let longitudValue = parseCoordinateInput(location.longitud);
+
+    if (!isAdmin) {
+      if (supportsGeolocation && (latitudValue === null || longitudValue === null)) {
+        try {
+          const coords = await requestLocation();
+          if (coords) {
+            latitudValue = parseCoordinateInput(coords.latitud);
+            longitudValue = parseCoordinateInput(coords.longitud);
+          }
+        } catch (geoError) {
+          setError(geoError.message || "No fue posible obtener la ubicación actual.");
+          return;
+        }
+      }
+
+      if (latitudValue === null || longitudValue === null) {
+        const message = supportsGeolocation
+          ? "Debes permitir el acceso a tu ubicación para registrar la asistencia."
+          : "No fue posible obtener la ubicación del dispositivo.";
+        setError(message);
+        return;
+      }
+    }
+
+    if ((latitudValue === null) !== (longitudValue === null)) {
+      setError("Completa la latitud y la longitud para registrar la ubicación");
+      return;
+    }
+
+    if (latitudValue !== null && longitudValue !== null) {
+      payload.latitud = latitudValue;
+      payload.longitud = longitudValue;
     }
 
     if (isAdmin) {
@@ -234,6 +333,48 @@ export const useAsistencia = ({ mode } = {}) => {
     }
   };
 
+  const requestLocation = useCallback(() => {
+    if (!supportsGeolocation) {
+      const message = "Tu navegador no soporta geolocalización.";
+      setLocationStatus({ loading: false, error: message });
+      return Promise.resolve(null);
+    }
+
+    setLocationStatus({ loading: true, error: "" });
+
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            latitud: position.coords.latitude.toFixed(6),
+            longitud: position.coords.longitude.toFixed(6),
+          };
+          setLocation(coords);
+          setLocationStatus({ loading: false, error: "" });
+          resolve(coords);
+        },
+        (geoError) => {
+          let message = "No fue posible obtener la ubicación";
+          if (geoError.code === geoError.PERMISSION_DENIED) {
+            message = "Debes permitir el acceso a tu ubicación para registrar la asistencia.";
+          } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+            message = "La ubicación actual no está disponible.";
+          } else if (geoError.code === geoError.TIMEOUT) {
+            message = "La solicitud de ubicación excedió el tiempo de espera.";
+          }
+          setLocationStatus({ loading: false, error: message });
+          const error = new Error(message);
+          error.code = geoError.code;
+          reject(error);
+        }
+      );
+    });
+  }, [supportsGeolocation]);
+
+  const updateLocationField = useCallback((field, value) => {
+    setLocation((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
   const empleadosOptions = useMemo(() => {
     if (!isAdmin) return [];
     return employees.map((empleado) => ({
@@ -280,6 +421,12 @@ export const useAsistencia = ({ mode } = {}) => {
     editLoading,
     setError,
     setSuccessMessage,
+    location,
+    locationStatus,
+    supportsGeolocation,
+    requestLocation,
+    updateLocationField,
+    resetLocation,
   };
 };
 

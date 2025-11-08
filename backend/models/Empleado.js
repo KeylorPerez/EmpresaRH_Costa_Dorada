@@ -52,6 +52,7 @@ class Empleado {
     porcentaje_ccss,
     usa_deduccion_fija,
     deduccion_fija,
+    permitir_marcacion_fuera = 0,
   }) {
     try {
       const pool = await poolPromise;
@@ -70,11 +71,12 @@ class Empleado {
         .input('porcentaje_ccss', sql.Decimal(5, 2), porcentaje_ccss)
         .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija)
         .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija)
+        .input('permitir_marcacion_fuera', sql.Bit, permitir_marcacion_fuera)
         .query(`
           INSERT INTO Empleados
-          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, estado, created_at, updated_at)
+          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera, estado, created_at, updated_at)
           VALUES
-          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, 1, GETDATE(), GETDATE());
+          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera, 1, GETDATE(), GETDATE());
 
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
@@ -102,6 +104,7 @@ class Empleado {
       porcentaje_ccss,
       usa_deduccion_fija,
       deduccion_fija,
+      permitir_marcacion_fuera,
       estado,
     }
   ) {
@@ -123,10 +126,11 @@ class Empleado {
         .input('porcentaje_ccss', sql.Decimal(5, 2), porcentaje_ccss !== undefined ? porcentaje_ccss : null)
         .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija !== undefined ? usa_deduccion_fija : null)
         .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija !== undefined ? deduccion_fija : null)
+        .input('permitir_marcacion_fuera', sql.Bit, permitir_marcacion_fuera !== undefined ? permitir_marcacion_fuera : null)
         .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
           UPDATE Empleados
-          SET 
+          SET
             nombre = @nombre,
             apellido = @apellido,
             id_puesto = @id_puesto,
@@ -141,6 +145,7 @@ class Empleado {
             porcentaje_ccss = COALESCE(@porcentaje_ccss, porcentaje_ccss),
             usa_deduccion_fija = COALESCE(@usa_deduccion_fija, usa_deduccion_fija),
             deduccion_fija = COALESCE(@deduccion_fija, deduccion_fija),
+            permitir_marcacion_fuera = COALESCE(@permitir_marcacion_fuera, permitir_marcacion_fuera),
             estado = COALESCE(@estado, estado),
             updated_at = GETDATE()
           WHERE id_empleado = @id_empleado

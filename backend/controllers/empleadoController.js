@@ -43,6 +43,7 @@ const createEmpleado = async (req, res) => {
       porcentaje_ccss,
       usa_deduccion_fija,
       deduccion_fija,
+      permitir_marcacion_fuera,
     } = req.body;
 
     if (
@@ -91,6 +92,11 @@ const createEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Deducción fija inválida' });
     }
 
+    const permitirMarcacionFueraValue =
+      permitir_marcacion_fuera !== undefined && permitir_marcacion_fuera !== null
+        ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
+        : false;
+
     const empleado = await Empleado.create({
       nombre,
       apellido,
@@ -106,6 +112,7 @@ const createEmpleado = async (req, res) => {
       porcentaje_ccss: porcentajeValue,
       usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
       deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
+      permitir_marcacion_fuera: permitirMarcacionFueraValue ? 1 : 0,
     });
 
     res.status(201).json({
@@ -138,6 +145,7 @@ const updateEmpleado = async (req, res) => {
       porcentaje_ccss,
       usa_deduccion_fija,
       deduccion_fija,
+      permitir_marcacion_fuera,
       estado
     } = req.body;
 
@@ -175,6 +183,11 @@ const updateEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Deducción fija inválida' });
     }
 
+    const permitirMarcacionFueraValue =
+      permitir_marcacion_fuera !== undefined && permitir_marcacion_fuera !== null
+        ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
+        : null;
+
     await Empleado.update(id, {
       nombre,
       apellido,
@@ -199,6 +212,12 @@ const updateEmpleado = async (req, res) => {
           ? null
           : usaDeduccionFijaValue
           ? deduccionFijaValue || 0
+          : 0,
+      permitir_marcacion_fuera:
+        permitirMarcacionFueraValue === null
+          ? null
+          : permitirMarcacionFueraValue
+          ? 1
           : 0,
       estado
     });

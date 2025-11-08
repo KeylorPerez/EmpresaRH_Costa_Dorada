@@ -110,6 +110,7 @@ const Empleados = () => {
                     <th className="px-4 py-3">Bonificación Fija</th>
                     <th className="px-4 py-3">% CCSS</th>
                     <th className="px-4 py-3">Deducción CCSS</th>
+                    <th className="px-4 py-3">Marcación externa</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Acciones</th>
                   </tr>
@@ -117,7 +118,7 @@ const Empleados = () => {
                 <tbody>
                   {filteredEmpleados.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="px-4 py-6 text-center text-gray-500">
+                      <td colSpan="13" className="px-4 py-6 text-center text-gray-500">
                         No hay empleados registrados con el filtro seleccionado.
                       </td>
                     </tr>
@@ -173,6 +174,19 @@ const Empleados = () => {
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-900">
                             {formatCurrency(calculateCCSSDeduccion(emp))}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                Boolean(Number(emp.permitir_marcacion_fuera))
+                                  ? "bg-indigo-100 text-indigo-700"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {Boolean(Number(emp.permitir_marcacion_fuera))
+                                ? "Permitida"
+                                : "Restringida"}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
                             <span
@@ -378,6 +392,24 @@ const Empleados = () => {
                       onChange={handleChange}
                       disabled={formData.usa_deduccion_fija !== "1"}
                     />
+                    <div className="flex flex-col">
+                      <label className="text-sm font-medium text-gray-700 mb-1">
+                        Permitir marcación fuera de la oficina
+                      </label>
+                      <select
+                        name="permitir_marcacion_fuera"
+                        value={formData.permitir_marcacion_fuera}
+                        onChange={handleChange}
+                        className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="0">No</option>
+                        <option value="1">Sí</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Al activar esta opción, el colaborador podrá registrar asistencia aún si se encuentra fuera del rango de la
+                        oficina.
+                      </p>
+                    </div>
                     {editingEmpleado && (
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-700 mb-1">
