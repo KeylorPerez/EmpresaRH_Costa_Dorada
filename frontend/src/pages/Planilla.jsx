@@ -74,9 +74,8 @@ const Planilla = () => {
 
   // ✅ Mantener este bloque (resuelve el conflicto)
   const modalScrollRef = useRef(null);
-  const detalleSectionRef = useRef(null);
-  const [detalleHighlighted, setDetalleHighlighted] = useState(false);
-  const detalleHighlightTimeout = useRef(null);
+  const detalleOverlayFocusRef = useRef(null);
+  const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -93,30 +92,32 @@ const Planilla = () => {
   }, [error, modalOpen]);
 
   useEffect(() => {
-    return () => {
-      if (detalleHighlightTimeout.current) {
-        clearTimeout(detalleHighlightTimeout.current);
-        detalleHighlightTimeout.current = null;
+    if (!modalOpen) {
+      setDetalleOverlayOpen(false);
+    }
+  }, [modalOpen]);
+
+  useEffect(() => {
+    if (!detalleOverlayOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setDetalleOverlayOpen(false);
       }
     };
-  }, []);
 
-  const scrollToDetalle = useCallback(() => {
-    if (!detalleSectionRef.current) return;
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [detalleOverlayOpen]);
 
-    detalleSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    detalleSectionRef.current.focus({ preventScroll: true });
-
-    if (detalleHighlightTimeout.current) {
-      clearTimeout(detalleHighlightTimeout.current);
+  useEffect(() => {
+    if (detalleOverlayOpen && detalleOverlayFocusRef.current) {
+      detalleOverlayFocusRef.current.focus({ preventScroll: true });
     }
-
-    setDetalleHighlighted(true);
-    detalleHighlightTimeout.current = setTimeout(() => {
-      setDetalleHighlighted(false);
-      detalleHighlightTimeout.current = null;
-    }, 1600);
-  }, []);
+  }, [detalleOverlayOpen]);
 
   const adminLinks = useMemo(
     () => [
@@ -136,6 +137,7 @@ const Planilla = () => {
   const closeModal = () => {
     setModalOpen(false);
     resetForm();
+    setDetalleOverlayOpen(false);
   };
 
   const selectedEmpleado = useMemo(
@@ -171,6 +173,94 @@ const Planilla = () => {
       { dias: 0, asistencias: 0, total: 0 }
     );
   }, [detalleSeleccionado]);
+
+  const DetalleResumenBadges = ({ className = "" }) => (
+    <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
+      <span>Días: {detalleDias.length}</span>
+      <span>Pagados: {detalleDiasResumen.diasAsistidos}</span>
+      <span>Total: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
+    </div>
+  );
+
+  const DetalleTable = ({ className = "" }) => {
+    if (detalleDias.length === 0) {
+      return (
+        <p className={`text-sm text-gray-500 ${className}`}>
+          Selecciona un colaborador y un periodo para visualizar el detalle diario de la planilla.
+        </p>
+      );
+    }
+
+    return (
+      <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-4 py-3 text-left">Fecha</th>
+              <th className="px-4 py-3 text-left">Día</th>
+              <th className="px-4 py-3 text-center">Asistencia</th>
+              <th className="px-4 py-3 text-center">Tipo</th>
+              <th className="px-4 py-3 text-right">Salario día</th>
+              <th className="px-4 py-3 text-left">Observación</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {detalleDias.map((detalle, index) => (
+              <tr key={`${detalle.fecha}-${index}`} className="hover:bg-gray-50/70">
+                <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(detalle.fecha)}</td>
+                <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => toggleDetalleAsistencia(index)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                      detalle.asistio
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-red-100 text-red-600 hover:bg-red-200"
+                    }`}
+                  >
+                    {detalle.asistio ? "Asistió" : "Faltó"}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => toggleDetalleDiaDoble(index)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                      detalle.es_dia_doble
+                        ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {detalle.es_dia_doble ? "Día doble" : "Normal"}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={detalle.salario_dia ?? ""}
+                    onChange={(event) => updateDetalleDia(index, { salario_dia: event.target.value })}
+                    className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <input
+                    type="text"
+                    value={detalle.observacion || ""}
+                    onChange={(event) => updateDetalleDia(index, { observacion: event.target.value })}
+                    placeholder="Opcional"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
   const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
@@ -493,13 +583,14 @@ const Planilla = () => {
 
           {/* Modal */}
           {modalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-4 py-6">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
-                <div className="flex items-center justify-between border-b px-6 py-4">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    {editingPlanilla ? "Actualizar planilla" : "Generar planilla"}
-                  </h2>
-                  <Button variant="secondary" size="sm" type="button" onClick={closeModal}>
+            <>
+              <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-4 py-6">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
+                  <div className="flex items-center justify-between border-b px-6 py-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      {editingPlanilla ? "Actualizar planilla" : "Generar planilla"}
+                    </h2>
+                    <Button variant="secondary" size="sm" type="button" onClick={closeModal}>
                     Cerrar
                   </Button>
                 </div>
@@ -654,9 +745,9 @@ const Planilla = () => {
                                     variant="secondary"
                                     size="sm"
                                     className="px-3 py-1 text-xs"
-                                    onClick={scrollToDetalle}
+                                    onClick={() => setDetalleOverlayOpen(true)}
                                   >
-                                    Ir al detalle diario
+                                    Abrir detalle en pantalla completa
                                   </Button>
                                 )}
                                 {isEditing && (
@@ -987,86 +1078,10 @@ const Planilla = () => {
                           >
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                <span>Días: {detalleDias.length}</span>
-                                <span>Pagados: {detalleDiasResumen.diasAsistidos}</span>
-                                <span>Total: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
-                              </div>
+                              <DetalleResumenBadges />
                             </div>
 
-                            {detalleDias.length === 0 ? (
-                              <p className="mt-4 text-sm text-gray-500">
-                                Selecciona un colaborador y un periodo para visualizar el detalle diario de la planilla.
-                              </p>
-                            ) : (
-                              <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
-                                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                                    <tr>
-                                      <th className="px-4 py-3 text-left">Fecha</th>
-                                      <th className="px-4 py-3 text-left">Día</th>
-                                      <th className="px-4 py-3 text-center">Asistencia</th>
-                                      <th className="px-4 py-3 text-center">Tipo</th>
-                                      <th className="px-4 py-3 text-right">Salario día</th>
-                                      <th className="px-4 py-3 text-left">Observación</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-gray-100 bg-white">
-                                    {detalleDias.map((detalle, index) => (
-                                      <tr key={`${detalle.fecha}-${index}`} className="hover:bg-gray-50/70">
-                                        <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(detalle.fecha)}</td>
-                                        <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
-                                        <td className="px-4 py-3 text-center">
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleDetalleAsistencia(index)}
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                                              detalle.asistio
-                                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                                : "bg-red-100 text-red-600 hover:bg-red-200"
-                                            }`}
-                                          >
-                                            {detalle.asistio ? "Asistió" : "Faltó"}
-                                          </button>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleDetalleDiaDoble(index)}
-                                            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                                              detalle.es_dia_doble
-                                                ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                            }`}
-                                          >
-                                            {detalle.es_dia_doble ? "Día doble" : "Normal"}
-                                          </button>
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={detalle.salario_dia ?? ""}
-                                            onChange={(event) => updateDetalleDia(index, { salario_dia: event.target.value })}
-                                            className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                          />
-                                        </td>
-                                        <td className="px-4 py-3">
-                                          <input
-                                            type="text"
-                                            value={detalle.observacion || ""}
-                                            onChange={(event) => updateDetalleDia(index, { observacion: event.target.value })}
-                                            placeholder="Opcional"
-                                            className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                          />
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
+                            <DetalleTable className="mt-4" />
                           </div>
 
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -1144,6 +1159,41 @@ const Planilla = () => {
                 </form>
               </div>
             </div>
+
+              {detalleOverlayOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6">
+                  <div className="absolute inset-0" onClick={() => setDetalleOverlayOpen(false)} />
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Detalle diario del periodo"
+                    className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-gray-800">Detalle diario del periodo</h3>
+                        <p className="text-sm text-gray-500">
+                          Actualiza asistencias, marca días dobles y ajusta los montos directamente en esta vista ampliada.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <DetalleResumenBadges className="text-sm" />
+                        <Button variant="secondary" size="sm" type="button" onClick={() => setDetalleOverlayOpen(false)}>
+                          Cerrar
+                        </Button>
+                      </div>
+                    </div>
+                    <div
+                      ref={detalleOverlayFocusRef}
+                      tabIndex={-1}
+                      className="flex-1 overflow-y-auto px-6 py-6 focus:outline-none"
+                    >
+                      <DetalleTable className={detalleDias.length === 0 ? "" : "mt-2"} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -1152,4 +1202,3 @@ const Planilla = () => {
 };
 
 export default Planilla;
-
