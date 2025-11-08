@@ -246,7 +246,8 @@ export const usePlanilla = () => {
       detalles.push({
         fecha: iso,
         dia_semana: diaSemana,
-        salario_dia: salarioDiarioReferencia,
+        salario_base: salarioDiarioReferencia,
+        salario_dia: salarioDiarioReferencia.toFixed(2),
         asistio: true,
         es_dia_doble: false,
         observacion: "",
@@ -304,14 +305,68 @@ export const usePlanilla = () => {
 
   const updateDetalleDia = useCallback((index, updates) => {
     setDetalleDias((prev) =>
-      prev.map((detalle, idx) => (idx === index ? { ...detalle, ...updates } : detalle))
+      prev.map((detalle, idx) => {
+        if (idx !== index) return detalle;
+
+        const siguiente = { ...detalle, ...updates };
+
+        if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
+          const valor = updates.salario_dia;
+
+          if (valor === "") {
+            siguiente.salario_dia = "";
+          } else {
+            const numero = Number(valor);
+            if (!Number.isNaN(numero)) {
+              const factor = detalle.es_dia_doble ? 2 : 1;
+              const base = factor > 0 ? numero / factor : numero;
+              siguiente.salario_dia = numero.toFixed(2);
+
+              if (detalle.asistio) {
+                siguiente.salario_base = Number(base.toFixed(2));
+              }
+            }
+          }
+        }
+
+        return siguiente;
+      })
     );
   }, []);
 
   const toggleDetalleAsistencia = useCallback((index) => {
     setDetalleDias((prev) =>
       prev.map((detalle, idx) =>
-        idx === index ? { ...detalle, asistio: !detalle.asistio } : detalle
+        idx === index
+          ? (() => {
+              const asistio = !detalle.asistio;
+              const baseReferencia = (() => {
+                const base = Number(detalle.salario_base);
+                if (!Number.isNaN(base)) return base;
+
+                const salarioActual = Number(detalle.salario_dia);
+                if (Number.isNaN(salarioActual)) return 0;
+
+                return detalle.es_dia_doble && salarioActual > 0
+                  ? salarioActual / 2
+                  : salarioActual;
+              })();
+
+              const formatear = (valor) => Number(valor).toFixed(2);
+              const baseNormalizado = Number(baseReferencia.toFixed(2));
+
+              return {
+                ...detalle,
+                asistio,
+                salario_base: Number.isNaN(Number(detalle.salario_base))
+                  ? baseNormalizado
+                  : detalle.salario_base,
+                salario_dia: asistio
+                  ? formatear(baseReferencia * (detalle.es_dia_doble ? 2 : 1))
+                  : formatear(0),
+              };
+            })()
+          : detalle
       )
     );
   }, []);
@@ -319,14 +374,42 @@ export const usePlanilla = () => {
   const toggleDetalleDiaDoble = useCallback((index) => {
     setDetalleDias((prev) =>
       prev.map((detalle, idx) =>
-        idx === index ? { ...detalle, es_dia_doble: !detalle.es_dia_doble } : detalle
+        idx === index
+          ? (() => {
+              const es_dia_doble = !detalle.es_dia_doble;
+              const baseReferencia = (() => {
+                const base = Number(detalle.salario_base);
+                if (!Number.isNaN(base)) return base;
+
+                const salarioActual = Number(detalle.salario_dia);
+                if (Number.isNaN(salarioActual)) return 0;
+
+                return detalle.es_dia_doble && salarioActual > 0
+                  ? salarioActual / 2
+                  : salarioActual;
+              })();
+
+              const formatear = (valor) => Number(valor).toFixed(2);
+              const factor = es_dia_doble ? 2 : 1;
+              const baseNormalizado = Number(baseReferencia.toFixed(2));
+
+              return {
+                ...detalle,
+                es_dia_doble,
+                salario_base: Number.isNaN(Number(detalle.salario_base))
+                  ? baseNormalizado
+                  : detalle.salario_base,
+                salario_dia: detalle.asistio ? formatear(baseReferencia * factor) : formatear(0),
+              };
+            })()
+          : detalle
       )
     );
   }, []);
 
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
-      return { diasPeriodo: 0, diasAsistidos: 0, salarioTotal: 0 };
+      return { diasPeriodo: 0, diasAsistidos: 0, diasFaltantes: 0, salarioTotal: 0 };
     }
 
     return detalleDias.reduce(
@@ -335,12 +418,14 @@ export const usePlanilla = () => {
         const factor = detalle.es_dia_doble ? 2 : 1;
         if (detalle.asistio) {
           acumulado.diasAsistidos += factor;
-          acumulado.salarioTotal += salario * factor;
+          acumulado.salarioTotal += salario;
+        } else {
+          acumulado.diasFaltantes += 1;
         }
         acumulado.diasPeriodo += 1;
         return acumulado;
       },
-      { diasPeriodo: 0, diasAsistidos: 0, salarioTotal: 0 }
+      { diasPeriodo: 0, diasAsistidos: 0, diasFaltantes: 0, salarioTotal: 0 }
     );
   }, [detalleDias]);
 
