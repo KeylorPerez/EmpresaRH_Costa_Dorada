@@ -7,6 +7,7 @@ import Empleados from "../pages/Empleados";
 import Usuarios from "../pages/Usuarios";
 import Puestos from "../pages/Puestos";
 import Planilla from "../pages/Planilla";
+import PlanillaDetalle from "../pages/PlanillaDetalle";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
@@ -80,6 +81,16 @@ const AppRouter = () => {
       />
 
       {/* Módulo de planilla (solo admins) */}
+      <Route
+        path="/admin/planilla/:id"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <PlanillaDetalle />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Listado de planillas (solo admins) */}
       <Route
         path="/admin/planilla"
         element={

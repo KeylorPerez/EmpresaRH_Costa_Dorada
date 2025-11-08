@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
@@ -63,16 +64,13 @@ const Planilla = () => {
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
     detalleDiasResumen,
-    loadDetallePlanilla,
-    closeDetallePlanilla,
-    detalleSeleccionado,
   } = usePlanilla();
 
+  const navigate = useNavigate();
   const isEditing = Boolean(editingPlanilla);
   const [activeEmpleadoIndex, setActiveEmpleadoIndex] = useState(0);
   const [wizardSearch, setWizardSearch] = useState("");
 
-  // ✅ Mantener este bloque (resuelve el conflicto)
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
   const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
@@ -153,26 +151,6 @@ const Planilla = () => {
       return nombreCompleto.includes(term) || String(empleado.id_empleado).includes(term);
     });
   }, [empleados, wizardSearch]);
-
-  const detalleSeleccionadoResumen = useMemo(() => {
-    if (!detalleSeleccionado?.dias || detalleSeleccionado.dias.length === 0) {
-      return { dias: 0, asistencias: 0, total: 0 };
-    }
-
-    return detalleSeleccionado.dias.reduce(
-      (acumulado, detalle) => {
-        acumulado.dias += 1;
-        if (detalle.asistio) {
-          const salario = Number(detalle.salario_dia) || 0;
-          const factor = detalle.es_dia_doble ? 2 : 1;
-          acumulado.asistencias += factor;
-          acumulado.total += salario * factor;
-        }
-        return acumulado;
-      },
-      { dias: 0, asistencias: 0, total: 0 }
-    );
-  }, [detalleSeleccionado]);
 
   const DetalleResumenBadges = ({ className = "" }) => (
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
@@ -401,88 +379,6 @@ const Planilla = () => {
             </div>
           )}
 
-          {detalleSeleccionado.id && (
-            <div className="fixed inset-0 z-40 flex items-center justify-end bg-black/30 px-4 py-6">
-              <div className="flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b px-6 py-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Detalle planilla #{detalleSeleccionado.id}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {detalleSeleccionadoResumen.dias} días · {detalleSeleccionadoResumen.asistencias} asistencias efectivas · Total estimado {formatCurrency(detalleSeleccionadoResumen.total)}
-                    </p>
-                  </div>
-                  <Button variant="secondary" size="sm" type="button" onClick={closeDetallePlanilla}>
-                    Cerrar
-                  </Button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                  {detalleSeleccionado.loading ? (
-                    <p className="text-sm text-gray-500">Cargando detalle de la planilla...</p>
-                  ) : detalleSeleccionado.error ? (
-                    <p className="text-sm text-red-600">{detalleSeleccionado.error}</p>
-                  ) : detalleSeleccionado.dias.length === 0 ? (
-                    <p className="text-sm text-gray-500">Esta planilla no tiene un detalle diario asociado.</p>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto rounded-xl border border-gray-100">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                          <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                            <tr>
-                              <th className="px-4 py-3 text-left">Fecha</th>
-                              <th className="px-4 py-3 text-left">Día</th>
-                              <th className="px-4 py-3 text-center">Asistencia</th>
-                              <th className="px-4 py-3 text-center">Tipo</th>
-                              <th className="px-4 py-3 text-right">Salario día</th>
-                              <th className="px-4 py-3 text-left">Observación</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 bg-white">
-                            {detalleSeleccionado.dias.map((detalle) => (
-                              <tr key={detalle.id_detalle} className="hover:bg-gray-50/70">
-                                <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(detalle.fecha)}</td>
-                                <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
-                                <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                                  {detalle.asistio ? "Asistió" : "Faltó"}
-                                </td>
-                                <td className="px-4 py-3 text-center text-sm text-gray-600">
-                                  {detalle.es_dia_doble ? "Día doble" : "Normal"}
-                                </td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                                  {formatCurrency(detalle.salario_dia)}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">
-                                  {detalle.observacion ? detalle.observacion : "-"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-center">
-                          <p className="text-xs uppercase tracking-wide text-gray-500">Días registrados</p>
-                          <p className="mt-1 text-lg font-semibold text-gray-800">{detalleSeleccionadoResumen.dias}</p>
-                        </div>
-                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-center">
-                          <p className="text-xs uppercase tracking-wide text-gray-500">Asistencias pagadas</p>
-                          <p className="mt-1 text-lg font-semibold text-gray-800">{detalleSeleccionadoResumen.asistencias}</p>
-                        </div>
-                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-center">
-                          <p className="text-xs uppercase tracking-wide text-gray-500">Total acumulado</p>
-                          <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(detalleSeleccionadoResumen.total)}</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <article className="bg-white shadow rounded-xl p-4">
               <p className="text-sm text-gray-500">Planillas registradas</p>
@@ -564,7 +460,11 @@ const Planilla = () => {
                             <Button
                               variant="secondary"
                               size="sm"
-                              onClick={() => loadDetallePlanilla(planilla.id_planilla)}
+                              onClick={() =>
+                                navigate(`/admin/planilla/${planilla.id_planilla}`, {
+                                  state: { planilla },
+                                })
+                              }
                             >
                               Ver detalle
                             </Button>
