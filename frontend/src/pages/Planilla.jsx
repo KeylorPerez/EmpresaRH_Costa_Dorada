@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
@@ -74,6 +74,9 @@ const Planilla = () => {
 
   // ✅ Mantener este bloque (resuelve el conflicto)
   const modalScrollRef = useRef(null);
+  const detalleSectionRef = useRef(null);
+  const [detalleHighlighted, setDetalleHighlighted] = useState(false);
+  const detalleHighlightTimeout = useRef(null);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -88,6 +91,32 @@ const Planilla = () => {
     if (!scrollContainer) return;
     scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
   }, [error, modalOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (detalleHighlightTimeout.current) {
+        clearTimeout(detalleHighlightTimeout.current);
+        detalleHighlightTimeout.current = null;
+      }
+    };
+  }, []);
+
+  const scrollToDetalle = useCallback(() => {
+    if (!detalleSectionRef.current) return;
+
+    detalleSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    detalleSectionRef.current.focus({ preventScroll: true });
+
+    if (detalleHighlightTimeout.current) {
+      clearTimeout(detalleHighlightTimeout.current);
+    }
+
+    setDetalleHighlighted(true);
+    detalleHighlightTimeout.current = setTimeout(() => {
+      setDetalleHighlighted(false);
+      detalleHighlightTimeout.current = null;
+    }, 1600);
+  }, []);
 
   const adminLinks = useMemo(
     () => [
@@ -616,13 +645,26 @@ const Planilla = () => {
 
                         <div className="flex-1 min-w-0 space-y-6">
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:max-h-[60vh] lg:overflow-y-auto">
-                            <div className="flex items-center justify-between gap-2 pb-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2 pb-4">
                               <h3 className="text-base font-semibold text-gray-800">Datos del periodo</h3>
-                              {isEditing && (
-                                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-                                  Edición
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {detalleDias.length > 0 && (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="px-3 py-1 text-xs"
+                                    onClick={scrollToDetalle}
+                                  >
+                                    Ir al detalle diario
+                                  </Button>
+                                )}
+                                {isEditing && (
+                                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                                    Edición
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 lg:pr-1">
@@ -936,7 +978,13 @@ const Planilla = () => {
                             )}
                           </div>
 
-                          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                          <div
+                            ref={detalleSectionRef}
+                            tabIndex={-1}
+                            className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow focus:outline-none ${
+                              detalleHighlighted ? "ring-2 ring-blue-300" : ""
+                            }`}
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
                               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
