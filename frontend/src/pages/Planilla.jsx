@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
@@ -1069,7 +1069,13 @@ const Planilla = () => {
                             )}
                           </div>
 
-                          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                          <div
+                            ref={detalleSectionRef}
+                            tabIndex={-1}
+                            className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow focus:outline-none ${
+                              detalleHighlighted ? "ring-2 ring-blue-300" : ""
+                            }`}
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
                               <DetalleResumenBadges />
