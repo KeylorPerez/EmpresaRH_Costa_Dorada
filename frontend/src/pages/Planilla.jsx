@@ -1133,13 +1133,13 @@ const Planilla = () => {
             </div>
 
               {detalleOverlayOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4 py-6">
+                <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-6">
                   <div className="absolute inset-0" onClick={() => setDetalleOverlayOpen(false)} />
                   <div
                     role="dialog"
                     aria-modal="true"
                     aria-label="Detalle diario del periodo"
-                    className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+                    className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
                       <div className="space-y-1">
@@ -1159,6 +1159,7 @@ const Planilla = () => {
                       ref={detalleOverlayFocusRef}
                       tabIndex={-1}
                       className="flex-1 overflow-y-auto px-6 py-6 focus:outline-none"
+                      style={{ WebkitOverflowScrolling: "touch" }}
                     >
                       <DetalleTable className={detalleDias.length === 0 ? "" : "mt-2"} />
                     </div>
