@@ -615,7 +615,7 @@ const Planilla = () => {
                         </aside>
 
                         <div className="flex-1 min-w-0 space-y-6">
-                          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:max-h-[60vh] lg:overflow-y-auto">
                             <div className="flex items-center justify-between gap-2 pb-4">
                               <h3 className="text-base font-semibold text-gray-800">Datos del periodo</h3>
                               {isEditing && (
@@ -625,7 +625,7 @@ const Planilla = () => {
                               )}
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 lg:pr-1">
                               {isEditing ? (
                                 <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-3">
                                   <label htmlFor="id_empleado" className="text-sm font-medium text-gray-700">
