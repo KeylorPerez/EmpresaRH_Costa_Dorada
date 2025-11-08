@@ -1,5 +1,6 @@
 const { poolPromise, sql } = require('../db/db');
 const Asistencia = require('./Asistencia');
+const DetallePlanilla = require('./DetallePlanilla');
 
 class Planilla {
   // 🔹 Obtener todas las planillas (admin)
@@ -50,6 +51,7 @@ class Planilla {
     dias_trabajados = null,
     dias_descuento = 0,
     monto_descuento_dias = null,
+    detalles = [],
   }) {
     try {
       const pool = await poolPromise;
@@ -210,6 +212,32 @@ class Planilla {
           SELECT SCOPE_IDENTITY() AS id_planilla;
         `);
 
+        const planillaId = Number(result.recordset[0]?.id_planilla);
+
+        if (!Number.isInteger(planillaId)) {
+          throw new Error('No se pudo obtener el identificador de la planilla creada');
+        }
+
+        const detallesSanitizados = Array.isArray(detalles)
+          ? detalles
+              .map((detalle) => ({
+                fecha: detalle.fecha,
+                dia_semana: detalle.dia_semana,
+                salario_dia: Number(Number(detalle.salario_dia || 0).toFixed(2)),
+                asistio: Boolean(detalle.asistio),
+                es_dia_doble: Boolean(detalle.es_dia_doble),
+                observacion:
+                  detalle.observacion !== undefined && detalle.observacion !== null
+                    ? String(detalle.observacion).slice(0, 150)
+                    : null,
+              }))
+              .filter((detalle) => Boolean(detalle.fecha) && Boolean(detalle.dia_semana))
+          : [];
+
+        if (detallesSanitizados.length > 0) {
+          await DetallePlanilla.createMany(transaction, planillaId, detallesSanitizados);
+        }
+
         for (const prestamo of prestamosValidos) {
           const saldoRequest = new sql.Request(transaction);
           const saldoResult = await saldoRequest
@@ -246,7 +274,7 @@ class Planilla {
         }
 
         await transaction.commit();
-        return result.recordset[0];
+        return { ...result.recordset[0], detalles: detallesSanitizados };
       } catch (err) {
         await transaction.rollback();
         throw err;

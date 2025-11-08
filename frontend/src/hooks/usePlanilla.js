@@ -60,6 +60,9 @@ export const usePlanilla = () => {
   const [prestamoSelections, setPrestamoSelections] = useState({});
   const [attendanceState, setAttendanceState] = useState({ loading: false, dias: null, error: "" });
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
+  const [detalleDias, setDetalleDias] = useState([]);
+  const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
+  const [detalleSeleccionado, setDetalleSeleccionado] = useState({ id: null, dias: [], loading: false, error: "" });
   const autoDiasRef = useRef(null);
   const autoMontoDescuentoRef = useRef(null);
 
@@ -101,7 +104,7 @@ export const usePlanilla = () => {
     }
   };
 
-  const handleChange = (event) => {
+  const handleChange = useCallback((event) => {
     const { name, value } = event.target;
 
     if (name === "id_empleado") {
@@ -124,7 +127,7 @@ export const usePlanilla = () => {
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
   const resetForm = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
@@ -135,12 +138,23 @@ export const usePlanilla = () => {
     setAttendanceReloadKey(0);
     autoDiasRef.current = null;
     autoMontoDescuentoRef.current = null;
+    setDetalleDias([]);
+    detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
+    setDetalleSeleccionado({ id: null, dias: [], loading: false, error: "" });
   };
 
   const openCreateModal = () => {
     resetForm();
     setModalOpen(true);
   };
+
+  const selectEmpleado = useCallback(
+    (idEmpleado) => {
+      const value = idEmpleado ? String(idEmpleado) : "";
+      handleChange({ target: { name: "id_empleado", value } });
+    },
+    [handleChange]
+  );
 
   const handleEdit = (planilla) => {
     setEditingPlanilla(planilla);
@@ -198,6 +212,157 @@ export const usePlanilla = () => {
       return updated;
     });
   }, [modalOpen, prestamosEmpleado, formData.id_empleado, editingPlanilla]);
+
+  const buildDetalleDias = useCallback((empleado, inicio, fin) => {
+    if (!empleado || !inicio || !fin) return [];
+
+    const fechaInicio = new Date(inicio);
+    const fechaFin = new Date(fin);
+
+    if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime()) || fechaFin < fechaInicio) {
+      return [];
+    }
+
+    const salarioBase = Number(empleado.salario_monto) || 0;
+    const tipoPago = empleado.tipo_pago || "Quincenal";
+    const salarioDiarioReferencia =
+      tipoPago === "Diario"
+        ? salarioBase
+        : salarioBase > 0
+          ? Number((salarioBase / 15).toFixed(2))
+          : 0;
+
+    const formatter = new Intl.DateTimeFormat("es-CR", { weekday: "long" });
+    const detalles = [];
+
+    for (
+      let cursor = new Date(fechaInicio.getTime());
+      cursor <= fechaFin;
+      cursor.setDate(cursor.getDate() + 1)
+    ) {
+      const current = new Date(cursor.getTime());
+      const iso = current.toISOString().split("T")[0];
+      const diaRaw = formatter.format(current);
+      const diaSemana = diaRaw.charAt(0).toUpperCase() + diaRaw.slice(1);
+
+      detalles.push({
+        fecha: iso,
+        dia_semana: diaSemana,
+        salario_dia: salarioDiarioReferencia,
+        asistio: true,
+        es_dia_doble: false,
+        observacion: "",
+      });
+    }
+
+    return detalles;
+  }, []);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    const { id_empleado, periodo_inicio, periodo_fin } = formData;
+
+    if (!id_empleado || !periodo_inicio || !periodo_fin) {
+      setDetalleDias([]);
+      detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
+      return;
+    }
+
+    const contextoActual = detalleContextRef.current;
+    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
+    const keyNuevo = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+
+    if (detalleDias.length > 0 && keyActual === keyNuevo) {
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === String(id_empleado)
+    );
+
+    if (!empleadoSeleccionado) {
+      setDetalleDias([]);
+      detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
+      return;
+    }
+
+    const nuevosDetalles = buildDetalleDias(empleadoSeleccionado, periodo_inicio, periodo_fin);
+    setDetalleDias(nuevosDetalles);
+    detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
+  }, [
+    modalOpen,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    empleados,
+    detalleDias,
+    buildDetalleDias,
+  ]);
+
+  const updateDetalleDia = useCallback((index, updates) => {
+    setDetalleDias((prev) =>
+      prev.map((detalle, idx) => (idx === index ? { ...detalle, ...updates } : detalle))
+    );
+  }, []);
+
+  const toggleDetalleAsistencia = useCallback((index) => {
+    setDetalleDias((prev) =>
+      prev.map((detalle, idx) =>
+        idx === index ? { ...detalle, asistio: !detalle.asistio } : detalle
+      )
+    );
+  }, []);
+
+  const toggleDetalleDiaDoble = useCallback((index) => {
+    setDetalleDias((prev) =>
+      prev.map((detalle, idx) =>
+        idx === index ? { ...detalle, es_dia_doble: !detalle.es_dia_doble } : detalle
+      )
+    );
+  }, []);
+
+  const detalleDiasResumen = useMemo(() => {
+    if (!detalleDias || detalleDias.length === 0) {
+      return { diasPeriodo: 0, diasAsistidos: 0, salarioTotal: 0 };
+    }
+
+    return detalleDias.reduce(
+      (acumulado, detalle) => {
+        const salario = Number(detalle.salario_dia) || 0;
+        const factor = detalle.es_dia_doble ? 2 : 1;
+        if (detalle.asistio) {
+          acumulado.diasAsistidos += factor;
+          acumulado.salarioTotal += salario * factor;
+        }
+        acumulado.diasPeriodo += 1;
+        return acumulado;
+      },
+      { diasPeriodo: 0, diasAsistidos: 0, salarioTotal: 0 }
+    );
+  }, [detalleDias]);
+
+  const loadDetallePlanilla = useCallback(async (id_planilla) => {
+    setDetalleSeleccionado({ id: id_planilla, dias: [], loading: true, error: "" });
+    try {
+      const data = await planillaService.getDetalle(id_planilla);
+      const dias = Array.isArray(data)
+        ? data.map((detalle) => ({
+            ...detalle,
+            asistio: Boolean(detalle.asistio),
+            es_dia_doble: Boolean(detalle.es_dia_doble),
+          }))
+        : [];
+      setDetalleSeleccionado({ id: id_planilla, dias, loading: false, error: "" });
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || "Error al cargar el detalle";
+      setDetalleSeleccionado({ id: id_planilla, dias: [], loading: false, error: message });
+    }
+  }, []);
+
+  const closeDetallePlanilla = useCallback(() => {
+    setDetalleSeleccionado({ id: null, dias: [], loading: false, error: "" });
+  }, []);
 
   const obtenerSaldoPrestamo = (id_prestamo) => {
     const prestamo = prestamosEmpleado.find((item) => item.id_prestamo === id_prestamo);
@@ -508,6 +673,18 @@ export const usePlanilla = () => {
 
         const deduccionesManuales = buildNumber(formData.deducciones);
 
+        const detallesPayload = detalleDias.map((detalle) => ({
+          fecha: detalle.fecha,
+          dia_semana: detalle.dia_semana,
+          salario_dia: buildNumber(detalle.salario_dia),
+          asistio: Boolean(detalle.asistio),
+          es_dia_doble: Boolean(detalle.es_dia_doble),
+          observacion:
+            detalle.observacion && detalle.observacion.trim() !== ""
+              ? detalle.observacion.trim()
+              : null,
+        }));
+
         const payload = {
           id_empleado: Number(formData.id_empleado),
           periodo_inicio: formData.periodo_inicio,
@@ -520,6 +697,7 @@ export const usePlanilla = () => {
           dias_trabajados: parseOptionalNonNegative(formData.dias_trabajados),
           dias_descuento: parseNonNegative(formData.dias_descuento),
           monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
+          detalles: detallesPayload,
         };
 
         await planillaService.create(payload);
@@ -578,6 +756,7 @@ export const usePlanilla = () => {
     handleSubmit,
     handleEdit,
     openCreateModal,
+    selectEmpleado,
     resetForm,
     fetchPlanillas,
     setError,
@@ -589,6 +768,14 @@ export const usePlanilla = () => {
     totalPrestamosSeleccionados,
     attendanceState,
     refreshAttendance,
+    detalleDias,
+    updateDetalleDia,
+    toggleDetalleAsistencia,
+    toggleDetalleDiaDoble,
+    detalleDiasResumen,
+    loadDetallePlanilla,
+    closeDetallePlanilla,
+    detalleSeleccionado,
   };
 };
 
