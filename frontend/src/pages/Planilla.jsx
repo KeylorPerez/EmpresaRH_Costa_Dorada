@@ -211,8 +211,10 @@ const Planilla = () => {
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
       <span>Días: {detalleDias.length}</span>
       <span>Pagados: {detalleDiasResumen.diasAsistidos}</span>
+      <span>Dobles: {diasDoblesAplicados}</span>
       <span>Faltas: {detalleDiasResumen.diasFaltantes}</span>
       <span>Total detalle: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
+      <span>Extra días dobles: {formatCurrency(pagoExtraDiasDobles)}</span>
       <span>Pago neto estimado: {formatCurrency(pagoNetoEstimado)}</span>
     </div>
   );
@@ -322,11 +324,53 @@ const Planilla = () => {
       : montoDescuentoDiasValor;
   const salarioDiarioReferencia =
     tipoPago === "Diario" ? salarioBaseReferencia : salarioBaseReferencia / 15;
-  const salarioBasePeriodo = usaDetalleParaCalculos
-    ? detalleDiasResumen.salarioTotal
-    : tipoPago === "Diario"
-      ? salarioDiarioReferencia * diasTrabajadosAplicados
-      : salarioBaseReferencia;
+  const diasDoblesValor = Number(formData.dias_dobles);
+  const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
+  const usaDoblesManual =
+    tipoPago === "Diario" &&
+    (!usaDetalleParaCalculos ||
+      (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) ||
+      diasDoblesManual > 0);
+  const diasDoblesAplicados = usaDoblesManual
+    ? diasDoblesManual
+    : Number(detalleDiasResumen.diasDobles) || 0;
+  const montoDiasDoblesValor =
+    formData.monto_dias_dobles === "" || formData.monto_dias_dobles === null
+      ? null
+      : Number(formData.monto_dias_dobles);
+  const montoDiasDoblesManual =
+    montoDiasDoblesValor === null || Number.isNaN(montoDiasDoblesValor) || montoDiasDoblesValor < 0
+      ? null
+      : montoDiasDoblesValor;
+  const pagoExtraDiasDobles = (() => {
+    if (!usaDoblesManual) {
+      const resumenMonto = Number(detalleDiasResumen.montoDiasDobles) || 0;
+      return Math.max(resumenMonto, 0);
+    }
+    if (tipoPago !== "Diario") return 0;
+    if (montoDiasDoblesManual !== null) {
+      return Math.max(montoDiasDoblesManual, 0);
+    }
+    const calculado = salarioDiarioReferencia * diasDoblesAplicados;
+    return Number.isNaN(calculado) || calculado < 0 ? 0 : calculado;
+  })();
+  const salarioBasePeriodo = (() => {
+    if (usaDetalleParaCalculos) {
+      const resumenTotal = Number(detalleDiasResumen.salarioTotal) || 0;
+      if (usaDoblesManual) {
+        const resumenExtra = Number(detalleDiasResumen.montoDiasDobles) || 0;
+        const baseSinExtra = resumenTotal - resumenExtra;
+        const ajustado = baseSinExtra + pagoExtraDiasDobles;
+        return Math.max(ajustado, 0);
+      }
+      return Math.max(resumenTotal, 0);
+    }
+    if (tipoPago === "Diario") {
+      const base = salarioDiarioReferencia * diasTrabajadosAplicados + pagoExtraDiasDobles;
+      return Number.isNaN(base) || base < 0 ? 0 : base;
+    }
+    return Math.max(salarioBaseReferencia, 0);
+  })();
   let deduccionDiasCalculada = 0;
   if (tipoPago === "Quincenal") {
     if (usaDetalleParaCalculos) {
@@ -687,14 +731,26 @@ const Planilla = () => {
                                   <span className="font-semibold text-gray-700">Días estimados a pagar:</span>{" "}
                                   {detalleDiasResumen.diasAsistidos}
                                 </p>
+                                {tipoPago === "Diario" && (
+                                  <p>
+                                    <span className="font-semibold text-gray-700">Días dobles a pagar:</span>{" "}
+                                    {diasDoblesAplicados}
+                                  </p>
+                                )}
                                 <p>
                                   <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
                                   {detalleDiasResumen.diasFaltantes}
                                 </p>
                                 <p>
                                   <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
-                                  {formatCurrency(detalleDiasResumen.salarioTotal)}
+                                  {formatCurrency(salarioBasePeriodo)}
                                 </p>
+                                {tipoPago === "Diario" && (
+                                  <p>
+                                    <span className="font-semibold text-gray-700">Extra por días dobles:</span>{" "}
+                                    {formatCurrency(pagoExtraDiasDobles)}
+                                  </p>
+                                )}
                                 <p>
                                   <span className="font-semibold text-gray-700">Pago neto estimado:</span>{" "}
                                   {formatCurrency(pagoNetoEstimado)}
@@ -907,6 +963,42 @@ const Planilla = () => {
                                     )}
                                   </div>
                                 </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="dias_dobles" className="text-sm font-medium text-blue-900">
+                                      Días dobles a pagar
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="dias_dobles"
+                                      name="dias_dobles"
+                                      value={formData.dias_dobles}
+                                      onChange={handleChange}
+                                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="monto_dias_dobles" className="text-sm font-medium text-blue-900">
+                                      Monto extra por días dobles
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="monto_dias_dobles"
+                                      name="monto_dias_dobles"
+                                      value={formData.monto_dias_dobles}
+                                      onChange={handleChange}
+                                      placeholder="Automático"
+                                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <p className="text-xs text-blue-800">
+                                      Deja el campo vacío para calcularlo según el salario diario; ingresa un monto si necesitas un valor personalizado.
+                                    </p>
+                                  </div>
+                                </div>
                                 <p className="text-xs text-gray-600">
                                   Ajusta el valor si necesitas reconocer medios días o ausencias no registradas.
                                 </p>
@@ -1061,6 +1153,10 @@ const Planilla = () => {
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                             <h3 className="text-base font-semibold text-gray-800">Resumen económico estimado</h3>
                             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm md:col-span-2 xl:col-span-3">
+                                <p className="text-xs uppercase tracking-wide text-blue-600">Total a pagar estimado</p>
+                                <p className="mt-1 text-2xl font-semibold text-blue-900">{formatCurrency(pagoNetoEstimado)}</p>
+                              </div>
                               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                                 <p className="text-xs uppercase tracking-wide text-gray-500">Salario base del periodo</p>
                                 <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(salarioBasePeriodo)}</p>
@@ -1069,6 +1165,18 @@ const Planilla = () => {
                                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                                   <p className="text-xs uppercase tracking-wide text-gray-500">Días pagados</p>
                                   <p className="mt-1 text-lg font-semibold text-gray-800">{diasTrabajadosAplicados}</p>
+                                </div>
+                              )}
+                              {tipoPago === "Diario" && (
+                                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Días dobles a pagar</p>
+                                  <p className="mt-1 text-lg font-semibold text-gray-800">{diasDoblesAplicados}</p>
+                                </div>
+                              )}
+                              {tipoPago === "Diario" && (
+                                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                  <p className="text-xs uppercase tracking-wide text-gray-500">Pago extra días dobles</p>
+                                  <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoExtraDiasDobles)}</p>
                                 </div>
                               )}
                               {tipoPago === "Quincenal" && (
@@ -1110,10 +1218,6 @@ const Planilla = () => {
                               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                                 <p className="text-xs uppercase tracking-wide text-gray-500">Salario bruto estimado</p>
                                 <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(salarioBrutoEstimado)}</p>
-                              </div>
-                              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                                <p className="text-xs uppercase tracking-wide text-gray-500">Pago neto estimado</p>
-                                <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoNetoEstimado)}</p>
                               </div>
                             </div>
                           </div>
