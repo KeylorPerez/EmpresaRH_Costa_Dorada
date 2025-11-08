@@ -16,6 +16,8 @@ class Asistencia {
             a.id_empleado,
             a.tipo_marca,
             a.observaciones,
+            a.latitud,
+            a.longitud,
             e.nombre,
             e.apellido
           FROM Asistencia a
@@ -66,7 +68,9 @@ class Asistencia {
             CONVERT(varchar(8), hora, 108) AS hora,
             id_empleado,
             tipo_marca,
-            observaciones
+            observaciones,
+            latitud,
+            longitud
           FROM Asistencia
           WHERE id_empleado = @id_empleado
           ORDER BY fecha DESC, hora DESC
@@ -93,6 +97,8 @@ class Asistencia {
           a.id_empleado,
           a.tipo_marca,
           a.observaciones,
+          a.latitud,
+          a.longitud,
           e.nombre,
           e.apellido
         FROM Asistencia a
@@ -135,7 +141,15 @@ class Asistencia {
   }
 
   // Crear nueva marca de asistencia
-  static async create({ id_empleado, fecha = null, hora, tipo_marca, observaciones = null }) {
+  static async create({
+    id_empleado,
+    fecha = null,
+    hora,
+    tipo_marca,
+    observaciones = null,
+    latitud = null,
+    longitud = null,
+  }) {
     try {
       if (!TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
@@ -164,14 +178,18 @@ class Asistencia {
         .input('hora', sql.Time, horaSql)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
+        .input('latitud', sql.Decimal(9, 6), latitud)
+        .input('longitud', sql.Decimal(9, 6), longitud)
         .query(`
-          INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, observaciones)
+          INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, observaciones, latitud, longitud)
           VALUES (
             @id_empleado,
             COALESCE(CONVERT(date, @fecha, 23), CAST(GETDATE() AS date)),
             @hora,
             @tipo_marca,
-            @observaciones
+            @observaciones,
+            @latitud,
+            @longitud
           );
           SELECT SCOPE_IDENTITY() AS id_asistencia;
         `);

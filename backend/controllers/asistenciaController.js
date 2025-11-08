@@ -1,6 +1,53 @@
 const Asistencia = require('../models/Asistencia');
 const Usuario = require('../models/Usuario'); // para resolver id_empleado del usuario
+const Empleado = require('../models/Empleado');
 const allowedTypes = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
+
+const parseEnvFloat = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const geofenceLatitude = parseEnvFloat(process.env.OFFICE_LATITUDE);
+const geofenceLongitude = parseEnvFloat(process.env.OFFICE_LONGITUDE);
+const geofenceRadius = parseEnvFloat(process.env.OFFICE_RADIUS_METERS || process.env.OFFICE_RADIUS_MTS || 0);
+
+const geofenceConfigured =
+  Number.isFinite(geofenceLatitude) &&
+  Number.isFinite(geofenceLongitude) &&
+  Number.isFinite(geofenceRadius) &&
+  geofenceRadius > 0;
+
+const toRadians = (value) => (value * Math.PI) / 180;
+
+const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
+  const earthRadius = 6371000; // metros
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
+};
+
+const parseCoordinate = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const isTruthy = (value) => value === true || value === 1 || value === '1';
 
 // helpers para fecha/hora
 function formatDateToSql(dateInput) {
@@ -132,7 +179,15 @@ const getByRange = async (req, res) => {
 // body: { id_empleado? , tipo_marca, fecha? , hora? , observaciones? }
 const createMarca = async (req, res) => {
   try {
-    const { id_empleado: idEmpleadoBody, tipo_marca, fecha: fechaBody, hora: horaBody, observaciones } = req.body;
+    const {
+      id_empleado: idEmpleadoBody,
+      tipo_marca,
+      fecha: fechaBody,
+      hora: horaBody,
+      observaciones,
+      latitud: latitudBody,
+      longitud: longitudBody,
+    } = req.body;
     const userToken = req.user;
 
     if (!tipo_marca || !allowedTypes.includes(tipo_marca)) {
@@ -156,6 +211,27 @@ const createMarca = async (req, res) => {
       ? parseTimeForSqlServer(horaBody)
       : parseTimeForSqlServer(now);
 
+    const empleado = await Empleado.getById(id_empleado_final);
+    if (!empleado) {
+      return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+    }
+
+    const latitud = parseCoordinate(latitudBody);
+    const longitud = parseCoordinate(longitudBody);
+    const requiereUbicacion = userToken.id_rol !== 1;
+
+    if (requiereUbicacion && (latitud === null || longitud === null)) {
+      return res.status(400).json({ error: 'No se pudo obtener la ubicación para registrar la marca' });
+    }
+
+    if (geofenceConfigured && latitud !== null && longitud !== null) {
+      const distancia = calculateDistanceMeters(latitud, longitud, geofenceLatitude, geofenceLongitude);
+      const permitirFuera = isTruthy(empleado.permitir_marcacion_fuera);
+      if (!permitirFuera && userToken.id_rol !== 1 && distancia > geofenceRadius) {
+        return res.status(403).json({ error: 'La ubicación se encuentra fuera del rango permitido para este colaborador' });
+      }
+    }
+
     const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
     if (existingMarca) {
       return res.status(409).json({ error: 'Esta marca ya fue registrada para la fecha seleccionada' });
@@ -166,7 +242,9 @@ const createMarca = async (req, res) => {
       fecha: fechaSql,
       hora: hora,
       tipo_marca,
-      observaciones
+      observaciones,
+      latitud,
+      longitud,
     });
 
     return res.status(201).json({ message: 'Marca registrada', id_asistencia: created.id_asistencia });

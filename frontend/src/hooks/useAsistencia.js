@@ -27,6 +27,14 @@ export const formatearHora = (value) => {
 
 const pad = (value) => value.toString().padStart(2, "0");
 
+const parseCoordinateInput = (value) => {
+  if (value === undefined || value === null) return null;
+  const asString = value.toString().trim();
+  if (!asString) return null;
+  const parsed = Number(asString);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const createInitialForm = (isAdmin) => {
   const now = new Date();
   const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
@@ -58,6 +66,17 @@ export const useAsistencia = ({ mode } = {}) => {
   const [editingRegistro, setEditingRegistro] = useState(null);
   const [editForm, setEditForm] = useState({ tipo_marca: "", observaciones: "" });
   const [editLoading, setEditLoading] = useState(false);
+
+  const [location, setLocation] = useState({ latitud: "", longitud: "" });
+  const [locationStatus, setLocationStatus] = useState({ loading: false, error: "" });
+  const [supportsGeolocation] = useState(
+    () => typeof window !== "undefined" && typeof navigator !== "undefined" && "geolocation" in navigator
+  );
+
+  const resetLocation = useCallback(() => {
+    setLocation({ latitud: "", longitud: "" });
+    setLocationStatus({ loading: false, error: "" });
+  }, []);
 
   const fetchRegistros = useCallback(async (range) => {
     try {
@@ -135,6 +154,7 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const resetForm = () => {
     setFormData(createInitialForm(isAdmin));
+    resetLocation();
   };
 
   const handleSubmit = async (event) => {
@@ -161,6 +181,24 @@ export const useAsistencia = ({ mode } = {}) => {
 
     if (formData.hora) {
       payload.hora = formData.hora;
+    }
+
+    const latitudValue = parseCoordinateInput(location.latitud);
+    const longitudValue = parseCoordinateInput(location.longitud);
+
+    if (!isAdmin && (latitudValue === null || longitudValue === null)) {
+      setError("Debes capturar tu ubicación antes de registrar la marca");
+      return;
+    }
+
+    if ((latitudValue === null) !== (longitudValue === null)) {
+      setError("Completa la latitud y la longitud para registrar la ubicación");
+      return;
+    }
+
+    if (latitudValue !== null && longitudValue !== null) {
+      payload.latitud = latitudValue;
+      payload.longitud = longitudValue;
     }
 
     if (isAdmin) {
@@ -234,6 +272,40 @@ export const useAsistencia = ({ mode } = {}) => {
     }
   };
 
+  const requestLocation = useCallback(() => {
+    if (!supportsGeolocation) {
+      setLocationStatus({ loading: false, error: "Tu navegador no soporta geolocalización." });
+      return;
+    }
+
+    setLocationStatus({ loading: true, error: "" });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitud: position.coords.latitude.toFixed(6),
+          longitud: position.coords.longitude.toFixed(6),
+        });
+        setLocationStatus({ loading: false, error: "" });
+      },
+      (geoError) => {
+        let message = "No fue posible obtener la ubicación";
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          message = "Debes permitir el acceso a tu ubicación para registrar la asistencia.";
+        } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+          message = "La ubicación actual no está disponible.";
+        } else if (geoError.code === geoError.TIMEOUT) {
+          message = "La solicitud de ubicación excedió el tiempo de espera.";
+        }
+        setLocationStatus({ loading: false, error: message });
+      }
+    );
+  }, [supportsGeolocation]);
+
+  const updateLocationField = useCallback((field, value) => {
+    setLocation((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
   const empleadosOptions = useMemo(() => {
     if (!isAdmin) return [];
     return employees.map((empleado) => ({
@@ -280,6 +352,12 @@ export const useAsistencia = ({ mode } = {}) => {
     editLoading,
     setError,
     setSuccessMessage,
+    location,
+    locationStatus,
+    supportsGeolocation,
+    requestLocation,
+    updateLocationField,
+    resetLocation,
   };
 };
 
