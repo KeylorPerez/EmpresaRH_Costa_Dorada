@@ -201,9 +201,9 @@ const PlanillaDetalle = () => {
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar links={adminLinks} roleColor="blue" />
-      <div className="flex flex-col flex-grow">
+      <div className="flex flex-col flex-grow overflow-hidden">
         <Navbar
           title="Panel de Administración"
           user={user}
