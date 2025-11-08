@@ -51,6 +51,8 @@ class Planilla {
     dias_trabajados = null,
     dias_descuento = 0,
     monto_descuento_dias = null,
+    dias_dobles = 0,
+    monto_dias_dobles = null,
     detalles = [],
   }) {
     try {
@@ -118,6 +120,19 @@ class Planilla {
         return valor;
       })();
 
+      const diasDoblesValor = (() => {
+        const valor = Number(dias_dobles);
+        if (!Number.isFinite(valor) || valor <= 0) return 0;
+        return valor;
+      })();
+
+      const montoDiasDoblesValor = (() => {
+        if (monto_dias_dobles === null || monto_dias_dobles === undefined) return null;
+        const valor = Number(monto_dias_dobles);
+        if (!Number.isFinite(valor) || valor < 0) return null;
+        return valor;
+      })();
+
       let salarioBasePeriodo = salario_base;
       let deduccionDiasMonto = 0;
 
@@ -133,7 +148,21 @@ class Planilla {
           diasParaPago = 0;
         }
 
-        salarioBasePeriodo = Number((salario_base * diasParaPago).toFixed(2));
+        const pagoDiasNormales = Number((salario_base * diasParaPago).toFixed(2));
+        let montoExtraDiasDobles = 0;
+
+        if (montoDiasDoblesValor !== null) {
+          montoExtraDiasDobles = Number(montoDiasDoblesValor.toFixed(2));
+        } else if (diasDoblesValor > 0 && salario_base > 0) {
+          montoExtraDiasDobles = salario_base * diasDoblesValor;
+        }
+
+        if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
+          montoExtraDiasDobles = 0;
+        }
+
+        const montoExtraNormalizado = Number(montoExtraDiasDobles.toFixed(2));
+        salarioBasePeriodo = Number((pagoDiasNormales + montoExtraNormalizado).toFixed(2));
       } else {
         const salarioDiarioEstimado = salario_base > 0 ? salario_base / DIAS_POR_QUINCENA : 0;
 

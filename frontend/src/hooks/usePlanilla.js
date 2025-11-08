@@ -14,6 +14,8 @@ const createEmptyForm = (defaults = {}) => ({
   dias_trabajados: "",
   dias_descuento: "0",
   monto_descuento_dias: "",
+  dias_dobles: "0",
+  monto_dias_dobles: "",
   ...defaults,
 });
 
@@ -116,6 +118,8 @@ export const usePlanilla = () => {
         dias_trabajados: "",
         dias_descuento: "0",
         monto_descuento_dias: "",
+        dias_dobles: "0",
+        monto_dias_dobles: "",
       }));
       return;
     }
@@ -167,6 +171,8 @@ export const usePlanilla = () => {
       dias_trabajados: "",
       dias_descuento: "0",
       monto_descuento_dias: "",
+      dias_dobles: "0",
+      monto_dias_dobles: "",
     });
     setError("");
     setModalOpen(true);
@@ -409,23 +415,44 @@ export const usePlanilla = () => {
 
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
-      return { diasPeriodo: 0, diasAsistidos: 0, diasFaltantes: 0, salarioTotal: 0 };
+      return {
+        diasPeriodo: 0,
+        diasAsistidos: 0,
+        diasFaltantes: 0,
+        salarioTotal: 0,
+        diasDobles: 0,
+        montoDiasDobles: 0,
+      };
     }
 
     return detalleDias.reduce(
       (acumulado, detalle) => {
         const salario = Number(detalle.salario_dia) || 0;
+        const salarioBase = Number(detalle.salario_base) || 0;
         const factor = detalle.es_dia_doble ? 2 : 1;
         if (detalle.asistio) {
           acumulado.diasAsistidos += factor;
           acumulado.salarioTotal += salario;
+          if (detalle.es_dia_doble) {
+            acumulado.diasDobles += 1;
+            const extra = salario - salarioBase;
+            const extraNormalizado = Number.isFinite(extra) && extra > 0 ? extra : salarioBase;
+            acumulado.montoDiasDobles += Math.max(extraNormalizado, 0);
+          }
         } else {
           acumulado.diasFaltantes += 1;
         }
         acumulado.diasPeriodo += 1;
         return acumulado;
       },
-      { diasPeriodo: 0, diasAsistidos: 0, diasFaltantes: 0, salarioTotal: 0 }
+      {
+        diasPeriodo: 0,
+        diasAsistidos: 0,
+        diasFaltantes: 0,
+        salarioTotal: 0,
+        diasDobles: 0,
+        montoDiasDobles: 0,
+      }
     );
   }, [detalleDias]);
 
@@ -738,6 +765,39 @@ export const usePlanilla = () => {
 
         const deduccionesManuales = buildNumber(formData.deducciones);
 
+        const empleadoSeleccionado = empleados.find(
+          (empleado) => String(empleado.id_empleado) === String(formData.id_empleado)
+        );
+        const tipoPagoEmpleado = empleadoSeleccionado?.tipo_pago || "Quincenal";
+
+        const diasDoblesDetalle = Number(detalleDiasResumen.diasDobles) || 0;
+        const montoDoblesDetalle = Number(detalleDiasResumen.montoDiasDobles) || 0;
+
+        const diasDoblesManual = parseNonNegative(formData.dias_dobles);
+        const montoDoblesManual = parseOptionalNonNegative(formData.monto_dias_dobles);
+
+        const usaDoblesManualPayload =
+          tipoPagoEmpleado === "Diario" &&
+          ((formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0);
+
+        let diasDoblesPayload = 0;
+        let montoDoblesPayload = null;
+
+        if (usaDoblesManualPayload) {
+          diasDoblesPayload = diasDoblesManual;
+          if (montoDoblesManual !== null) {
+            montoDoblesPayload = montoDoblesManual;
+          } else if (diasDoblesManual > 0) {
+            const salarioBaseEmpleado = Number(empleadoSeleccionado?.salario_monto) || 0;
+            montoDoblesPayload = Number((salarioBaseEmpleado * diasDoblesManual).toFixed(2));
+          } else {
+            montoDoblesPayload = 0;
+          }
+        } else if (tipoPagoEmpleado === "Diario" && diasDoblesDetalle > 0) {
+          diasDoblesPayload = Number(diasDoblesDetalle.toFixed(2));
+          montoDoblesPayload = Number(montoDoblesDetalle.toFixed(2));
+        }
+
         const detallesPayload = detalleDias.map((detalle) => ({
           fecha: detalle.fecha,
           dia_semana: detalle.dia_semana,
@@ -762,6 +822,8 @@ export const usePlanilla = () => {
           dias_trabajados: parseOptionalNonNegative(formData.dias_trabajados),
           dias_descuento: parseNonNegative(formData.dias_descuento),
           monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
+          dias_dobles: diasDoblesPayload,
+          monto_dias_dobles: montoDoblesPayload,
           detalles: detallesPayload,
         };
 

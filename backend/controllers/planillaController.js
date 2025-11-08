@@ -50,6 +50,8 @@ const calcularPlanilla = async (req, res) => {
       dias_trabajados = null,
       dias_descuento = 0,
       monto_descuento_dias = null,
+      dias_dobles = 0,
+      monto_dias_dobles = null,
       detalles = [],
     } = req.body;
 
@@ -71,6 +73,8 @@ const calcularPlanilla = async (req, res) => {
       dias_trabajados,
       dias_descuento,
       monto_descuento_dias,
+      dias_dobles,
+      monto_dias_dobles,
       detalles,
     });
 
