@@ -27,6 +27,15 @@ export const formatearHora = (value) => {
 
 const pad = (value) => value.toString().padStart(2, "0");
 
+const DEFAULT_LATITUDE =
+  import.meta.env.VITE_BUSINESS_LATITUDE ??
+  import.meta.env.VITE_OFFICE_LATITUDE ??
+  "10.372951";
+const DEFAULT_LONGITUDE =
+  import.meta.env.VITE_BUSINESS_LONGITUDE ??
+  import.meta.env.VITE_OFFICE_LONGITUDE ??
+  "-83.728955";
+
 const parseCoordinateInput = (value) => {
   if (value === undefined || value === null) return null;
   const asString = value.toString().trim();
@@ -67,16 +76,28 @@ export const useAsistencia = ({ mode } = {}) => {
   const [editForm, setEditForm] = useState({ tipo_marca: "", observaciones: "" });
   const [editLoading, setEditLoading] = useState(false);
 
-  const [location, setLocation] = useState({ latitud: "", longitud: "" });
+  const defaultLocation = useMemo(
+    () => ({
+      latitud: isAdmin ? DEFAULT_LATITUDE || "" : "",
+      longitud: isAdmin ? DEFAULT_LONGITUDE || "" : "",
+    }),
+    [isAdmin]
+  );
+
+  const [location, setLocation] = useState(defaultLocation);
   const [locationStatus, setLocationStatus] = useState({ loading: false, error: "" });
   const [supportsGeolocation] = useState(
     () => typeof window !== "undefined" && typeof navigator !== "undefined" && "geolocation" in navigator
   );
 
+  useEffect(() => {
+    setLocation(defaultLocation);
+  }, [defaultLocation]);
+
   const resetLocation = useCallback(() => {
-    setLocation({ latitud: "", longitud: "" });
+    setLocation(defaultLocation);
     setLocationStatus({ loading: false, error: "" });
-  }, []);
+  }, [defaultLocation]);
 
   const fetchRegistros = useCallback(async (range) => {
     try {
@@ -183,8 +204,23 @@ export const useAsistencia = ({ mode } = {}) => {
       payload.hora = formData.hora;
     }
 
-    const latitudValue = parseCoordinateInput(location.latitud);
-    const longitudValue = parseCoordinateInput(location.longitud);
+    let latitudValue = parseCoordinateInput(location.latitud);
+    let longitudValue = parseCoordinateInput(location.longitud);
+
+    if (!isAdmin && (latitudValue === null || longitudValue === null)) {
+      try {
+        const coords = await requestLocation();
+        latitudValue = parseCoordinateInput(coords?.latitud);
+        longitudValue = parseCoordinateInput(coords?.longitud);
+      } catch (locationError) {
+        const message =
+          locationError?.message ||
+          locationStatus.error ||
+          "Debes capturar tu ubicación antes de registrar la marca";
+        setError(message);
+        return;
+      }
+    }
 
     if (!isAdmin && (latitudValue === null || longitudValue === null)) {
       setError("Debes capturar tu ubicación antes de registrar la marca");
@@ -274,33 +310,48 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const requestLocation = useCallback(() => {
     if (!supportsGeolocation) {
-      setLocationStatus({ loading: false, error: "Tu navegador no soporta geolocalización." });
-      return;
+      const message = "Tu navegador no soporta geolocalización.";
+      setLocationStatus({ loading: false, error: message });
+      return Promise.reject(new Error(message));
     }
 
     setLocationStatus({ loading: true, error: "" });
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          latitud: position.coords.latitude.toFixed(6),
-          longitud: position.coords.longitude.toFixed(6),
-        });
-        setLocationStatus({ loading: false, error: "" });
-      },
-      (geoError) => {
-        let message = "No fue posible obtener la ubicación";
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          message = "Debes permitir el acceso a tu ubicación para registrar la asistencia.";
-        } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-          message = "La ubicación actual no está disponible.";
-        } else if (geoError.code === geoError.TIMEOUT) {
-          message = "La solicitud de ubicación excedió el tiempo de espera.";
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            latitud: position.coords.latitude.toFixed(6),
+            longitud: position.coords.longitude.toFixed(6),
+          };
+          setLocation(coords);
+          setLocationStatus({ loading: false, error: "" });
+          resolve(coords);
+        },
+        (geoError) => {
+          let message = "No fue posible obtener la ubicación";
+          if (geoError.code === geoError.PERMISSION_DENIED) {
+            message = "Debes permitir el acceso a tu ubicación para registrar la asistencia.";
+          } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+            message = "La ubicación actual no está disponible.";
+          } else if (geoError.code === geoError.TIMEOUT) {
+            message = "La solicitud de ubicación excedió el tiempo de espera.";
+          }
+          setLocationStatus({ loading: false, error: message });
+          reject(new Error(message));
         }
-        setLocationStatus({ loading: false, error: message });
-      }
-    );
+      );
+    });
   }, [supportsGeolocation]);
+
+  useEffect(() => {
+    if (isAdmin || !supportsGeolocation) return;
+    if (location.latitud && location.longitud) return;
+
+    requestLocation().catch(() => {
+      /* El error ya se gestiona en locationStatus */
+    });
+  }, [isAdmin, supportsGeolocation, requestLocation, location.latitud, location.longitud]);
 
   const updateLocationField = useCallback((field, value) => {
     setLocation((prev) => ({ ...prev, [field]: value }));
