@@ -211,7 +211,9 @@ const Planilla = () => {
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
       <span>Días: {detalleDias.length}</span>
       <span>Pagados: {detalleDiasResumen.diasAsistidos}</span>
-      <span>Total: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
+      <span>Faltas: {detalleDiasResumen.diasFaltantes}</span>
+      <span>Total detalle: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
+      <span>Pago neto estimado: {formatCurrency(pagoNetoEstimado)}</span>
     </div>
   );
 
@@ -300,9 +302,13 @@ const Planilla = () => {
   const horasExtras = Number(formData.horas_extras || 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
   const deduccionesManualInput = Number(formData.deducciones || 0);
+  const usaDetalleParaCalculos = detalleDias.length > 0;
   const diasTrabajadosValor = Number(formData.dias_trabajados);
-  const diasTrabajadosAplicados =
-    Number.isNaN(diasTrabajadosValor) || diasTrabajadosValor < 0 ? 0 : diasTrabajadosValor;
+  const diasTrabajadosAplicados = usaDetalleParaCalculos
+    ? detalleDiasResumen.diasAsistidos
+    : Number.isNaN(diasTrabajadosValor) || diasTrabajadosValor < 0
+      ? 0
+      : diasTrabajadosValor;
   const diasDescuentoValor = Number(formData.dias_descuento);
   const diasDescuentoAplicados =
     Number.isNaN(diasDescuentoValor) || diasDescuentoValor < 0 ? 0 : diasDescuentoValor;
@@ -316,16 +322,21 @@ const Planilla = () => {
       : montoDescuentoDiasValor;
   const salarioDiarioReferencia =
     tipoPago === "Diario" ? salarioBaseReferencia : salarioBaseReferencia / 15;
-  const salarioBasePeriodo =
-    tipoPago === "Diario"
+  const salarioBasePeriodo = usaDetalleParaCalculos
+    ? detalleDiasResumen.salarioTotal
+    : tipoPago === "Diario"
       ? salarioDiarioReferencia * diasTrabajadosAplicados
       : salarioBaseReferencia;
   let deduccionDiasCalculada = 0;
   if (tipoPago === "Quincenal") {
-    if (montoDescuentoDiasAplicado !== null) {
-      deduccionDiasCalculada = montoDescuentoDiasAplicado;
+    if (usaDetalleParaCalculos) {
+      deduccionDiasCalculada = 0;
     } else {
-      deduccionDiasCalculada = salarioDiarioReferencia * diasDescuentoAplicados;
+      if (montoDescuentoDiasAplicado !== null) {
+        deduccionDiasCalculada = montoDescuentoDiasAplicado;
+      } else {
+        deduccionDiasCalculada = salarioDiarioReferencia * diasDescuentoAplicados;
+      }
     }
   }
   deduccionDiasCalculada = Math.max(
@@ -677,8 +688,16 @@ const Planilla = () => {
                                   {detalleDiasResumen.diasAsistidos}
                                 </p>
                                 <p>
+                                  <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
+                                  {detalleDiasResumen.diasFaltantes}
+                                </p>
+                                <p>
                                   <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
                                   {formatCurrency(detalleDiasResumen.salarioTotal)}
+                                </p>
+                                <p>
+                                  <span className="font-semibold text-gray-700">Pago neto estimado:</span>{" "}
+                                  {formatCurrency(pagoNetoEstimado)}
                                 </p>
                               </div>
                             ) : (
@@ -1134,7 +1153,7 @@ const Planilla = () => {
                       <div className="flex flex-wrap items-center gap-3">
                         <DetalleResumenBadges className="text-sm" />
                         <Button variant="secondary" size="sm" type="button" onClick={() => setDetalleOverlayOpen(false)}>
-                          Cerrar
+                          Aceptar cambios
                         </Button>
                       </div>
                     </div>
