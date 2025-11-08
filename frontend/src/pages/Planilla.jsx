@@ -151,30 +151,13 @@ const Planilla = () => {
       return;
     }
 
-    const sectionNode = detalleSectionRef.current;
-    if (!sectionNode) {
-      return;
-    }
-
-    if (typeof sectionNode.scrollIntoView === "function") {
-      sectionNode.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    sectionNode.focus({ preventScroll: true });
-    if (!detalleHighlighted) {
-      setDetalleHighlighted(true);
-    }
-
-    const timeoutId = setTimeout(() => {
+    if (detalleHighlighted) {
       setDetalleHighlighted(false);
+    }
+    if (detalleHighlightTimeoutRef.current) {
+      clearTimeout(detalleHighlightTimeoutRef.current);
       detalleHighlightTimeoutRef.current = null;
-    }, 1500);
-
-    detalleHighlightTimeoutRef.current = timeoutId;
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    }
   }, [detalleOverlayOpen, modalOpen]);
 
   useEffect(() => () => {
