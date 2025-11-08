@@ -211,7 +211,7 @@ const PlanillaDetalle = () => {
           onLogout={logoutUser}
         />
 
-        <main className="flex-grow p-6 space-y-6">
+        <main className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">
@@ -339,49 +339,51 @@ const PlanillaDetalle = () => {
               ) : detalle.length === 0 ? (
                 <p className="text-sm text-gray-500">Esta planilla no tiene detalles registrados.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Fecha</th>
-                        <th className="px-4 py-3 text-left">Día</th>
-                        <th className="px-4 py-3 text-center">Asistencia</th>
-                        <th className="px-4 py-3 text-center">Tipo</th>
-                        <th className="px-4 py-3 text-right">Salario día</th>
-                        <th className="px-4 py-3 text-left">Observación</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
-                      {detalle.map((item) => (
-                        <tr key={`${item.id_detalle}-${item.fecha}`} className="hover:bg-gray-50/70">
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(item.fecha)}</td>
-                          <td className="px-4 py-3 capitalize text-gray-600">{item.dia_semana}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                item.asistio ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                              }`}
-                            >
-                              {item.asistio ? "Asistió" : "Faltó"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                item.es_dia_doble ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              {item.es_dia_doble ? "Día doble" : "Normal"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                            {formatCurrency(item.salario_dia)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{item.observacion || "-"}</td>
+                <div className="rounded-lg border border-gray-200">
+                  <div className="max-h-[65vh] overflow-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Fecha</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Día</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Asistencia</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Tipo</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-right">Salario día</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Observación</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {detalle.map((item) => (
+                          <tr key={`${item.id_detalle}-${item.fecha}`} className="hover:bg-gray-50/70">
+                            <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(item.fecha)}</td>
+                            <td className="px-4 py-3 capitalize text-gray-600">{item.dia_semana}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                  item.asistio ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                                }`}
+                              >
+                                {item.asistio ? "Asistió" : "Faltó"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                  item.es_dia_doble ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {item.es_dia_doble ? "Día doble" : "Normal"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-gray-800">
+                              {formatCurrency(item.salario_dia)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.observacion || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
