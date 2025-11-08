@@ -262,7 +262,9 @@ export const usePlanilla = () => {
     const { id_empleado, periodo_inicio, periodo_fin } = formData;
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
-      setDetalleDias([]);
+      if (detalleDias.length > 0) {
+        setDetalleDias([]);
+      }
       detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
       return;
     }
@@ -280,7 +282,9 @@ export const usePlanilla = () => {
     );
 
     if (!empleadoSeleccionado) {
-      setDetalleDias([]);
+      if (detalleDias.length > 0) {
+        setDetalleDias([]);
+      }
       detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
       return;
     }

@@ -73,7 +73,11 @@ const Planilla = () => {
 
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
+  const detalleSectionRef = useRef(null);
+  const detalleHighlightTimeoutRef = useRef(null);
+  const prevDetalleOverlayOpenRef = useRef(false);
   const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
+  const [detalleHighlighted, setDetalleHighlighted] = useState(false);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -117,6 +121,69 @@ const Planilla = () => {
     }
   }, [detalleOverlayOpen]);
 
+  useEffect(() => {
+    const wasOverlayOpen = prevDetalleOverlayOpenRef.current;
+    prevDetalleOverlayOpenRef.current = detalleOverlayOpen;
+
+    if (!modalOpen) {
+      if (detalleHighlighted) {
+        setDetalleHighlighted(false);
+      }
+      if (detalleHighlightTimeoutRef.current) {
+        clearTimeout(detalleHighlightTimeoutRef.current);
+        detalleHighlightTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (detalleOverlayOpen) {
+      if (detalleHighlighted) {
+        setDetalleHighlighted(false);
+      }
+      if (detalleHighlightTimeoutRef.current) {
+        clearTimeout(detalleHighlightTimeoutRef.current);
+        detalleHighlightTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (!wasOverlayOpen) {
+      return;
+    }
+
+    const sectionNode = detalleSectionRef.current;
+    if (!sectionNode) {
+      return;
+    }
+
+    if (typeof sectionNode.scrollIntoView === "function") {
+      sectionNode.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    sectionNode.focus({ preventScroll: true });
+    if (!detalleHighlighted) {
+      setDetalleHighlighted(true);
+    }
+
+    const timeoutId = setTimeout(() => {
+      setDetalleHighlighted(false);
+      detalleHighlightTimeoutRef.current = null;
+    }, 1500);
+
+    detalleHighlightTimeoutRef.current = timeoutId;
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [detalleOverlayOpen, modalOpen]);
+
+  useEffect(() => () => {
+    if (detalleHighlightTimeoutRef.current) {
+      clearTimeout(detalleHighlightTimeoutRef.current);
+      detalleHighlightTimeoutRef.current = null;
+    }
+  }, []);
+
   const adminLinks = useMemo(
     () => [
       { path: "/admin", label: "Inicio" },
@@ -136,6 +203,11 @@ const Planilla = () => {
     setModalOpen(false);
     resetForm();
     setDetalleOverlayOpen(false);
+    setDetalleHighlighted(false);
+    if (detalleHighlightTimeoutRef.current) {
+      clearTimeout(detalleHighlightTimeoutRef.current);
+      detalleHighlightTimeoutRef.current = null;
+    }
   };
 
   const selectedEmpleado = useMemo(
