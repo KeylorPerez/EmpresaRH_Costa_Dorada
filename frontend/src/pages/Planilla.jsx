@@ -1034,10 +1034,18 @@ const Planilla = () => {
                                     name="monto_descuento_dias"
                                     value={formData.monto_descuento_dias}
                                     onChange={handleChange}
+                                    placeholder="Automático"
                                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
                                   />
                                   <p className="text-xs text-gray-500">
-                                    El monto se recalcula según los días indicados, pero puedes ajustarlo para reflejar medios días u otros acuerdos.
+                                    Deja el campo vacío para que el sistema calcule el monto según los días indicados; ajusta el valor para reflejar medios días u otros acuerdos.
+                                  </p>
+                                </div>
+                                <div className="md:col-span-2 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+                                  <p className="text-xs uppercase tracking-wide text-blue-600">Monto neto estimado a pagar</p>
+                                  <p className="mt-1 text-lg font-semibold text-blue-900">{formatCurrency(pagoNetoEstimado)}</p>
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual.
                                   </p>
                                 </div>
                               </div>
