@@ -62,7 +62,6 @@ export const usePlanilla = () => {
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
-  const [detalleSeleccionado, setDetalleSeleccionado] = useState({ id: null, dias: [], loading: false, error: "" });
   const autoDiasRef = useRef(null);
   const autoMontoDescuentoRef = useRef(null);
 
@@ -140,7 +139,6 @@ export const usePlanilla = () => {
     autoMontoDescuentoRef.current = null;
     setDetalleDias([]);
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
-    setDetalleSeleccionado({ id: null, dias: [], loading: false, error: "" });
   };
 
   const openCreateModal = () => {
@@ -341,28 +339,6 @@ export const usePlanilla = () => {
       { diasPeriodo: 0, diasAsistidos: 0, salarioTotal: 0 }
     );
   }, [detalleDias]);
-
-  const loadDetallePlanilla = useCallback(async (id_planilla) => {
-    setDetalleSeleccionado({ id: id_planilla, dias: [], loading: true, error: "" });
-    try {
-      const data = await planillaService.getDetalle(id_planilla);
-      const dias = Array.isArray(data)
-        ? data.map((detalle) => ({
-            ...detalle,
-            asistio: Boolean(detalle.asistio),
-            es_dia_doble: Boolean(detalle.es_dia_doble),
-          }))
-        : [];
-      setDetalleSeleccionado({ id: id_planilla, dias, loading: false, error: "" });
-    } catch (err) {
-      const message = err.response?.data?.error || err.message || "Error al cargar el detalle";
-      setDetalleSeleccionado({ id: id_planilla, dias: [], loading: false, error: message });
-    }
-  }, []);
-
-  const closeDetallePlanilla = useCallback(() => {
-    setDetalleSeleccionado({ id: null, dias: [], loading: false, error: "" });
-  }, []);
 
   const obtenerSaldoPrestamo = (id_prestamo) => {
     const prestamo = prestamosEmpleado.find((item) => item.id_prestamo === id_prestamo);
@@ -773,9 +749,6 @@ export const usePlanilla = () => {
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
     detalleDiasResumen,
-    loadDetallePlanilla,
-    closeDetallePlanilla,
-    detalleSeleccionado,
   };
 };
 
