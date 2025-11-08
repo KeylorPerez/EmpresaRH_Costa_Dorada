@@ -2,6 +2,7 @@ const Planilla = require('../models/Planilla');
 const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
+const DetallePlanilla = require('../models/DetallePlanilla');
 
 // 🔹 Obtener planillas
 const getPlanilla = async (req, res) => {
@@ -49,6 +50,7 @@ const calcularPlanilla = async (req, res) => {
       dias_trabajados = null,
       dias_descuento = 0,
       monto_descuento_dias = null,
+      detalles = [],
     } = req.body;
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
@@ -69,6 +71,7 @@ const calcularPlanilla = async (req, res) => {
       dias_trabajados,
       dias_descuento,
       monto_descuento_dias,
+      detalles,
     });
 
     return res.status(201).json({
@@ -154,4 +157,23 @@ const getPlanillaAttendance = async (req, res) => {
   }
 };
 
-module.exports = { getPlanilla, calcularPlanilla, updatePlanilla, getPlanillaAttendance };
+const getPlanillaDetalle = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || user.id_rol !== 1) {
+      return res.status(403).json({ error: 'Solo admin puede consultar el detalle de la planilla' });
+    }
+
+    const id_planilla = parseInt(req.params.id, 10);
+    if (Number.isNaN(id_planilla)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
+    return res.json(detalles);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getPlanilla, calcularPlanilla, updatePlanilla, getPlanillaAttendance, getPlanillaDetalle };

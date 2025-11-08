@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getPlanilla, calcularPlanilla, updatePlanilla, getPlanillaAttendance } = require('../controllers/planillaController');
+const {
+  getPlanilla,
+  calcularPlanilla,
+  updatePlanilla,
+  getPlanillaAttendance,
+  getPlanillaDetalle,
+} = require('../controllers/planillaController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // GET /api/planilla -> admin: todas / empleado: sus planillas
@@ -8,6 +14,9 @@ router.get('/', authenticateToken, getPlanilla);
 
 // GET /api/planilla/asistencia -> resumen de días laborados para colaboradores con pago diario (solo admin)
 router.get('/asistencia', authenticateToken, authorizeRoles(1), getPlanillaAttendance);
+
+// GET /api/planilla/:id/detalle -> detalle diario de una planilla (solo admin)
+router.get('/:id/detalle', authenticateToken, authorizeRoles(1), getPlanillaDetalle);
 
 // POST /api/planilla -> calcular o generar planilla (solo admin)
 router.post('/', authenticateToken, authorizeRoles(1), calcularPlanilla);
