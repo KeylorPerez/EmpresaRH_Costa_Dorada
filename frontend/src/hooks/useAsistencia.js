@@ -30,11 +30,11 @@ const pad = (value) => value.toString().padStart(2, "0");
 const DEFAULT_LATITUDE =
   import.meta.env.VITE_BUSINESS_LATITUDE ??
   import.meta.env.VITE_OFFICE_LATITUDE ??
-  "";
+  "10.372951";
 const DEFAULT_LONGITUDE =
   import.meta.env.VITE_BUSINESS_LONGITUDE ??
   import.meta.env.VITE_OFFICE_LONGITUDE ??
-  "";
+  "-83.728955";
 
 const parseCoordinateInput = (value) => {
   if (value === undefined || value === null) return null;
