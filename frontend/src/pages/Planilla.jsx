@@ -1041,13 +1041,6 @@ const Planilla = () => {
                                     Deja el campo vacío para que el sistema calcule el monto según los días indicados; ajusta el valor para reflejar medios días u otros acuerdos.
                                   </p>
                                 </div>
-                                <div className="md:col-span-2 rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
-                                  <p className="text-xs uppercase tracking-wide text-blue-600">Monto neto estimado a pagar</p>
-                                  <p className="mt-1 text-lg font-semibold text-blue-900">{formatCurrency(pagoNetoEstimado)}</p>
-                                  <p className="mt-1 text-xs text-gray-500">
-                                    Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual.
-                                  </p>
-                                </div>
                               </div>
                             )}
 
@@ -1139,6 +1132,18 @@ const Planilla = () => {
                                     </p>
                                   </div>
                                 )}
+                              </div>
+                            )}
+
+                            {!isEditing && (
+                              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 shadow-sm">
+                                <p className="text-xs uppercase tracking-wide text-blue-600">Monto neto estimado a pagar</p>
+                                <p className="mt-1 text-xl font-semibold text-blue-900">{formatCurrency(pagoNetoEstimado)}</p>
+                                <p className="mt-1 text-xs text-blue-900/80">
+                                  {tipoPago === "Diario"
+                                    ? "Incluye salario diario según los días aplicados, montos por días dobles, bonificaciones y todas las deducciones seleccionadas."
+                                    : "Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual."}
+                                </p>
                               </div>
                             )}
                           </div>
