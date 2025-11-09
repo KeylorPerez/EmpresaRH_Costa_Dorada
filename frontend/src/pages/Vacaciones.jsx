@@ -27,6 +27,16 @@ const Vacaciones = ({ mode }) => {
     setError,
   } = useVacaciones();
   const [diasAprobados, setDiasAprobados] = useState({});
+  const [estadoFiltro, setEstadoFiltro] = useState("todos");
+  const [busquedaNombre, setBusquedaNombre] = useState("");
+  const [fechaInicioFiltro, setFechaInicioFiltro] = useState("");
+  const [fechaFinFiltro, setFechaFinFiltro] = useState("");
+
+  const hayFiltrosActivos =
+    estadoFiltro !== "todos" ||
+    busquedaNombre.trim() !== "" ||
+    fechaInicioFiltro !== "" ||
+    fechaFinFiltro !== "";
 
   const isAdmin = mode === "admin";
 
@@ -58,6 +68,67 @@ const Vacaciones = ({ mode }) => {
   const handleDiasChange = (id_vacacion, value) => {
     setDiasAprobados((prev) => ({ ...prev, [id_vacacion]: value }));
   };
+
+  const handleResetFiltros = () => {
+    setEstadoFiltro("todos");
+    setBusquedaNombre("");
+    setFechaInicioFiltro("");
+    setFechaFinFiltro("");
+  };
+
+  const filteredSolicitudes = useMemo(() => {
+    if (!isAdmin) {
+      return solicitudes;
+    }
+
+    const normalizar = (valor = "") => valor.toString().toLowerCase().trim();
+    const fechaToComparable = (valor) => {
+      const fecha = new Date(valor);
+      return Number.isNaN(fecha.getTime()) ? null : fecha;
+    };
+
+    const inicioFiltro = fechaToComparable(fechaInicioFiltro);
+    const finFiltro = fechaToComparable(fechaFinFiltro);
+
+    return solicitudes.filter((solicitud) => {
+      if (estadoFiltro !== "todos" && String(solicitud.id_estado) !== estadoFiltro) {
+        return false;
+      }
+
+      if (busquedaNombre.trim()) {
+        const nombreCompleto = normalizar(
+          `${solicitud.nombre || ""} ${solicitud.apellido || ""}`
+        );
+        const termino = normalizar(busquedaNombre);
+        if (!nombreCompleto.includes(termino)) {
+          return false;
+        }
+      }
+
+      if (inicioFiltro) {
+        const fechaSolicitud = fechaToComparable(solicitud.fecha_inicio);
+        if (!fechaSolicitud || fechaSolicitud < inicioFiltro) {
+          return false;
+        }
+      }
+
+      if (finFiltro) {
+        const fechaSolicitud = fechaToComparable(solicitud.fecha_fin);
+        if (!fechaSolicitud || fechaSolicitud > finFiltro) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    solicitudes,
+    isAdmin,
+    estadoFiltro,
+    busquedaNombre,
+    fechaInicioFiltro,
+    fechaFinFiltro,
+  ]);
 
   const onApprove = async (solicitud) => {
     const raw = diasAprobados[solicitud.id_vacacion];
@@ -190,17 +261,80 @@ const Vacaciones = ({ mode }) => {
               )}
             </header>
 
-            {solicitudes.length === 0 && !loading ? (
+            {filteredSolicitudes.length === 0 && !loading ? (
               <p className="text-gray-500 text-sm">
-                Aún no hay solicitudes registradas.
+                {isAdmin && hayFiltrosActivos
+                  ? "No se encontraron solicitudes con los filtros aplicados."
+                  : "Aún no hay solicitudes registradas."}
               </p>
             ) : (
               <div className="overflow-x-auto">
+                {isAdmin && (
+                  <div className="mb-4 grid gap-4 md:grid-cols-4">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                        Estado
+                      </label>
+                      <select
+                        value={estadoFiltro}
+                        onChange={(event) => setEstadoFiltro(event.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <option value="todos">Todas</option>
+                        <option value="1">Pendientes</option>
+                        <option value="2">Aprobadas</option>
+                        <option value="3">Rechazadas</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                        Buscar por nombre
+                      </label>
+                      <input
+                        type="text"
+                        value={busquedaNombre}
+                        onChange={(event) => setBusquedaNombre(event.target.value)}
+                        placeholder="Ej. Juan Pérez"
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                        Desde
+                      </label>
+                      <input
+                        type="date"
+                        value={fechaInicioFiltro}
+                        onChange={(event) => setFechaInicioFiltro(event.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        max={fechaFinFiltro || undefined}
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                        Hasta
+                      </label>
+                      <input
+                        type="date"
+                        value={fechaFinFiltro}
+                        onChange={(event) => setFechaFinFiltro(event.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        min={fechaInicioFiltro || undefined}
+                      />
+                    </div>
+                    <div className="md:col-span-4 flex justify-end">
+                      <Button variant="secondary" size="sm" onClick={handleResetFiltros}>
+                        Limpiar filtros
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                     <tr>
                       {isAdmin && <th className="px-4 py-3 text-left">Empleado</th>}
                       <th className="px-4 py-3 text-left">Periodo</th>
+                      <th className="px-4 py-3 text-left">Motivo</th>
                       <th className="px-4 py-3 text-left">Días solicitados</th>
                       <th className="px-4 py-3 text-left">Días aprobados</th>
                       <th className="px-4 py-3 text-left">Estado</th>
@@ -210,7 +344,7 @@ const Vacaciones = ({ mode }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {solicitudes.map((solicitud) => {
+                    {filteredSolicitudes.map((solicitud) => {
                       const dias = diasSolicitados(
                         solicitud.fecha_inicio,
                         solicitud.fecha_fin
@@ -243,6 +377,15 @@ const Vacaciones = ({ mode }) => {
                               {formatearFecha(solicitud.fecha_inicio)} -{" "}
                               {formatearFecha(solicitud.fecha_fin)}
                             </p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-800">
+                            {solicitud.motivo ? (
+                              <span className="block max-w-xs text-gray-700 whitespace-pre-wrap">
+                                {solicitud.motivo}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           <td className="px-4 py-3 text-gray-800">{dias}</td>
                           <td className="px-4 py-3 text-gray-800">
