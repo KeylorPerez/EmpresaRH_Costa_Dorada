@@ -50,6 +50,14 @@ const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
   return textoOriginal || etiquetaPorDefecto;
 };
 
+const WIZARD_TIPO_PAGO_VALUES = ["todos", "diario", "quincenal"];
+
+const WIZARD_TIPO_PAGO_LABELS = {
+  todos: "Todos",
+  diario: "Pago diario",
+  quincenal: "Pago quincenal",
+};
+
 const Planilla = () => {
   const { user, logoutUser } = useAuth();
   const {
@@ -546,6 +554,17 @@ const Planilla = () => {
     selectEmpleado(nuevoEmpleado.id_empleado);
   };
 
+  const handleToggleWizardTipoPagoFiltro = () => {
+    setWizardTipoPagoFiltro((previousValue) => {
+      const currentIndex = WIZARD_TIPO_PAGO_VALUES.indexOf(previousValue);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % WIZARD_TIPO_PAGO_VALUES.length;
+      return WIZARD_TIPO_PAGO_VALUES[nextIndex];
+    });
+  };
+
+  const wizardTipoPagoFiltroLabel =
+    WIZARD_TIPO_PAGO_LABELS[wizardTipoPagoFiltro] ?? WIZARD_TIPO_PAGO_LABELS.todos;
+
   const obtenerCuotaSugerida = (prestamo) => {
     const saldo = Math.max(Number(prestamo?.saldo) || 0, 0);
     const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
@@ -771,26 +790,23 @@ const Planilla = () => {
 
                             {!isEditing && (
                               <>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div className="space-y-2 sm:col-span-1">
-                                    <label
-                                      className="text-xs font-semibold text-gray-500"
-                                      htmlFor="filtro-colaborador-tipo-pago"
+                                <div className="space-y-3">
+                                  <div className="sm:col-span-2">
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={handleToggleWizardTipoPagoFiltro}
+                                      className="flex w-full items-center justify-between gap-3 text-xs uppercase tracking-wide text-gray-600 sm:text-sm"
+                                      aria-label="Cambiar filtro de tipo de pago"
                                     >
-                                      Tipo de pago
-                                    </label>
-                                    <select
-                                      id="filtro-colaborador-tipo-pago"
-                                      value={wizardTipoPagoFiltro}
-                                      onChange={(event) => setWizardTipoPagoFiltro(event.target.value)}
-                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                    >
-                                      <option value="todos">Todos</option>
-                                      <option value="diario">Pago diario</option>
-                                      <option value="quincenal">Pago quincenal</option>
-                                    </select>
+                                      <span className="text-[11px] sm:text-xs">Tipo de pago</span>
+                                      <span className="text-sm font-semibold text-gray-800 normal-case">
+                                        {wizardTipoPagoFiltroLabel}
+                                      </span>
+                                    </Button>
                                   </div>
-                                  <div className="space-y-2 sm:col-span-2">
+                                  <div className="space-y-2">
                                     <label className="text-xs font-semibold text-gray-500" htmlFor="buscador-empleado">
                                       Buscar colaborador
                                     </label>
