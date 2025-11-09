@@ -57,6 +57,7 @@ export const formatearMontoCRC = (value) => {
   return numeric.toLocaleString("es-CR", {
     style: "currency",
     currency: "CRC",
+    currencyDisplay: "narrowSymbol",
     minimumFractionDigits: 2,
   });
 };

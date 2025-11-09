@@ -9,6 +9,7 @@ import planillaService from "../services/planillaService";
 const currencyFormatter = new Intl.NumberFormat("es-CR", {
   style: "currency",
   currency: "CRC",
+  currencyDisplay: "narrowSymbol",
   minimumFractionDigits: 2,
 });
 
