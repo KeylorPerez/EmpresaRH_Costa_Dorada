@@ -771,18 +771,7 @@ const Planilla = () => {
                       <div className="flex flex-col gap-6 lg:flex-row">
                         <aside className="space-y-6 lg:w-80 flex-shrink-0">
                           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
-                            {selectedEmpleado ? (
-                              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                                <p className="font-semibold text-blue-800">
-                                  {selectedEmpleado.nombre} {selectedEmpleado.apellido}
-                                </p>
-                                {!isEditing && empleadosFiltrados.length > 0 && (
-                                  <p className="text-xs text-blue-600">
-                                    {activeEmpleadoIndex + 1} de {empleadosFiltrados.length} colaboradores
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
+                            {!selectedEmpleado && (
                               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
                                 Selecciona un colaborador desde la lista para ver sus datos.
                               </div>
