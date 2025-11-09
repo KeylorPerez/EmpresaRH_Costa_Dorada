@@ -61,6 +61,13 @@ const Asistencia = ({ mode }) => {
     resolviendoJustificacionId,
     aprobarJustificacion,
     rechazarJustificacion,
+    manualJustificacionModalOpen,
+    manualJustificacionForm,
+    openManualJustificacionModal,
+    closeManualJustificacionModal,
+    handleManualJustificacionChange,
+    submitManualJustificacion,
+    manualJustificacionSubmitting,
     location,
     locationStatus,
     supportsGeolocation,
@@ -183,6 +190,22 @@ const Asistencia = ({ mode }) => {
             <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-lg">
               {successMessage}
             </div>
+          )}
+
+          {!isAdmin && (
+            <section className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-gray-800">¿No pudiste marcar tu asistencia?</h2>
+                  <p className="text-sm text-gray-500">
+                    Envía una justificación para que el administrador revise tu caso y actualice tu asistencia.
+                  </p>
+                </div>
+                <Button type="button" variant="primary" onClick={openManualJustificacionModal}>
+                  📝 Enviar justificación
+                </Button>
+              </div>
+            </section>
           )}
 
           <section className="bg-white rounded-xl shadow-sm p-6">
@@ -575,7 +598,6 @@ const Asistencia = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Solicitud</th>
                       <th className="px-4 py-3 text-left">Ubicación</th>
                       <th className="px-4 py-3 text-left">Observaciones</th>
-                      {!isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                       {isAdmin && <th className="px-4 py-3 text-left">Empleado</th>}
                       {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                     </tr>
@@ -586,8 +608,6 @@ const Asistencia = ({ mode }) => {
                       const estadoSolicitud = solicitud?.estado || "";
                       const isSolicitudPendiente = estadoSolicitud === "pendiente";
                       const isResolviendo = solicitud && resolviendoJustificacionId === solicitud.id_solicitud;
-                      const isEnviandoSolicitud =
-                        justificacionSubmitting && justificacionRegistro?.id_asistencia === registro.id_asistencia;
 
                       return (
                         <tr key={registro.id_asistencia} className="hover:bg-gray-50">
@@ -643,25 +663,6 @@ const Asistencia = ({ mode }) => {
                           <td className="px-4 py-3 text-gray-600 max-w-xs">
                             {registro.observaciones || "-"}
                           </td>
-                          {!isAdmin && (
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-2">
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => openJustificacionModal(registro)}
-                                  disabled={isSolicitudPendiente || isEnviandoSolicitud}
-                                >
-                                  {isEnviandoSolicitud ? "Enviando..." : "📝 Enviar justificación"}
-                                </Button>
-                                {isSolicitudPendiente && (
-                                  <span className="text-xs text-gray-500">
-                                    Tienes una justificación pendiente de aprobación.
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          )}
                           {isAdmin && (
                             <td className="px-4 py-3 text-gray-700">
                               {registro.nombre && registro.apellido
@@ -707,6 +708,130 @@ const Asistencia = ({ mode }) => {
               </div>
             )}
           </section>
+
+          {manualJustificacionModalOpen && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+              <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
+                <header className="flex items-center justify-between border-b px-6 py-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Enviar justificación</h3>
+                    <p className="text-xs text-gray-500">
+                      Registra la fecha, hora y motivo para que tu administrador revise la solicitud.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-gray-600"
+                    onClick={closeManualJustificacionModal}
+                    aria-label="Cerrar"
+                  >
+                    ✕
+                  </button>
+                </header>
+                <form onSubmit={submitManualJustificacion}>
+                  <div className="space-y-4 px-6 py-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="manual_fecha">
+                          Fecha
+                        </label>
+                        <input
+                          id="manual_fecha"
+                          name="fecha"
+                          type="date"
+                          value={manualJustificacionForm.fecha}
+                          onChange={handleManualJustificacionChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="manual_hora">
+                          Hora aproximada
+                        </label>
+                        <input
+                          id="manual_hora"
+                          name="hora"
+                          type="time"
+                          value={manualJustificacionForm.hora || ""}
+                          onChange={handleManualJustificacionChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="manual_tipo_marca">
+                          Marca a reportar
+                        </label>
+                        <select
+                          id="manual_tipo_marca"
+                          name="tipo_marca"
+                          value={manualJustificacionForm.tipo_marca}
+                          onChange={handleManualJustificacionChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          required
+                        >
+                          {tipoMarcaOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="manual_tipo_justificacion">
+                          Motivo
+                        </label>
+                        <select
+                          id="manual_tipo_justificacion"
+                          name="tipo"
+                          value={manualJustificacionForm.tipo}
+                          onChange={handleManualJustificacionChange}
+                          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          required
+                        >
+                          <option value="">Selecciona una opción</option>
+                          {tipoJustificacionOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="manual_descripcion">
+                        Detalles adicionales
+                      </label>
+                      <textarea
+                        id="manual_descripcion"
+                        name="descripcion"
+                        value={manualJustificacionForm.descripcion}
+                        onChange={handleManualJustificacionChange}
+                        rows={4}
+                        className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        placeholder="Explica brevemente qué ocurrió"
+                      />
+                    </div>
+                  </div>
+                  <footer className="flex items-center justify-end gap-3 border-t px-6 py-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={closeManualJustificacionModal}
+                      disabled={manualJustificacionSubmitting}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={manualJustificacionSubmitting}>
+                      {manualJustificacionSubmitting ? "Enviando..." : "Enviar justificación"}
+                    </Button>
+                  </footer>
+                </form>
+              </div>
+            </div>
+          )}
 
           {justificacionModalOpen && (
             <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">

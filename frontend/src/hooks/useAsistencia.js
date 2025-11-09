@@ -109,6 +109,20 @@ const createInitialForm = (isAdmin) => {
   };
 };
 
+const createManualJustificacionInitial = () => {
+  const now = new Date();
+  const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  return {
+    fecha,
+    hora,
+    tipo_marca: "entrada",
+    tipo: "",
+    descripcion: "",
+  };
+};
+
 export const useAsistencia = ({ mode } = {}) => {
   const isAdmin = mode === "admin";
   const [registros, setRegistros] = useState([]);
@@ -139,6 +153,12 @@ export const useAsistencia = ({ mode } = {}) => {
   const [justificacionForm, setJustificacionForm] = useState({ tipo: "", descripcion: "" });
   const [justificacionSubmitting, setJustificacionSubmitting] = useState(false);
   const [resolviendoJustificacionId, setResolviendoJustificacionId] = useState(null);
+
+  const [manualJustificacionModalOpen, setManualJustificacionModalOpen] = useState(false);
+  const [manualJustificacionForm, setManualJustificacionForm] = useState(
+    () => createManualJustificacionInitial()
+  );
+  const [manualJustificacionSubmitting, setManualJustificacionSubmitting] = useState(false);
 
   const defaultLocation = useMemo(
     () => ({
@@ -332,6 +352,23 @@ export const useAsistencia = ({ mode } = {}) => {
     setJustificacionForm({ tipo: "", descripcion: "" });
   }, []);
 
+  const openManualJustificacionModal = useCallback(() => {
+    setManualJustificacionForm(createManualJustificacionInitial());
+    setManualJustificacionModalOpen(true);
+    setError("");
+    setSuccessMessage("");
+  }, [setError, setSuccessMessage]);
+
+  const closeManualJustificacionModal = useCallback(() => {
+    setManualJustificacionModalOpen(false);
+    setManualJustificacionForm(createManualJustificacionInitial());
+  }, []);
+
+  const handleManualJustificacionChange = useCallback((event) => {
+    const { name, value } = event.target;
+    setManualJustificacionForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
   const handleJustificacionFormChange = useCallback((event) => {
     const { name, value } = event.target;
     setJustificacionForm((prev) => ({ ...prev, [name]: value }));
@@ -373,6 +410,64 @@ export const useAsistencia = ({ mode } = {}) => {
       setError,
       setSuccessMessage,
       closeJustificacionModal,
+      fetchRegistros,
+      appliedRange,
+      defaultRange,
+      isAdmin,
+      selectedEmpleado,
+    ]
+  );
+
+  const submitManualJustificacion = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      if (!manualJustificacionForm.fecha) {
+        setError("Selecciona la fecha del reporte de asistencia");
+        return;
+      }
+
+      if (!manualJustificacionForm.tipo_marca) {
+        setError("Selecciona el tipo de marca a justificar");
+        return;
+      }
+
+      if (!manualJustificacionForm.tipo) {
+        setError("Selecciona el tipo de justificación");
+        return;
+      }
+
+      try {
+        setManualJustificacionSubmitting(true);
+        await asistenciaService.createJustificacionManual({
+          fecha: manualJustificacionForm.fecha,
+          hora: manualJustificacionForm.hora,
+          tipo_marca: manualJustificacionForm.tipo_marca,
+          tipo: manualJustificacionForm.tipo,
+          descripcion: manualJustificacionForm.descripcion,
+          ...(isAdmin && selectedEmpleado ? { id_empleado: Number(selectedEmpleado) } : {}),
+        });
+        setSuccessMessage("Justificación enviada para revisión del administrador");
+        closeManualJustificacionModal();
+        await fetchRegistros({
+          ...(appliedRange?.start && appliedRange?.end ? appliedRange : defaultRange),
+          ...(isAdmin && selectedEmpleado ? { id_empleado: Number(selectedEmpleado) } : {}),
+        });
+      } catch (err) {
+        const message =
+          err.response?.data?.error ||
+          err.message ||
+          "No fue posible enviar la solicitud de justificación";
+        setError(message);
+      } finally {
+        setManualJustificacionSubmitting(false);
+      }
+    },
+    [
+      manualJustificacionForm,
+      setError,
+      setSuccessMessage,
+      closeManualJustificacionModal,
       fetchRegistros,
       appliedRange,
       defaultRange,
@@ -833,6 +928,13 @@ export const useAsistencia = ({ mode } = {}) => {
     resolviendoJustificacionId,
     aprobarJustificacion,
     rechazarJustificacion,
+    manualJustificacionModalOpen,
+    manualJustificacionForm,
+    openManualJustificacionModal,
+    closeManualJustificacionModal,
+    handleManualJustificacionChange,
+    submitManualJustificacion,
+    manualJustificacionSubmitting,
     location,
     locationStatus,
     supportsGeolocation,

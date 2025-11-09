@@ -45,6 +45,11 @@ const asistenciaService = {
     return response.data;
   },
 
+  createJustificacionManual: async (payload) => {
+    const response = await api.post(`/asistencia/justificaciones/manual`, payload);
+    return response.data;
+  },
+
   resolverJustificacionSolicitud: async (id_solicitud, payload) => {
     const response = await api.patch(`/asistencia/justificaciones/${id_solicitud}`, payload);
     return response.data;

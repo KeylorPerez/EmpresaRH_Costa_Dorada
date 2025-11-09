@@ -871,6 +871,148 @@ const createJustificacionSolicitud = async (req, res) => {
   }
 };
 
+const createJustificacionManual = async (req, res) => {
+  try {
+    const {
+      id_empleado: idEmpleadoBody,
+      fecha,
+      hora,
+      tipo_marca: tipoMarcaBody,
+      tipo,
+      descripcion,
+    } = req.body;
+
+    const userToken = req.user;
+
+    let idEmpleadoFinal = null;
+    if (userToken.id_rol === 1) {
+      if (idEmpleadoBody === undefined || idEmpleadoBody === null || idEmpleadoBody === '') {
+        return res.status(400).json({ error: 'id_empleado es requerido' });
+      }
+      const parsed = Number(idEmpleadoBody);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        return res.status(400).json({ error: 'id_empleado inválido' });
+      }
+      idEmpleadoFinal = parsed;
+    } else {
+      const usuarioDb = await Usuario.getById(userToken.id_usuario);
+      if (!usuarioDb || !usuarioDb.id_empleado) {
+        return res.status(400).json({ error: 'Usuario no vinculado a un empleado' });
+      }
+      if (
+        idEmpleadoBody !== undefined &&
+        idEmpleadoBody !== null &&
+        idEmpleadoBody !== '' &&
+        Number(idEmpleadoBody) !== usuarioDb.id_empleado
+      ) {
+        return res.status(403).json({ error: 'No puedes crear solicitudes para otro empleado' });
+      }
+      idEmpleadoFinal = usuarioDb.id_empleado;
+    }
+
+    const empleado = await Empleado.getById(idEmpleadoFinal);
+    if (!empleado) {
+      return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+    }
+
+    const tipoJustificacion = typeof tipo === 'string' ? tipo.trim() : '';
+    if (!tipoJustificacion || !allowedJustificationTypes.includes(tipoJustificacion)) {
+      return res.status(400).json({
+        error: `tipo inválido. Debe ser uno de: ${allowedJustificationTypes.join(', ')}`,
+      });
+    }
+
+    const tipoMarcaRaw = typeof tipoMarcaBody === 'string' ? tipoMarcaBody.trim() : '';
+    let tipoMarcaFinal = 'entrada';
+    if (tipoMarcaRaw) {
+      if (!allowedTypes.includes(tipoMarcaRaw)) {
+        return res.status(400).json({
+          error: `tipo_marca inválido. Debe ser uno de: ${allowedTypes.join(', ')}`,
+        });
+      }
+      tipoMarcaFinal = tipoMarcaRaw;
+    }
+
+    const fechaSql = formatDateToSql(fecha);
+    let horaSql = parseTimeForSqlServer(hora);
+    if (!horaSql) {
+      horaSql = parseTimeForSqlServer(new Date());
+    }
+
+    const existingMarca = await Asistencia.findByEmpleadoFechaTipo(
+      idEmpleadoFinal,
+      fechaSql,
+      tipoMarcaFinal
+    );
+    if (existingMarca) {
+      return res
+        .status(409)
+        .json({ error: 'Ya existe una marca para la fecha y tipo seleccionados' });
+    }
+
+    const descripcionTexto = descripcion !== undefined && descripcion !== null
+      ? descripcion.toString().trim()
+      : '';
+
+    const estadoDesdeTipo = (() => {
+      switch (tipoJustificacion) {
+        case 'Permiso con goce':
+        case 'Permiso sin goce':
+          return 'Permiso';
+        case 'Incapacidad':
+          return 'Incapacidad';
+        case 'Vacaciones':
+          return 'Vacaciones';
+        default:
+          return 'Ausente';
+      }
+    })();
+
+    const observacionesBase = 'Registro generado desde una solicitud de justificación manual';
+    const observaciones = descripcionTexto
+      ? `${observacionesBase}: ${descripcionTexto}`
+      : observacionesBase;
+
+    const created = await Asistencia.create({
+      id_empleado: idEmpleadoFinal,
+      fecha: fechaSql,
+      hora: horaSql,
+      tipo_marca: tipoMarcaFinal,
+      estado: estadoDesdeTipo,
+      justificado: false,
+      justificacion: '',
+      observaciones,
+      latitud: null,
+      longitud: null,
+    });
+
+    const id_asistencia = Number(created?.id_asistencia);
+    if (!id_asistencia) {
+      throw new Error('No fue posible crear el registro de asistencia para la justificación');
+    }
+
+    const solicitud = await JustificacionAsistencia.create({
+      id_asistencia,
+      id_empleado: idEmpleadoFinal,
+      tipo: tipoJustificacion,
+      descripcion: descripcionTexto,
+    });
+
+    const registro = await Asistencia.findById(id_asistencia);
+
+    return res.status(201).json({
+      message: 'Justificación registrada y enviada para revisión del administrador',
+      registro,
+      solicitud: normalizeSolicitud(solicitud),
+    });
+  } catch (err) {
+    if (err.code === 'JUSTIFICACION_PENDIENTE') {
+      return res.status(409).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 const resolverJustificacionSolicitud = async (req, res) => {
   try {
     const id_solicitud = Number(req.params.id);
@@ -935,6 +1077,7 @@ module.exports = {
   createMarca,
   updateMarca,
   exportAsistencia,
+  createJustificacionManual,
   createJustificacionSolicitud,
   resolverJustificacionSolicitud,
 };
