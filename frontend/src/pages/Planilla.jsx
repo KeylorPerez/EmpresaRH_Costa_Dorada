@@ -51,7 +51,6 @@ const Planilla = () => {
     selectEmpleado,
     resetForm,
     setError,
-    totals,
     prestamosEmpleado,
     prestamoSelections,
     togglePrestamo,
@@ -70,6 +69,55 @@ const Planilla = () => {
   const isEditing = Boolean(editingPlanilla);
   const [activeEmpleadoIndex, setActiveEmpleadoIndex] = useState(0);
   const [wizardSearch, setWizardSearch] = useState("");
+  const [tipoPagoFiltro, setTipoPagoFiltro] = useState("todos");
+
+  const planillasFiltradas = useMemo(() => {
+    if (!Array.isArray(planillas) || tipoPagoFiltro === "todos") {
+      return planillas;
+    }
+
+    const filtroNormalizado = tipoPagoFiltro.toLowerCase();
+
+    return planillas.filter((planilla) => {
+      const tipo = (planilla?.tipo_pago_empleado || planilla?.tipo_pago || "")
+        .toString()
+        .trim()
+        .toLowerCase();
+
+      if (!tipo) {
+        return false;
+      }
+
+      if (filtroNormalizado === "diario") {
+        return tipo === "diario";
+      }
+
+      if (filtroNormalizado === "quincenal") {
+        return tipo === "quincenal";
+      }
+
+      return true;
+    });
+  }, [planillas, tipoPagoFiltro]);
+
+  const resumenPlanillas = useMemo(() => {
+    const totalPago = (planillasFiltradas || []).reduce(
+      (sum, planillaActual) => sum + (Number(planillaActual?.pago_neto) || 0),
+      0,
+    );
+
+    return {
+      cantidad: planillasFiltradas?.length || 0,
+      totalPago: currencyFormatter.format(totalPago),
+    };
+  }, [planillasFiltradas]);
+
+  const obtenerTipoPagoPlanilla = (planilla) => {
+    const tipo = (planilla?.tipo_pago_empleado || planilla?.tipo_pago || "")
+      .toString()
+      .trim();
+    return tipo || "No especificado";
+  };
 
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
@@ -491,20 +539,42 @@ const Planilla = () => {
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <article className="bg-white shadow rounded-xl p-4">
               <p className="text-sm text-gray-500">Planillas registradas</p>
-              <p className="text-3xl font-semibold text-gray-800">{totals.cantidad}</p>
+              <p className="text-3xl font-semibold text-gray-800">{resumenPlanillas.cantidad}</p>
             </article>
             <article className="bg-white shadow rounded-xl p-4">
               <p className="text-sm text-gray-500">Pago neto acumulado</p>
-              <p className="text-3xl font-semibold text-gray-800">{totals.totalPago}</p>
+              <p className="text-3xl font-semibold text-gray-800">{resumenPlanillas.totalPago}</p>
             </article>
           </section>
 
           {/* Tabla */}
           <section className="bg-white shadow rounded-xl overflow-hidden">
+            <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">Listado de planillas</h2>
+              <div className="flex flex-col gap-2 text-sm text-gray-600 md:flex-row md:items-center">
+                <label className="font-medium" htmlFor="filtro-tipo-pago">
+                  Tipo de pago
+                </label>
+                <select
+                  id="filtro-tipo-pago"
+                  value={tipoPagoFiltro}
+                  onChange={(event) => setTipoPagoFiltro(event.target.value)}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="diario">Pago diario</option>
+                  <option value="quincenal">Pago quincenal</option>
+                </select>
+              </div>
+            </div>
             {loading ? (
               <p className="p-6">Cargando planillas...</p>
             ) : planillas.length === 0 ? (
               <p className="p-6 text-gray-600">No hay planillas registradas.</p>
+            ) : planillasFiltradas.length === 0 ? (
+              <p className="p-6 text-gray-600">
+                No hay planillas registradas para el filtro seleccionado.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -512,6 +582,7 @@ const Planilla = () => {
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Empleado</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Periodo</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipo de pago</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario base</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Horas extras</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Bonificaciones</th>
@@ -525,7 +596,7 @@ const Planilla = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {planillas.map((planilla) => (
+                    {planillasFiltradas.map((planilla) => (
                       <tr key={planilla.id_planilla} className="hover:bg-gray-50">
                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
                           {planilla.nombre
@@ -534,6 +605,9 @@ const Planilla = () => {
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
                           {formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin)}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                          {obtenerTipoPagoPlanilla(planilla)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.salario_monto)}
