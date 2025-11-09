@@ -7,7 +7,9 @@ import { useAuth } from "../hooks/useAuth";
 import {
   formatearFecha,
   formatearHora,
+  obtenerEtiquetaEstado,
   obtenerEtiquetaTipo,
+  estadoOptions,
   tipoMarcaOptions,
   useAsistencia,
 } from "../hooks/useAsistencia";
@@ -94,6 +96,14 @@ const Asistencia = ({ mode }) => {
     const lonString = longitud?.toString().trim();
     if (!latString && !lonString) return "—";
     return [latString, lonString].filter(Boolean).join(", ");
+  };
+
+  const formatJustificado = (value) => (value ? "Sí" : "No");
+
+  const formatJustificacion = (text) => {
+    if (text === null || text === undefined) return "—";
+    const trimmed = text.toString().trim();
+    return trimmed ? trimmed : "—";
   };
 
   if (!user) {
@@ -191,6 +201,28 @@ const Asistencia = ({ mode }) => {
                     ))}
                 </select>
               </div>
+
+              {isAdmin && (
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="estado">
+                    Estado de la asistencia
+                  </label>
+                  <select
+                    id="estado"
+                    name="estado"
+                    value={formData.estado || "Presente"}
+                    onChange={handleChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    required
+                  >
+                    {estadoOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="fecha">
@@ -331,6 +363,43 @@ const Asistencia = ({ mode }) => {
                 />
               </div>
 
+              {isAdmin && (
+                <>
+                  <div className="md:col-span-2 flex items-center gap-2">
+                    <input
+                      id="justificado"
+                      name="justificado"
+                      type="checkbox"
+                      checked={Boolean(formData.justificado)}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label className="text-sm font-medium text-gray-700" htmlFor="justificado">
+                      Marcar asistencia como justificada
+                    </label>
+                  </div>
+
+                  <div className="md:col-span-2 flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="justificacion">
+                      Justificación
+                    </label>
+                    <textarea
+                      id="justificacion"
+                      name="justificacion"
+                      rows={3}
+                      value={formData.justificacion}
+                      onChange={handleChange}
+                      disabled={!formData.justificado}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
+                      placeholder="Describe el motivo de la justificación"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo se requiere una justificación cuando la asistencia está marcada como justificada.
+                    </p>
+                  </div>
+                </>
+              )}
+
               <div className="md:col-span-2 flex items-center gap-3">
                 <Button type="submit" variant="primary" disabled={submitting}>
                   {submitting ? "Registrando..." : "Registrar marca"}
@@ -464,6 +533,9 @@ const Asistencia = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Fecha</th>
                       <th className="px-4 py-3 text-left">Hora</th>
                       <th className="px-4 py-3 text-left">Tipo</th>
+                      <th className="px-4 py-3 text-left">Estado</th>
+                      <th className="px-4 py-3 text-left">Justificado</th>
+                      <th className="px-4 py-3 text-left">Justificación</th>
                       <th className="px-4 py-3 text-left">Ubicación</th>
                       <th className="px-4 py-3 text-left">Observaciones</th>
                       {isAdmin && <th className="px-4 py-3 text-left">Empleado</th>}
@@ -483,6 +555,15 @@ const Asistencia = ({ mode }) => {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
                             {obtenerEtiquetaTipo(registro.tipo_marca)}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-semibold">
+                            {obtenerEtiquetaEstado(registro.estado)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{formatJustificado(registro.justificado)}</td>
+                        <td className="px-4 py-3 text-gray-600 max-w-xs">
+                          {formatJustificacion(registro.justificacion)}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           {formatUbicacion(registro.latitud, registro.longitud)}
@@ -551,6 +632,26 @@ const Asistencia = ({ mode }) => {
                   </select>
                 </div>
 
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_estado">
+                    Estado de la asistencia
+                  </label>
+                  <select
+                    id="edit_estado"
+                    name="estado"
+                    value={editForm.estado || "Presente"}
+                    onChange={handleEditChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    required
+                  >
+                    {estadoOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="md:col-span-2 flex flex-col">
                   <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_observaciones">
                     Observaciones
@@ -562,7 +663,37 @@ const Asistencia = ({ mode }) => {
                     value={editForm.observaciones}
                     onChange={handleEditChange}
                     className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                    placeholder="Añade notas adicionales si corresponde"
+                  placeholder="Añade notas adicionales si corresponde"
+                />
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    id="edit_justificado"
+                    name="justificado"
+                    type="checkbox"
+                    checked={Boolean(editForm.justificado)}
+                    onChange={handleEditChange}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label className="text-sm font-medium text-gray-700" htmlFor="edit_justificado">
+                    Marcar asistencia como justificada
+                  </label>
+                </div>
+
+                <div className="md:col-span-2 flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_justificacion">
+                    Justificación
+                  </label>
+                  <textarea
+                    id="edit_justificacion"
+                    name="justificacion"
+                    rows={3}
+                    value={editForm.justificacion}
+                    onChange={handleEditChange}
+                    disabled={!editForm.justificado}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
+                    placeholder="Describe el motivo de la justificación"
                   />
                 </div>
 
