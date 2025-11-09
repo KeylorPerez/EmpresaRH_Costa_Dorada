@@ -57,6 +57,18 @@ const sanitizePdfText = (text = '') =>
     .replace(/\u2007/g, ' ')
     .replace(/\s+/g, ' ');
 
+const normalizePdfEncoding = (text = '') =>
+  Array.from(String(text))
+    .map((char) => {
+      const code = char.codePointAt(0);
+      if (code === undefined) return '';
+      if (code <= 0xff) {
+        return String.fromCharCode(code);
+      }
+      return '?';
+    })
+    .join('');
+
 const wrapText = (text, maxLength = 95) => {
   if (!text) return [''];
   const words = sanitizePdfText(text).split(/\s+/);
@@ -92,7 +104,7 @@ const wrapText = (text, maxLength = 95) => {
 };
 
 const escapePdfText = (text = '') =>
-  text
+  normalizePdfEncoding(text)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)');
@@ -257,10 +269,13 @@ const buildPdfBuffer = (pagesContent) => {
     const objectHeader = `${objectId} 0 obj\n`;
     let bodyBuffer;
     if (obj && typeof obj === 'object' && obj.stream !== undefined) {
-      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
-      const streamBuffer = Buffer.from(streamString, 'utf8');
-      const body = `<< /Length ${streamBuffer.length} >>\nstream\n${streamString}\nendstream\n`;
-      bodyBuffer = Buffer.from(body, 'utf8');
+      const streamString =
+        typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const normalizedStream = normalizePdfEncoding(streamString);
+      const streamBuffer = Buffer.from(normalizedStream, 'latin1');
+      const preamble = Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, 'ascii');
+      const postamble = Buffer.from('\nendstream\n', 'ascii');
+      bodyBuffer = Buffer.concat([preamble, streamBuffer, postamble]);
     } else {
       const body = `${obj || ''}\n`;
       bodyBuffer = Buffer.from(body, 'utf8');
