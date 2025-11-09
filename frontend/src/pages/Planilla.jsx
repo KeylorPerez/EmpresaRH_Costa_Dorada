@@ -1053,7 +1053,7 @@ const Planilla = () => {
 
                               <div className="flex flex-col gap-2">
                                 <label htmlFor="bonificaciones" className="text-sm font-medium text-gray-700">
-                                  Bonificaciones
+                                  Bonificaciones (₡)
                                 </label>
                                 <input
                                   type="number"
@@ -1069,7 +1069,7 @@ const Planilla = () => {
 
                               <div className="flex flex-col gap-2">
                                 <label htmlFor="deducciones" className="text-sm font-medium text-gray-700">
-                                  Deducciones adicionales
+                                  Deducciones adicionales (₡)
                                 </label>
                                 <input
                                   type="number"
@@ -1140,7 +1140,7 @@ const Planilla = () => {
                                   </div>
                                   <div className="flex flex-col gap-2">
                                     <label htmlFor="monto_dias_dobles" className="text-sm font-medium text-gray-700">
-                                      Monto extra por días dobles
+                                      Monto extra por días dobles (₡)
                                     </label>
                                     <input
                                       type="number"
@@ -1187,7 +1187,7 @@ const Planilla = () => {
                                   </div>
                                   <div className="flex flex-col gap-2">
                                     <label htmlFor="monto_descuento_dias" className="text-sm font-medium text-gray-700">
-                                      Monto por días descontados
+                                      Monto por días descontados (₡)
                                     </label>
                                     <input
                                       type="number"
@@ -1218,7 +1218,7 @@ const Planilla = () => {
                                   </div>
                                   <div className="flex flex-col gap-2">
                                     <label htmlFor="monto_dias_dobles_quincenal" className="text-sm font-medium text-gray-700">
-                                      Monto extra por días dobles
+                                      Monto extra por días dobles (₡)
                                     </label>
                                     <input
                                       type="number"
