@@ -59,6 +59,46 @@ const WIZARD_TIPO_PAGO_LABELS = {
   quincenal: "Pago quincenal",
 };
 
+const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
+
+const formatDateInputValue = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const obtenerRangoFechaPorDefecto = () => {
+  const hoy = new Date();
+  const year = hoy.getFullYear();
+  const monthIndex = hoy.getMonth();
+  const day = hoy.getDate();
+
+  if (day <= 15) {
+    const inicio = new Date(year, monthIndex, 1);
+    const fin = new Date(year, monthIndex, 15);
+    return { inicio: formatDateInputValue(inicio), fin: formatDateInputValue(fin) };
+  }
+
+  const inicio = new Date(year, monthIndex, 16);
+  const fin = new Date(year, monthIndex + 1, 0);
+  return { inicio: formatDateInputValue(inicio), fin: formatDateInputValue(fin) };
+};
+
+const parseDateSafe = (value) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date;
+};
+
 const Planilla = () => {
   const { user, logoutUser } = useAuth();
   const {
@@ -97,32 +137,98 @@ const Planilla = () => {
   const [wizardSearch, setWizardSearch] = useState("");
   const [tipoPagoFiltro, setTipoPagoFiltro] = useState("todos");
   const [wizardTipoPagoFiltro, setWizardTipoPagoFiltro] = useState("todos");
+  const defaultDateRangeRef = useRef(obtenerRangoFechaPorDefecto());
+  const [empleadoFiltro, setEmpleadoFiltro] = useState("todos");
+  const [busquedaEmpleado, setBusquedaEmpleado] = useState("");
+  const [fechaInicioFiltro, setFechaInicioFiltro] = useState(
+    defaultDateRangeRef.current.inicio,
+  );
+  const [fechaFinFiltro, setFechaFinFiltro] = useState(defaultDateRangeRef.current.fin);
+
+  useEffect(() => {
+    if (!fechaInicioFiltro || !fechaFinFiltro) return;
+
+    const fechaInicio = parseDateSafe(`${fechaInicioFiltro}T00:00:00`);
+    const fechaFin = parseDateSafe(`${fechaFinFiltro}T00:00:00`);
+
+    if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+      setFechaFinFiltro(fechaInicioFiltro);
+    }
+  }, [fechaInicioFiltro, fechaFinFiltro]);
 
   const planillasFiltradas = useMemo(() => {
-    if (!Array.isArray(planillas) || tipoPagoFiltro === "todos") {
-      return planillas;
+    if (!Array.isArray(planillas)) {
+      return [];
     }
 
-    const filtroNormalizado = normalizarTipoPago(tipoPagoFiltro);
+    const filtroTipoPago = normalizarTipoPago(tipoPagoFiltro);
+    const filtroEmpleadoId = empleadoFiltro === "todos" ? null : empleadoFiltro;
+    const textoBusqueda = normalizarTexto(busquedaEmpleado);
+
+    const fechaInicio = fechaInicioFiltro
+      ? parseDateSafe(`${fechaInicioFiltro}T00:00:00`)
+      : null;
+    const fechaFin = fechaFinFiltro ? parseDateSafe(`${fechaFinFiltro}T23:59:59`) : null;
 
     return planillas.filter((planilla) => {
-      const tipo = normalizarTipoPago(planilla?.tipo_pago_empleado ?? planilla?.tipo_pago);
+      const tipoPlanilla = normalizarTipoPago(
+        planilla?.tipo_pago_empleado ?? planilla?.tipo_pago,
+      );
 
-      if (!tipo) {
+      if (filtroTipoPago !== "todos" && tipoPlanilla !== filtroTipoPago) {
         return false;
       }
 
-      if (filtroNormalizado === "diario") {
-        return tipo === "diario";
+      const idPlanilla = (planilla?.id_empleado ?? planilla?.empleado_id ?? "").toString();
+
+      if (filtroEmpleadoId && idPlanilla !== filtroEmpleadoId) {
+        return false;
       }
 
-      if (filtroNormalizado === "quincenal") {
-        return tipo === "quincenal";
+      if (textoBusqueda) {
+        const posiblesNombres = [
+          `${planilla?.nombre ?? ""} ${planilla?.apellido ?? ""}`,
+          planilla?.nombre_completo,
+          planilla?.nombreCompleto,
+          planilla?.nombre_colaborador,
+          planilla?.nombre_empleado,
+        ]
+          .map((valor) => normalizarTexto(valor))
+          .filter(Boolean);
+
+        const coincidenciaBusqueda = [normalizarTexto(idPlanilla), ...posiblesNombres].some(
+          (valor) => valor.includes(textoBusqueda),
+        );
+
+        if (!coincidenciaBusqueda) {
+          return false;
+        }
+      }
+
+      if (!fechaInicio && !fechaFin) {
+        return true;
+      }
+
+      const periodoInicio = parseDateSafe(planilla?.periodo_inicio);
+      const periodoFin = parseDateSafe(planilla?.periodo_fin);
+
+      if (!periodoInicio || !periodoFin) {
+        return false;
+      }
+
+      if (fechaInicio && periodoFin < fechaInicio) {
+        return false;
+      }
+
+      if (fechaFin && periodoInicio > fechaFin) {
+        return false;
       }
 
       return true;
     });
-  }, [planillas, tipoPagoFiltro]);
+  }, [planillas, tipoPagoFiltro, empleadoFiltro, busquedaEmpleado, fechaInicioFiltro, fechaFinFiltro]);
+
+  const totalPlanillas = Array.isArray(planillas) ? planillas.length : 0;
 
   const resumenPlanillas = useMemo(() => {
     const totalPago = (planillasFiltradas || []).reduce(
@@ -643,27 +749,90 @@ const Planilla = () => {
 
           {/* Tabla */}
           <section className="bg-white shadow rounded-xl overflow-hidden">
-            <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-lg font-semibold text-gray-800">Listado de planillas</h2>
-              <div className="flex flex-col gap-2 text-sm text-gray-600 md:flex-row md:items-center">
-                <label className="font-medium" htmlFor="filtro-tipo-pago">
-                  Tipo de pago
-                </label>
-                <select
-                  id="filtro-tipo-pago"
-                  value={tipoPagoFiltro}
-                  onChange={(event) => setTipoPagoFiltro(event.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                >
-                  <option value="todos">Todos</option>
-                  <option value="diario">Pago diario</option>
-                  <option value="quincenal">Pago quincenal</option>
-                </select>
+            <div className="border-b border-gray-100 px-4 py-4 space-y-4">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <h2 className="text-lg font-semibold text-gray-800">Listado de planillas</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <div className="flex flex-col gap-1 text-sm text-gray-600">
+                  <label className="font-medium" htmlFor="filtro-tipo-pago">
+                    Tipo de pago
+                  </label>
+                  <select
+                    id="filtro-tipo-pago"
+                    value={tipoPagoFiltro}
+                    onChange={(event) => setTipoPagoFiltro(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="diario">Pago diario</option>
+                    <option value="quincenal">Pago quincenal</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-gray-600">
+                  <label className="font-medium" htmlFor="filtro-empleado">
+                    Colaborador
+                  </label>
+                  <select
+                    id="filtro-empleado"
+                    value={empleadoFiltro}
+                    onChange={(event) => setEmpleadoFiltro(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="todos">Todos</option>
+                    {(Array.isArray(empleados) ? empleados : []).map((empleado) => {
+                      const id = (empleado?.id_empleado ?? empleado?.id ?? "").toString();
+                      if (!id) return null;
+                      return (
+                        <option key={id} value={id}>
+                          {obtenerNombreCompletoEmpleado(empleado)} (#{id})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-gray-600">
+                  <label className="font-medium" htmlFor="busqueda-empleado">
+                    Buscar colaborador
+                  </label>
+                  <input
+                    id="busqueda-empleado"
+                    type="search"
+                    placeholder="Nombre, apellido o ID"
+                    value={busquedaEmpleado}
+                    onChange={(event) => setBusquedaEmpleado(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-gray-600">
+                  <label className="font-medium" htmlFor="filtro-fecha-inicio">
+                    Desde
+                  </label>
+                  <input
+                    id="filtro-fecha-inicio"
+                    type="date"
+                    value={fechaInicioFiltro}
+                    onChange={(event) => setFechaInicioFiltro(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-sm text-gray-600">
+                  <label className="font-medium" htmlFor="filtro-fecha-fin">
+                    Hasta
+                  </label>
+                  <input
+                    id="filtro-fecha-fin"
+                    type="date"
+                    value={fechaFinFiltro}
+                    onChange={(event) => setFechaFinFiltro(event.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </div>
               </div>
             </div>
             {loading ? (
               <p className="p-6">Cargando planillas...</p>
-            ) : planillas.length === 0 ? (
+            ) : totalPlanillas === 0 ? (
               <p className="p-6 text-gray-600">No hay planillas registradas.</p>
             ) : planillasFiltradas.length === 0 ? (
               <p className="p-6 text-gray-600">
