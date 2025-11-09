@@ -57,6 +57,18 @@ const sanitizePdfText = (text = '') =>
     .replace(/\u2007/g, ' ')
     .replace(/\s+/g, ' ');
 
+const normalizePdfEncoding = (text = '') =>
+  Array.from(String(text))
+    .map((char) => {
+      const code = char.codePointAt(0);
+      if (code === undefined) return '';
+      if (code <= 0xff) {
+        return String.fromCharCode(code);
+      }
+      return '?';
+    })
+    .join('');
+
 const wrapText = (text, maxLength = 95) => {
   if (!text) return [''];
   const words = sanitizePdfText(text).split(/\s+/);
@@ -92,7 +104,7 @@ const wrapText = (text, maxLength = 95) => {
 };
 
 const escapePdfText = (text = '') =>
-  text
+  normalizePdfEncoding(text)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)');
@@ -165,18 +177,40 @@ const buildPdfLines = (planilla, detalles) => {
   resumenFinanciero.push(['Total deducciones', formatCurrency(totalDeducciones)]);
   resumenFinanciero.push(['Pago neto', formatCurrency(planilla.pago_neto)]);
 
-  const valueWidth = 20;
+  const summaryLabelWidth = 24;
+  const summaryValueWidth = 18;
+  const summaryLineWidth = 80;
   resumenFinanciero.forEach(([label, value]) => {
     const sanitizedValue = sanitizePdfText(value);
-    const dottedLineLength = Math.max(4, 70 - label.length);
+    const paddedLabel = label.padEnd(summaryLabelWidth, ' ');
+    const paddedValue = sanitizedValue.padStart(summaryValueWidth, ' ');
+    const dottedLineLength = Math.max(
+      4,
+      summaryLineWidth - (paddedLabel.length + paddedValue.length + 1),
+    );
     const dottedLine = '.'.repeat(dottedLineLength);
-    lines.push(`${label} ${dottedLine} ${sanitizedValue.padStart(valueWidth, ' ')}`);
+    lines.push(`${paddedLabel}${dottedLine} ${paddedValue}`);
   });
 
   lines.push('');
   lines.push('Detalle diario');
   lines.push(sectionDivider);
-  lines.push('Fecha       | Día         | Asistencia  | Tipo         | Salario día        | Observación');
+  const columnWidths = {
+    fecha: 12,
+    dia: 13,
+    asistencia: 13,
+    tipo: 12,
+    salario: 18,
+  };
+  const headerLine = [
+    'Fecha'.padEnd(columnWidths.fecha, ' '),
+    'Día'.padEnd(columnWidths.dia, ' '),
+    'Asistencia'.padEnd(columnWidths.asistencia, ' '),
+    'Tipo'.padEnd(columnWidths.tipo, ' '),
+    'Salario día'.padEnd(columnWidths.salario, ' '),
+    'Observación',
+  ].join(' | ');
+  lines.push(headerLine);
   lines.push(sectionDivider);
 
   if (!Array.isArray(detalles) || detalles.length === 0) {
@@ -185,19 +219,31 @@ const buildPdfLines = (planilla, detalles) => {
   }
 
   detalles.forEach((detalle) => {
-    const fecha = formatDateDisplay(detalle.fecha).padEnd(11, ' ');
-    const dia = capitalize(detalle.dia_semana || '').padEnd(11, ' ');
-    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(11, ' ');
-    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(11, ' ');
-    const salario = formatCurrency(detalle.salario_dia).padEnd(18, ' ');
+    const fecha = formatDateDisplay(detalle.fecha).padEnd(columnWidths.fecha, ' ');
+    const dia = capitalize(detalle.dia_semana || '').padEnd(columnWidths.dia, ' ');
+    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(
+      columnWidths.asistencia,
+      ' ',
+    );
+    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(
+      columnWidths.tipo,
+      ' ',
+    );
+    const salario = formatCurrency(detalle.salario_dia).padEnd(columnWidths.salario, ' ');
     const observacion = sanitizePdfText(detalle.observacion ? detalle.observacion.trim() : '');
-    const baseLine = `${fecha}| ${dia}| ${asistencia}| ${tipo}| ${salario}| ${observacion}`;
-    const wrapped = wrapText(baseLine, 95);
-    wrapped.forEach((line, index) => {
+    const basePrefix = [fecha, dia, asistencia, tipo, salario].join(' | ');
+    const maxObservationWidth = Math.max(0, 95 - (basePrefix.length + 3));
+    const observationLines =
+      observacion && maxObservationWidth > 0
+        ? wrapText(observacion, maxObservationWidth)
+        : [observacion];
+
+    observationLines.forEach((obsLine, index) => {
       if (index === 0) {
-        lines.push(line);
+        lines.push(`${basePrefix} | ${obsLine}`.trimEnd());
       } else {
-        lines.push(` ${line}`);
+        const continuedObservation = obsLine ? obsLine : '';
+        lines.push(`${' '.repeat(basePrefix.length)} | ${continuedObservation}`.trimEnd());
       }
     });
     lines.push(sectionDivider);
@@ -257,10 +303,13 @@ const buildPdfBuffer = (pagesContent) => {
     const objectHeader = `${objectId} 0 obj\n`;
     let bodyBuffer;
     if (obj && typeof obj === 'object' && obj.stream !== undefined) {
-      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
-      const streamBuffer = Buffer.from(streamString, 'utf8');
-      const body = `<< /Length ${streamBuffer.length} >>\nstream\n${streamString}\nendstream\n`;
-      bodyBuffer = Buffer.from(body, 'utf8');
+      const streamString =
+        typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const normalizedStream = normalizePdfEncoding(streamString);
+      const streamBuffer = Buffer.from(normalizedStream, 'latin1');
+      const preamble = Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, 'ascii');
+      const postamble = Buffer.from('\nendstream\n', 'ascii');
+      bodyBuffer = Buffer.concat([preamble, streamBuffer, postamble]);
     } else {
       const body = `${obj || ''}\n`;
       bodyBuffer = Buffer.from(body, 'utf8');
