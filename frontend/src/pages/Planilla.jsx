@@ -140,6 +140,24 @@ const Planilla = () => {
       etiquetaPorDefecto: "No especificado",
     });
 
+  const obtenerNombreCompletoEmpleado = (empleado = {}) => {
+    const partesNombre = [empleado.nombre, empleado.apellido]
+      .map((parte) => (parte || "").trim())
+      .filter(Boolean);
+
+    if (partesNombre.length > 0) {
+      return partesNombre.join(" ");
+    }
+
+    const nombreAlterno =
+      empleado.nombre_completo ||
+      empleado.nombreCompleto ||
+      empleado.nombre_completo_empleado ||
+      empleado.nombreColaborador;
+
+    return (nombreAlterno || "").trim() || "Sin nombre";
+  };
+
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
   const detalleSectionRef = useRef(null);
@@ -850,6 +868,10 @@ const Planilla = () => {
                             <h3 className="text-sm font-semibold text-gray-800">Resumen del colaborador</h3>
                             {selectedEmpleado ? (
                               <div className="space-y-2 text-sm text-gray-600">
+                                <p>
+                                  <span className="font-semibold text-gray-700">Nombre:</span>{" "}
+                                  {obtenerNombreCompletoEmpleado(selectedEmpleado)}
+                                </p>
                                 <p>
                                   <span className="font-semibold text-gray-700">Identificación:</span>{" "}
                                   {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
