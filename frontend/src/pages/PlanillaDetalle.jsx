@@ -34,6 +34,20 @@ const formatPeriodo = (inicio, fin) => {
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
 };
 
+const getFileNameFromUrl = (url) => {
+  if (!url) return "";
+  try {
+    const parsedUrl = new URL(url, window.location.origin);
+    const segments = parsedUrl.pathname.split("/").filter(Boolean);
+    if (segments.length > 0) {
+      return decodeURIComponent(segments[segments.length - 1]);
+    }
+  } catch (err) {
+    console.error("No se pudo interpretar el nombre del archivo desde la URL", err);
+  }
+  return "";
+};
+
 const PlanillaDetalle = () => {
   const { user, logoutUser } = useAuth();
   const { id } = useParams();
@@ -171,6 +185,9 @@ const PlanillaDetalle = () => {
     try {
       const data = await planillaService.exportFile(planillaId, format);
       const fileUrl = data?.url;
+      const responseFormat = data?.format || format;
+      const filename = data?.filename || "";
+
       if (!fileUrl) {
         throw new Error("No se recibió la URL del archivo generado.");
       }
@@ -181,13 +198,13 @@ const PlanillaDetalle = () => {
 
       if (!silent) {
         setExportMessage(
-          format === "excel"
+          responseFormat === "excel"
             ? "Archivo de Excel generado correctamente."
             : "Archivo PDF generado correctamente."
         );
       }
 
-      return fileUrl;
+      return { url: fileUrl, filename, format: responseFormat };
     } catch (err) {
       const message =
         err.response?.data?.error || err.message || "No se pudo generar el archivo solicitado.";
@@ -201,25 +218,53 @@ const PlanillaDetalle = () => {
   const handleShare = async () => {
     setExportErrorMessage("");
     setExportMessage("");
-    const url = await handleGenerateExport("pdf", { openInNewTab: false, silent: true });
-    if (!url) {
+    const exportData = await handleGenerateExport("pdf", { openInNewTab: false, silent: true });
+    if (!exportData?.url) {
       return;
     }
 
+    const { url, filename: providedFileName } = exportData;
+    const fallbackFileName = providedFileName || getFileNameFromUrl(url) || `planilla-${planillaId}.pdf`;
+
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Planilla #${planillaId}`,
-          text: "Te comparto la planilla generada desde el sistema.",
-          url,
-        });
-        setExportMessage("Enlace compartido correctamente.");
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-        setExportMessage("Enlace copiado al portapapeles.");
-      } else {
-        setExportMessage(`Comparte este enlace manualmente: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("No se pudo descargar el PDF generado.");
       }
+
+      const blob = await response.blob();
+      const fileType = blob.type || "application/pdf";
+      const fileName = fallbackFileName.endsWith(".pdf")
+        ? fallbackFileName
+        : `${fallbackFileName}.pdf`;
+
+      if (typeof File === "function") {
+        const shareFile = new File([blob], fileName, { type: fileType });
+
+        if (
+          typeof navigator.share === "function" &&
+          typeof navigator.canShare === "function" &&
+          navigator.canShare({ files: [shareFile] })
+        ) {
+          await navigator.share({
+            files: [shareFile],
+            title: `Planilla #${planillaId}`,
+            text: "Te comparto la planilla generada desde el sistema.",
+          });
+          setExportMessage("PDF compartido correctamente.");
+          return;
+        }
+      }
+
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      setExportMessage("Descarga completada. Comparte el PDF manualmente desde tu dispositivo.");
     } catch (err) {
       setExportErrorMessage(err.message || "No se pudo completar la acción de compartir.");
     }
