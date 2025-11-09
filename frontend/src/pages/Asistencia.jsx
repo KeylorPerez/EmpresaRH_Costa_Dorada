@@ -13,7 +13,6 @@ import {
   obtenerEtiquetaTipoJustificacion,
   estadoOptions,
   tipoMarcaOptions,
-  tipoJustificacionOptions,
   useAsistencia,
 } from "../hooks/useAsistencia";
 
@@ -53,7 +52,6 @@ const Asistencia = ({ mode }) => {
     justificacionModalOpen,
     justificacionRegistro,
     justificacionForm,
-    openJustificacionModal,
     closeJustificacionModal,
     handleJustificacionFormChange,
     submitJustificacionSolicitud,
@@ -910,118 +908,139 @@ const Asistencia = ({ mode }) => {
           )}
 
           {isAdmin && editingRegistro && (
-            <section className="bg-white rounded-xl shadow-sm p-6">
-              <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Editar marca #{editingRegistro.id_asistencia}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Actualiza el tipo de marca u observaciones del registro seleccionado.
-                  </p>
-                </div>
-                <Button variant="secondary" onClick={closeEditForm}>
-                  Cancelar edición
-                </Button>
-              </header>
+            <div
+              className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-attendance-title"
+              onClick={closeEditForm}
+            >
+              <div
+                className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <header className="flex flex-col gap-2 border-b px-6 py-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 id="edit-attendance-title" className="text-lg font-semibold text-gray-800">
+                      Editar marca #{editingRegistro.id_asistencia}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Actualiza el tipo de marca u observaciones del registro seleccionado.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 self-end md:self-start">
+                    <Button variant="secondary" onClick={closeEditForm}>
+                      Cancelar edición
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={closeEditForm}
+                      className="rounded-full p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                      aria-label="Cerrar"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </header>
 
-              <form onSubmit={handleEditSubmit} className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_tipo_marca">
-                    Tipo de marca
-                  </label>
-                  <select
-                    id="edit_tipo_marca"
-                    name="tipo_marca"
-                    value={editForm.tipo_marca}
-                    onChange={handleEditChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {tipoMarcaOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <form onSubmit={handleEditSubmit} className="grid gap-4 px-6 py-4 md:grid-cols-2">
+                  <div className="flex flex-col">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_tipo_marca">
+                      Tipo de marca
+                    </label>
+                    <select
+                      id="edit_tipo_marca"
+                      name="tipo_marca"
+                      value={editForm.tipo_marca}
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    >
+                      <option value="">Selecciona una opción</option>
+                      {tipoMarcaOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_estado">
-                    Estado de la asistencia
-                  </label>
-                  <select
-                    id="edit_estado"
-                    name="estado"
-                    value={editForm.estado || "Presente"}
-                    onChange={handleEditChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  >
-                    {estadoOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="flex flex-col">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_estado">
+                      Estado de la asistencia
+                    </label>
+                    <select
+                      id="edit_estado"
+                      name="estado"
+                      value={editForm.estado || "Presente"}
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    >
+                      {estadoOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="md:col-span-2 flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_observaciones">
-                    Observaciones
-                  </label>
-                  <textarea
-                    id="edit_observaciones"
-                    name="observaciones"
-                    rows={3}
-                    value={editForm.observaciones}
-                    onChange={handleEditChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                  placeholder="Añade notas adicionales si corresponde"
-                />
-                </div>
+                  <div className="flex flex-col md:col-span-2">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_observaciones">
+                      Observaciones
+                    </label>
+                    <textarea
+                      id="edit_observaciones"
+                      name="observaciones"
+                      rows={3}
+                      value={editForm.observaciones}
+                      onChange={handleEditChange}
+                      className="resize-none rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      placeholder="Añade notas adicionales si corresponde"
+                    />
+                  </div>
 
-                <div className="md:col-span-2 flex items-center gap-2">
-                  <input
-                    id="edit_justificado"
-                    name="justificado"
-                    type="checkbox"
-                    checked={Boolean(editForm.justificado)}
-                    onChange={handleEditChange}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label className="text-sm font-medium text-gray-700" htmlFor="edit_justificado">
-                    Marcar asistencia como justificada
-                  </label>
-                </div>
+                  <div className="md:col-span-2 flex items-center gap-2">
+                    <input
+                      id="edit_justificado"
+                      name="justificado"
+                      type="checkbox"
+                      checked={Boolean(editForm.justificado)}
+                      onChange={handleEditChange}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label className="text-sm font-medium text-gray-700" htmlFor="edit_justificado">
+                      Marcar asistencia como justificada
+                    </label>
+                  </div>
 
-                <div className="md:col-span-2 flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="edit_justificacion">
-                    Justificación
-                  </label>
-                  <textarea
-                    id="edit_justificacion"
-                    name="justificacion"
-                    rows={3}
-                    value={editForm.justificacion}
-                    onChange={handleEditChange}
-                    disabled={!editForm.justificado}
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
-                    placeholder="Describe el motivo de la justificación"
-                  />
-                </div>
+                  <div className="flex flex-col md:col-span-2">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_justificacion">
+                      Justificación
+                    </label>
+                    <textarea
+                      id="edit_justificacion"
+                      name="justificacion"
+                      rows={3}
+                      value={editForm.justificacion}
+                      onChange={handleEditChange}
+                      disabled={!editForm.justificado}
+                      className="resize-none rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+                      placeholder="Describe el motivo de la justificación"
+                    />
+                  </div>
 
-                <div className="md:col-span-2 flex items-center gap-3">
-                  <Button type="submit" variant="primary" disabled={editLoading}>
-                    {editLoading ? "Guardando..." : "Guardar cambios"}
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={closeEditForm}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </section>
+                  <div className="md:col-span-2 flex items-center justify-end gap-3 border-t pt-4">
+                    <Button type="button" variant="secondary" onClick={closeEditForm}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={editLoading}>
+                      {editLoading ? "Guardando..." : "Guardar cambios"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
           )}
         </main>
 
