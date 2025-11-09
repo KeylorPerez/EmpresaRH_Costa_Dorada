@@ -6,6 +6,8 @@ const {
   createMarca,
   updateMarca,
   exportAsistencia,
+  createJustificacionSolicitud,
+  resolverJustificacionSolicitud,
 } = require('../controllers/asistenciaController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -23,5 +25,11 @@ router.post('/', authenticateToken, createMarca);
 
 // PUT /api/asistencia/:id -> modificar (solo admin)
 router.put('/:id', authenticateToken, authorizeRoles(1), updateMarca);
+
+// POST /api/asistencia/:id/justificaciones -> crear solicitud de justificación (empleado o admin)
+router.post('/:id/justificaciones', authenticateToken, createJustificacionSolicitud);
+
+// PATCH /api/asistencia/justificaciones/:id -> resolver solicitud (solo admin)
+router.patch('/justificaciones/:id', authenticateToken, authorizeRoles(1), resolverJustificacionSolicitud);
 
 module.exports = router;

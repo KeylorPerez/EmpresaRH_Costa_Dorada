@@ -3,8 +3,11 @@ const path = require('path');
 const Asistencia = require('../models/Asistencia');
 const Usuario = require('../models/Usuario'); // para resolver id_empleado del usuario
 const Empleado = require('../models/Empleado');
+const JustificacionAsistencia = require('../models/JustificacionAsistencia');
 const allowedTypes = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 const allowedStates = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+const allowedJustificationTypes = JustificacionAsistencia.getAllowedTypes();
+const allowedJustificationStates = JustificacionAsistencia.getAllowedStates();
 
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
@@ -60,6 +63,21 @@ const parseCoordinate = (value) => {
 };
 
 const isTruthy = (value) => value === true || value === 1 || value === '1';
+
+const normalizeSolicitud = (solicitud) => {
+  if (!solicitud) return null;
+  return {
+    id_solicitud: solicitud.id_solicitud,
+    id_asistencia: solicitud.id_asistencia,
+    id_empleado: solicitud.id_empleado,
+    tipo: solicitud.tipo,
+    descripcion: solicitud.descripcion,
+    estado: solicitud.estado,
+    respuesta: solicitud.respuesta,
+    created_at: solicitud.created_at ? solicitud.created_at.toISOString() : null,
+    updated_at: solicitud.updated_at ? solicitud.updated_at.toISOString() : null,
+  };
+};
 
 const ensureExportsDir = async () => {
   if (!fs.existsSync(EXPORTS_DIR)) {
@@ -795,4 +813,128 @@ const exportAsistencia = async (req, res) => {
   }
 };
 
-module.exports = { getAsistencia, getByRange, createMarca, updateMarca, exportAsistencia };
+const createJustificacionSolicitud = async (req, res) => {
+  try {
+    const id_asistencia = Number(req.params.id);
+    if (!Number.isInteger(id_asistencia) || id_asistencia <= 0) {
+      return res.status(400).json({ error: 'id_asistencia inválido' });
+    }
+
+    const { tipo, descripcion } = req.body;
+    const tipoNormalizado = typeof tipo === 'string' ? tipo.trim() : '';
+    if (!tipoNormalizado || !allowedJustificationTypes.includes(tipoNormalizado)) {
+      return res.status(400).json({
+        error: `tipo inválido. Debe ser uno de: ${allowedJustificationTypes.join(', ')}`,
+      });
+    }
+
+    const descripcionTexto = descripcion !== undefined && descripcion !== null
+      ? descripcion.toString().trim()
+      : '';
+
+    const userToken = req.user;
+    const usuarioDb = await Usuario.getById(userToken.id_usuario);
+    if (!usuarioDb) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    const registro = await Asistencia.findById(id_asistencia);
+    if (!registro) {
+      return res.status(404).json({ error: 'Registro de asistencia no encontrado' });
+    }
+
+    if (userToken.id_rol !== 1) {
+      if (!usuarioDb.id_empleado) {
+        return res.status(400).json({ error: 'Usuario no vinculado a un empleado' });
+      }
+      if (usuarioDb.id_empleado !== registro.id_empleado) {
+        return res.status(403).json({ error: 'No puedes justificar la asistencia de otro empleado' });
+      }
+    }
+
+    const solicitud = await JustificacionAsistencia.create({
+      id_asistencia,
+      id_empleado: registro.id_empleado,
+      tipo: tipoNormalizado,
+      descripcion: descripcionTexto,
+    });
+
+    return res.status(201).json({
+      message: 'Justificación enviada para revisión del administrador',
+      solicitud: normalizeSolicitud(solicitud),
+    });
+  } catch (err) {
+    if (err.code === 'JUSTIFICACION_PENDIENTE') {
+      return res.status(409).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const resolverJustificacionSolicitud = async (req, res) => {
+  try {
+    const id_solicitud = Number(req.params.id);
+    if (!Number.isInteger(id_solicitud) || id_solicitud <= 0) {
+      return res.status(400).json({ error: 'id_solicitud inválido' });
+    }
+
+    const { estado, respuesta } = req.body;
+    const estadoNormalizado = typeof estado === 'string' ? estado.trim().toLowerCase() : '';
+    if (
+      !allowedJustificationStates.includes(estadoNormalizado) ||
+      estadoNormalizado === 'pendiente'
+    ) {
+      return res.status(400).json({
+        error: `estado inválido. Debe ser 'aprobada' o 'rechazada'`,
+      });
+    }
+
+    const solicitudActual = await JustificacionAsistencia.findById(id_solicitud);
+    if (!solicitudActual) {
+      return res.status(404).json({ error: 'Solicitud de justificación no encontrada' });
+    }
+
+    if (solicitudActual.estado !== 'pendiente') {
+      return res.status(409).json({ error: 'La solicitud ya fue resuelta' });
+    }
+
+    const respuestaTexto = respuesta !== undefined && respuesta !== null
+      ? respuesta.toString().trim()
+      : '';
+
+    const updated = await JustificacionAsistencia.updateEstado(id_solicitud, {
+      estado: estadoNormalizado,
+      respuesta: respuestaTexto,
+    });
+
+    if (estadoNormalizado === 'aprobada') {
+      const detalles = [solicitudActual.tipo, respuestaTexto].filter((text) => text && text.length > 0).join(': ');
+      await Asistencia.updateJustificacion(solicitudActual.id_asistencia, {
+        justificado: true,
+        justificacion: detalles || solicitudActual.tipo,
+      });
+    } else {
+      await Asistencia.updateJustificacion(solicitudActual.id_asistencia, {
+        justificado: false,
+        justificacion: '',
+      });
+    }
+
+    return res.json({
+      message: `Solicitud ${estadoNormalizado === 'aprobada' ? 'aprobada' : 'rechazada'}`,
+      solicitud: normalizeSolicitud(updated),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  getAsistencia,
+  getByRange,
+  createMarca,
+  updateMarca,
+  exportAsistencia,
+  createJustificacionSolicitud,
+  resolverJustificacionSolicitud,
+};

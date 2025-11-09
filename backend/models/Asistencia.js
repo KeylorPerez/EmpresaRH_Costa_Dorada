@@ -1,12 +1,40 @@
 const { poolPromise, sql } = require('../db/db');
+const JustificacionAsistencia = require('./JustificacionAsistencia');
 
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+
+const JUSTIFICACION_SELECT = `
+          , js.id_solicitud AS justificacion_solicitud_id
+          , js.tipo AS justificacion_solicitud_tipo
+          , js.descripcion AS justificacion_solicitud_descripcion
+          , js.estado AS justificacion_solicitud_estado
+          , js.respuesta AS justificacion_solicitud_respuesta
+          , CONVERT(varchar(19), js.created_at, 120) AS justificacion_solicitud_creada
+          , CONVERT(varchar(19), js.updated_at, 120) AS justificacion_solicitud_actualizada
+`;
+
+const JUSTIFICACION_JOIN = `
+  LEFT JOIN (
+    SELECT
+      ja.id_asistencia,
+      ja.id_solicitud,
+      ja.tipo,
+      ja.descripcion,
+      ja.estado,
+      ja.respuesta,
+      ja.created_at,
+      ja.updated_at,
+      ROW_NUMBER() OVER (PARTITION BY ja.id_asistencia ORDER BY ja.created_at DESC, ja.id_solicitud DESC) AS rn
+    FROM JustificacionAsistencia ja
+  ) AS js ON js.id_asistencia = a.id_asistencia AND js.rn = 1
+`;
 
 class Asistencia {
   // Obtener todas las marcas (con información básica del empleado)
   static async getAll() {
     try {
+      await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
@@ -24,8 +52,10 @@ class Asistencia {
             a.longitud,
             e.nombre,
             e.apellido
+${JUSTIFICACION_SELECT}
           FROM Asistencia a
           INNER JOIN Empleados e ON a.id_empleado = e.id_empleado
+          ${JUSTIFICACION_JOIN}
           ORDER BY a.fecha DESC, a.hora DESC
         `);
       return result.recordset;
@@ -86,6 +116,7 @@ class Asistencia {
   // Obtener marcas por empleado
   static async getByEmpleado(id_empleado) {
     try {
+      await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -102,9 +133,11 @@ class Asistencia {
             observaciones,
             latitud,
             longitud
-          FROM Asistencia
+          ${JUSTIFICACION_SELECT}
+          FROM Asistencia a
+          ${JUSTIFICACION_JOIN}
           WHERE id_empleado = @id_empleado
-          ORDER BY fecha DESC, hora DESC
+          ORDER BY a.fecha DESC, a.hora DESC
         `);
       return result.recordset;
     } catch (err) {
@@ -115,6 +148,7 @@ class Asistencia {
   // Obtener por rango de fechas (opcional por empleado)
   static async getByDateRange(startDate, endDate, id_empleado = null) {
     try {
+      await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const req = pool.request()
         .input('start', sql.VarChar(10), startDate)
@@ -135,8 +169,10 @@ class Asistencia {
           a.longitud,
           e.nombre,
           e.apellido
+${JUSTIFICACION_SELECT}
         FROM Asistencia a
         LEFT JOIN Empleados e ON a.id_empleado = e.id_empleado
+        ${JUSTIFICACION_JOIN}
         WHERE a.fecha BETWEEN CONVERT(date, @start, 23) AND CONVERT(date, @end, 23)
       `;
 
@@ -149,6 +185,33 @@ class Asistencia {
 
       const result = await req.query(query);
       return result.recordset;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  static async findById(id_asistencia) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_asistencia', sql.Int, id_asistencia)
+        .query(`
+          SELECT
+            id_asistencia,
+            CONVERT(varchar(10), fecha, 23) AS fecha,
+            CONVERT(varchar(8), hora, 108) AS hora,
+            id_empleado,
+            tipo_marca,
+            estado,
+            justificado,
+            justificacion,
+            observaciones,
+            latitud,
+            longitud
+          FROM Asistencia
+          WHERE id_asistencia = @id_asistencia
+        `);
+      return result.recordset[0] || null;
     } catch (err) {
       throw err;
     }
@@ -310,6 +373,25 @@ class Asistencia {
           WHERE id_asistencia = @id_asistencia
         `);
       return { message: 'Asistencia actualizada' };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  static async updateJustificacion(id_asistencia, { justificado, justificacion }) {
+    try {
+      const pool = await poolPromise;
+      await pool.request()
+        .input('id_asistencia', sql.Int, id_asistencia)
+        .input('justificado', sql.Bit, justificado ? 1 : 0)
+        .input('justificacion', sql.NVarChar(sql.MAX), justificacion !== undefined ? justificacion || null : null)
+        .query(`
+          UPDATE Asistencia
+          SET justificado = @justificado,
+              justificacion = @justificacion
+          WHERE id_asistencia = @id_asistencia
+        `);
+      return { message: 'Justificación actualizada' };
     } catch (err) {
       throw err;
     }

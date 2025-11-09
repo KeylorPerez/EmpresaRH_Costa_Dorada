@@ -9,8 +9,11 @@ import {
   formatearHora,
   obtenerEtiquetaEstado,
   obtenerEtiquetaTipo,
+  obtenerEtiquetaEstadoSolicitud,
+  obtenerEtiquetaTipoJustificacion,
   estadoOptions,
   tipoMarcaOptions,
+  tipoJustificacionOptions,
   useAsistencia,
 } from "../hooks/useAsistencia";
 
@@ -47,12 +50,24 @@ const Asistencia = ({ mode }) => {
     editLoading,
     setError,
     setSuccessMessage,
+    justificacionModalOpen,
+    justificacionRegistro,
+    justificacionForm,
+    openJustificacionModal,
+    closeJustificacionModal,
+    handleJustificacionFormChange,
+    submitJustificacionSolicitud,
+    justificacionSubmitting,
+    resolviendoJustificacionId,
+    aprobarJustificacion,
+    rechazarJustificacion,
     location,
     locationStatus,
     supportsGeolocation,
     requestLocation,
     updateLocationField,
     resetLocation,
+    tipoJustificacionOptions,
   } = useAsistencia({ mode });
 
   const sidebarLinks = useMemo(() => {
@@ -104,6 +119,27 @@ const Asistencia = ({ mode }) => {
     if (text === null || text === undefined) return "—";
     const trimmed = text.toString().trim();
     return trimmed ? trimmed : "—";
+  };
+
+  const getSolicitudBadgeClass = (estado) => {
+    switch ((estado || "").toString().toLowerCase()) {
+      case "aprobada":
+        return "bg-green-100 text-green-700";
+      case "rechazada":
+        return "bg-red-100 text-red-700";
+      case "pendiente":
+      default:
+        return "bg-yellow-100 text-yellow-700";
+    }
+  };
+
+  const handleRechazarSolicitud = (solicitud) => {
+    if (!solicitud) return;
+    const respuesta =
+      typeof window !== "undefined"
+        ? window.prompt("Agrega un motivo de rechazo (opcional):", "")
+        : "";
+    rechazarJustificacion(solicitud, respuesta || "");
   };
 
   if (!user) {
@@ -536,63 +572,217 @@ const Asistencia = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Estado</th>
                       <th className="px-4 py-3 text-left">Justificado</th>
                       <th className="px-4 py-3 text-left">Justificación</th>
+                      <th className="px-4 py-3 text-left">Solicitud</th>
                       <th className="px-4 py-3 text-left">Ubicación</th>
                       <th className="px-4 py-3 text-left">Observaciones</th>
+                      {!isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                       {isAdmin && <th className="px-4 py-3 text-left">Empleado</th>}
                       {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {registros.map((registro) => (
-                      <tr key={registro.id_asistencia} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-800">
-                          {formatearFecha(registro.fecha)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {formatearHora(registro.hora)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
-                            {obtenerEtiquetaTipo(registro.tipo_marca)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-semibold">
-                            {obtenerEtiquetaEstado(registro.estado)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">{formatJustificado(registro.justificado)}</td>
-                        <td className="px-4 py-3 text-gray-600 max-w-xs">
-                          {formatJustificacion(registro.justificacion)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {formatUbicacion(registro.latitud, registro.longitud)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 max-w-xs">
-                          {registro.observaciones || "-"}
-                        </td>
-                        {isAdmin && (
-                          <td className="px-4 py-3 text-gray-700">
-                            {registro.nombre && registro.apellido
-                              ? `${registro.nombre} ${registro.apellido}`
-                              : registro.id_empleado}
+                    {registros.map((registro) => {
+                      const solicitud = registro.justificacionSolicitud;
+                      const estadoSolicitud = solicitud?.estado || "";
+                      const isSolicitudPendiente = estadoSolicitud === "pendiente";
+                      const isResolviendo = solicitud && resolviendoJustificacionId === solicitud.id_solicitud;
+                      const isEnviandoSolicitud =
+                        justificacionSubmitting && justificacionRegistro?.id_asistencia === registro.id_asistencia;
+
+                      return (
+                        <tr key={registro.id_asistencia} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-gray-800">
+                            {formatearFecha(registro.fecha)}
                           </td>
-                        )}
-                        {isAdmin && (
+                          <td className="px-4 py-3 text-gray-600">
+                            {formatearHora(registro.hora)}
+                          </td>
                           <td className="px-4 py-3">
-                            <Button variant="secondary" size="sm" onClick={() => startEdit(registro)}>
-                              Editar
-                            </Button>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
+                              {obtenerEtiquetaTipo(registro.tipo_marca)}
+                            </span>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="px-4 py-3 text-gray-600">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-semibold">
+                              {obtenerEtiquetaEstado(registro.estado)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{formatJustificado(registro.justificado)}</td>
+                          <td className="px-4 py-3 text-gray-600 max-w-xs">
+                            {formatJustificacion(registro.justificacion)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {solicitud ? (
+                              <div className="flex flex-col gap-1">
+                                <span
+                                  className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getSolicitudBadgeClass(
+                                    estadoSolicitud
+                                  )}`}
+                                >
+                                  {obtenerEtiquetaEstadoSolicitud(estadoSolicitud)}
+                                </span>
+                                {solicitud.tipo && (
+                                  <span className="text-xs text-gray-500">
+                                    {obtenerEtiquetaTipoJustificacion(solicitud.tipo)}
+                                  </span>
+                                )}
+                                {solicitud.descripcion && (
+                                  <span className="text-xs text-gray-500">{solicitud.descripcion}</span>
+                                )}
+                                {solicitud.estado === "rechazada" && solicitud.respuesta && (
+                                  <span className="text-xs text-red-500">{solicitud.respuesta}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Sin solicitud</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {formatUbicacion(registro.latitud, registro.longitud)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 max-w-xs">
+                            {registro.observaciones || "-"}
+                          </td>
+                          {!isAdmin && (
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-2">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => openJustificacionModal(registro)}
+                                  disabled={isSolicitudPendiente || isEnviandoSolicitud}
+                                >
+                                  {isEnviandoSolicitud ? "Enviando..." : "📝 Enviar justificación"}
+                                </Button>
+                                {isSolicitudPendiente && (
+                                  <span className="text-xs text-gray-500">
+                                    Tienes una justificación pendiente de aprobación.
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-gray-700">
+                              {registro.nombre && registro.apellido
+                                ? `${registro.nombre} ${registro.apellido}`
+                                : registro.id_empleado}
+                            </td>
+                          )}
+                          {isAdmin && (
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => startEdit(registro)}>
+                                  Editar
+                                </Button>
+                                {solicitud && isSolicitudPendiente && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="success"
+                                      size="sm"
+                                      onClick={() => aprobarJustificacion(solicitud)}
+                                      disabled={isResolviendo}
+                                    >
+                                      {isResolviendo ? "Aprobando..." : "Aprobar"}
+                                    </Button>
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
+                                      onClick={() => handleRechazarSolicitud(solicitud)}
+                                      disabled={isResolviendo}
+                                    >
+                                      {isResolviendo ? "Rechazando..." : "Rechazar"}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   </table>
                 </div>
               </div>
             )}
           </section>
+
+          {justificacionModalOpen && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+              <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
+                <header className="flex items-center justify-between border-b px-6 py-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Enviar justificación</h3>
+                    {justificacionRegistro && (
+                      <p className="text-xs text-gray-500">
+                        Registro del {formatearFecha(justificacionRegistro.fecha)} a las {" "}
+                        {formatearHora(justificacionRegistro.hora)} • {" "}
+                        {obtenerEtiquetaTipo(justificacionRegistro.tipo_marca)}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeJustificacionModal}
+                    className="rounded-full p-1 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Cerrar"
+                  >
+                    ✕
+                  </button>
+                </header>
+                <form onSubmit={submitJustificacionSolicitud} className="space-y-4 px-6 py-4">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="justificacion_tipo">
+                      Tipo de justificación
+                    </label>
+                    <select
+                      id="justificacion_tipo"
+                      name="tipo"
+                      value={justificacionForm.tipo}
+                      onChange={handleJustificacionFormChange}
+                      required
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">Selecciona una opción</option>
+                      {tipoJustificacionOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="justificacion_descripcion">
+                      Detalle (opcional)
+                    </label>
+                    <textarea
+                      id="justificacion_descripcion"
+                      name="descripcion"
+                      rows={4}
+                      value={justificacionForm.descripcion}
+                      onChange={handleJustificacionFormChange}
+                      placeholder="Describe brevemente el motivo de tu justificación"
+                      className="resize-none border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Esta información se enviará al administrador para que revise y apruebe tu solicitud.
+                    </p>
+                  </div>
+
+                  <footer className="flex justify-end gap-3 border-t pt-4">
+                    <Button type="button" variant="secondary" onClick={closeJustificacionModal} disabled={justificacionSubmitting}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={justificacionSubmitting}>
+                      {justificacionSubmitting ? "Enviando..." : "Enviar justificación"}
+                    </Button>
+                  </footer>
+                </form>
+              </div>
+            </div>
+          )}
 
           {isAdmin && editingRegistro && (
             <section className="bg-white rounded-xl shadow-sm p-6">

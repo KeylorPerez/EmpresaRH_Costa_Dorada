@@ -28,6 +28,25 @@ const estadoMap = estadoOptions.reduce((acc, option) => {
   return acc;
 }, {});
 
+export const tipoJustificacionOptions = [
+  { value: "Permiso con goce", label: "Permiso con goce" },
+  { value: "Permiso sin goce", label: "Permiso sin goce" },
+  { value: "Incapacidad", label: "Incapacidad" },
+  { value: "Vacaciones", label: "Vacaciones" },
+  { value: "Otro", label: "Otro" },
+];
+
+const tipoJustificacionMap = tipoJustificacionOptions.reduce((acc, option) => {
+  acc[option.value] = option.label;
+  return acc;
+}, {});
+
+const estadoSolicitudMap = {
+  pendiente: "Pendiente de aprobación",
+  aprobada: "Aprobada",
+  rechazada: "Rechazada",
+};
+
 export const formatearFecha = (value) => formatDateValue(value);
 
 export const formatearHora = (value) => {
@@ -115,6 +134,12 @@ export const useAsistencia = ({ mode } = {}) => {
   });
   const [editLoading, setEditLoading] = useState(false);
 
+  const [justificacionModalOpen, setJustificacionModalOpen] = useState(false);
+  const [justificacionRegistro, setJustificacionRegistro] = useState(null);
+  const [justificacionForm, setJustificacionForm] = useState({ tipo: "", descripcion: "" });
+  const [justificacionSubmitting, setJustificacionSubmitting] = useState(false);
+  const [resolviendoJustificacionId, setResolviendoJustificacionId] = useState(null);
+
   const defaultLocation = useMemo(
     () => ({
       latitud: isAdmin ? DEFAULT_LATITUDE || "" : "",
@@ -153,18 +178,38 @@ export const useAsistencia = ({ mode } = {}) => {
         data = await asistenciaService.getAll();
       }
       const registrosNormalizados = Array.isArray(data)
-        ? data.map((registro) => ({
-            ...registro,
-            estado: registro.estado || "Presente",
-            justificado:
-              registro.justificado === true ||
-              registro.justificado === 1 ||
-              registro.justificado === "1",
-            justificacion:
-              registro.justificacion === undefined || registro.justificacion === null
-                ? ""
-                : registro.justificacion,
-          }))
+        ? data.map((registro) => {
+            const solicitud = (() => {
+              const idSolicitud = registro.justificacion_solicitud_id;
+              if (idSolicitud === undefined || idSolicitud === null) {
+                return null;
+              }
+              const estadoSolicitud = (registro.justificacion_solicitud_estado || "pendiente").toString().toLowerCase();
+              return {
+                id_solicitud: Number(idSolicitud),
+                tipo: registro.justificacion_solicitud_tipo || "",
+                descripcion: registro.justificacion_solicitud_descripcion || "",
+                estado: estadoSolicitud,
+                respuesta: registro.justificacion_solicitud_respuesta || "",
+                created_at: registro.justificacion_solicitud_creada || null,
+                updated_at: registro.justificacion_solicitud_actualizada || null,
+              };
+            })();
+
+            return {
+              ...registro,
+              estado: registro.estado || "Presente",
+              justificado:
+                registro.justificado === true ||
+                registro.justificado === 1 ||
+                registro.justificado === "1",
+              justificacion:
+                registro.justificacion === undefined || registro.justificacion === null
+                  ? ""
+                  : registro.justificacion,
+              justificacionSolicitud: solicitud,
+            };
+          })
         : [];
       setRegistros(registrosNormalizados);
     } catch (err) {
@@ -266,6 +311,75 @@ export const useAsistencia = ({ mode } = {}) => {
       ...(value ? { id_empleado: Number(value) } : {}),
     });
   };
+
+  const openJustificacionModal = useCallback(
+    (registro) => {
+      setJustificacionRegistro(registro);
+      setJustificacionForm({
+        tipo: registro?.justificacionSolicitud?.tipo || "",
+        descripcion: "",
+      });
+      setJustificacionModalOpen(true);
+      setError("");
+      setSuccessMessage("");
+    },
+    [setError, setSuccessMessage]
+  );
+
+  const closeJustificacionModal = useCallback(() => {
+    setJustificacionModalOpen(false);
+    setJustificacionRegistro(null);
+    setJustificacionForm({ tipo: "", descripcion: "" });
+  }, []);
+
+  const handleJustificacionFormChange = useCallback((event) => {
+    const { name, value } = event.target;
+    setJustificacionForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const submitJustificacionSolicitud = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!justificacionRegistro) return;
+
+      if (!justificacionForm.tipo) {
+        setError("Selecciona el tipo de justificación");
+        return;
+      }
+
+      try {
+        setJustificacionSubmitting(true);
+        await asistenciaService.createJustificacionSolicitud(justificacionRegistro.id_asistencia, {
+          tipo: justificacionForm.tipo,
+          descripcion: justificacionForm.descripcion || "",
+        });
+        setSuccessMessage("Justificación enviada para aprobación");
+        closeJustificacionModal();
+        await fetchRegistros({
+          ...(appliedRange?.start && appliedRange?.end ? appliedRange : defaultRange),
+          ...(isAdmin && selectedEmpleado ? { id_empleado: Number(selectedEmpleado) } : {}),
+        });
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible enviar la justificación";
+        setError(message);
+      } finally {
+        setJustificacionSubmitting(false);
+      }
+    },
+    [
+      justificacionRegistro,
+      justificacionForm,
+      setError,
+      setSuccessMessage,
+      closeJustificacionModal,
+      fetchRegistros,
+      appliedRange,
+      defaultRange,
+      isAdmin,
+      selectedEmpleado,
+    ]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -440,6 +554,65 @@ export const useAsistencia = ({ mode } = {}) => {
       setEditLoading(false);
     }
   };
+
+  const resolverJustificacion = useCallback(
+    async ({ id_solicitud, estado, respuesta = "" }) => {
+      if (!id_solicitud) return;
+      try {
+        setResolviendoJustificacionId(id_solicitud);
+        setError("");
+        setSuccessMessage("");
+        await asistenciaService.resolverJustificacionSolicitud(id_solicitud, {
+          estado,
+          respuesta,
+        });
+        setSuccessMessage(
+          estado === "aprobada"
+            ? "Justificación aprobada correctamente"
+            : "Justificación rechazada correctamente"
+        );
+        await fetchRegistros({
+          ...(appliedRange?.start && appliedRange?.end ? appliedRange : defaultRange),
+          ...(isAdmin && selectedEmpleado ? { id_empleado: Number(selectedEmpleado) } : {}),
+        });
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible actualizar la solicitud";
+        setError(message);
+      } finally {
+        setResolviendoJustificacionId(null);
+      }
+    },
+    [
+      appliedRange,
+      defaultRange,
+      fetchRegistros,
+      isAdmin,
+      selectedEmpleado,
+      setError,
+      setSuccessMessage,
+    ]
+  );
+
+  const aprobarJustificacion = useCallback(
+    (solicitud) => {
+      if (!solicitud?.id_solicitud) return;
+      resolverJustificacion({ id_solicitud: solicitud.id_solicitud, estado: "aprobada" });
+    },
+    [resolverJustificacion]
+  );
+
+  const rechazarJustificacion = useCallback(
+    (solicitud, respuesta = "") => {
+      if (!solicitud?.id_solicitud) return;
+      resolverJustificacion({
+        id_solicitud: solicitud.id_solicitud,
+        estado: "rechazada",
+        respuesta,
+      });
+    },
+    [resolverJustificacion]
+  );
 
   const exportAsistencia = async (format, { openInNewTab = true, silent = false } = {}) => {
     if (!appliedRange?.start || !appliedRange?.end) {
@@ -649,14 +822,37 @@ export const useAsistencia = ({ mode } = {}) => {
     editLoading,
     setError,
     setSuccessMessage,
+    justificacionModalOpen,
+    justificacionRegistro,
+    justificacionForm,
+    openJustificacionModal,
+    closeJustificacionModal,
+    handleJustificacionFormChange,
+    submitJustificacionSolicitud,
+    justificacionSubmitting,
+    resolviendoJustificacionId,
+    aprobarJustificacion,
+    rechazarJustificacion,
     location,
     locationStatus,
     supportsGeolocation,
     requestLocation,
     updateLocationField,
     resetLocation,
+    tipoJustificacionOptions,
   };
 };
 
 export const obtenerEtiquetaTipo = (tipo) => tipoMarcaMap[tipo] || tipo;
 export const obtenerEtiquetaEstado = (estado) => estadoMap[estado] || estado || "Presente";
+export const obtenerEtiquetaTipoJustificacion = (tipo) =>
+  tipoJustificacionMap[tipo] || tipo || "";
+export const obtenerEtiquetaEstadoSolicitud = (estado) => {
+  if (typeof estado === "string") {
+    const normalized = estado.toLowerCase();
+    if (estadoSolicitudMap[normalized]) {
+      return estadoSolicitudMap[normalized];
+    }
+  }
+  return estadoSolicitudMap.pendiente;
+};
