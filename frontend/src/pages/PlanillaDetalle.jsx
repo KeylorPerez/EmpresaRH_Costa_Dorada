@@ -178,7 +178,7 @@ const PlanillaDetalle = () => {
     }
 
     const salarioBase = Number(planillaInfo.salario_monto) || 0;
-    const horasExtras = Number(planillaInfo.horas_extras) || 0;
+    const montoHorasExtras = Math.max(Number(planillaInfo.horas_extras) || 0, 0);
     const bonificaciones = Number(planillaInfo.bonificaciones) || 0;
     const deducciones = Number(planillaInfo.deducciones) || 0;
     const ccss = Number(planillaInfo.ccss_deduccion) || 0;
@@ -187,7 +187,7 @@ const PlanillaDetalle = () => {
 
     return {
       salarioBase,
-      horasExtras,
+      horasExtras: montoHorasExtras,
       bonificaciones,
       deducciones,
       ccss,
@@ -293,7 +293,7 @@ const PlanillaDetalle = () => {
                     <p className="text-xs uppercase tracking-wide text-gray-500">Ingresos</p>
                     <div className="mt-2 space-y-1 text-sm text-gray-600">
                       <p>Salario base: {formatCurrency(planillaMetricas.salarioBase)}</p>
-                      <p>Horas extras: {formatCurrency(planillaMetricas.horasExtras)}</p>
+                      <p>Monto horas extras: {formatCurrency(planillaMetricas.horasExtras)}</p>
                       <p>Bonificaciones: {formatCurrency(planillaMetricas.bonificaciones)}</p>
                       <p className="font-semibold text-gray-800">
                         Salario bruto: {formatCurrency(planillaMetricas.salarioBruto)}
