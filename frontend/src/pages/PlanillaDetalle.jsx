@@ -48,6 +48,9 @@ const PlanillaDetalle = () => {
   const [planillaInfo, setPlanillaInfo] = useState(() => location.state?.planilla ?? null);
   const [planillaInfoLoading, setPlanillaInfoLoading] = useState(() => !location.state?.planilla);
   const [planillaInfoError, setPlanillaInfoError] = useState("");
+  const [exportingFormat, setExportingFormat] = useState(null);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportErrorMessage, setExportErrorMessage] = useState("");
 
   const adminLinks = useMemo(
     () => [
@@ -153,6 +156,75 @@ const PlanillaDetalle = () => {
     };
   }, [planillaId, planillaInfo]);
 
+  const handleGenerateExport = async (format, { openInNewTab = true, silent = false } = {}) => {
+    if (Number.isNaN(planillaId)) {
+      setExportErrorMessage("Identificador de planilla inválido.");
+      return null;
+    }
+
+    setExportErrorMessage("");
+    if (!silent) {
+      setExportMessage("");
+    }
+    setExportingFormat(format);
+
+    try {
+      const data = await planillaService.exportFile(planillaId, format);
+      const fileUrl = data?.url;
+      if (!fileUrl) {
+        throw new Error("No se recibió la URL del archivo generado.");
+      }
+
+      if (openInNewTab) {
+        window.open(fileUrl, "_blank", "noopener");
+      }
+
+      if (!silent) {
+        setExportMessage(
+          format === "excel"
+            ? "Archivo de Excel generado correctamente."
+            : "Archivo PDF generado correctamente."
+        );
+      }
+
+      return fileUrl;
+    } catch (err) {
+      const message =
+        err.response?.data?.error || err.message || "No se pudo generar el archivo solicitado.";
+      setExportErrorMessage(message);
+      return null;
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const handleShare = async () => {
+    setExportErrorMessage("");
+    setExportMessage("");
+    const url = await handleGenerateExport("pdf", { openInNewTab: false, silent: true });
+    if (!url) {
+      return;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Planilla #${planillaId}`,
+          text: "Te comparto la planilla generada desde el sistema.",
+          url,
+        });
+        setExportMessage("Enlace compartido correctamente.");
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        setExportMessage("Enlace copiado al portapapeles.");
+      } else {
+        setExportMessage(`Comparte este enlace manualmente: ${url}`);
+      }
+    } catch (err) {
+      setExportErrorMessage(err.message || "No se pudo completar la acción de compartir.");
+    }
+  };
+
   const detalleResumen = useMemo(() => {
     if (!detalle || detalle.length === 0) {
       return { dias: 0, asistencias: 0, total: 0 };
@@ -198,6 +270,10 @@ const PlanillaDetalle = () => {
     };
   }, [planillaInfo]);
 
+  const isExportingPdf = exportingFormat === "pdf";
+  const isExportingExcel = exportingFormat === "excel";
+  const exportDisabled = Number.isNaN(planillaId) || planillaInfoLoading || detalleLoading;
+
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
 
@@ -223,11 +299,47 @@ const PlanillaDetalle = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleGenerateExport("pdf")}
+                disabled={exportDisabled || isExportingPdf}
+              >
+                {isExportingPdf ? "Generando PDF..." : "📄 Exportar PDF"}
+              </Button>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() => handleGenerateExport("excel")}
+                disabled={exportDisabled || isExportingExcel}
+              >
+                {isExportingExcel ? "Generando Excel..." : "📊 Exportar Excel"}
+              </Button>
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={handleShare}
+                disabled={exportDisabled || exportingFormat !== null}
+              >
+                {exportingFormat ? "Procesando..." : "📤 Compartir"}
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate("/admin/planilla")}>
                 Volver a planilla
               </Button>
             </div>
           </div>
+
+          {(exportMessage || exportErrorMessage) && (
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                exportErrorMessage
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-green-200 bg-green-50 text-green-700"
+              }`}
+            >
+              {exportErrorMessage || exportMessage}
+            </div>
+          )}
 
           {idError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

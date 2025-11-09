@@ -20,6 +20,24 @@ class Planilla {
     }
   }
 
+  static async getById(id_planilla) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_planilla', sql.Int, id_planilla)
+        .query(`
+          SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado,
+                 e.email, e.cedula
+          FROM Planilla pl
+          LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
+          WHERE pl.id_planilla = @id_planilla
+        `);
+      return result.recordset[0] || null;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // 🔹 Obtener planillas por empleado
   static async getByEmpleado(id_empleado) {
     try {
