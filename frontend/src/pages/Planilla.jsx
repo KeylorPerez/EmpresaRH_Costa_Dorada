@@ -453,7 +453,7 @@ const Planilla = () => {
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
   const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
-  const horasExtras = Number(formData.horas_extras || 0);
+  const montoHorasExtras = Math.max(Number(formData.horas_extras || 0), 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
   const deduccionesManualInput = Number(formData.deducciones || 0);
   const usaDetalleParaCalculos = detalleDias.length > 0;
@@ -538,9 +538,6 @@ const Planilla = () => {
     0,
     Math.min(deduccionDiasCalculada, Math.max(salarioBasePeriodo, 0))
   );
-  const horasReferencia = tipoPago === "Diario" ? 8 : 8 * 15;
-  const valorHora = horasReferencia > 0 ? salarioBaseReferencia / horasReferencia : 0;
-  const montoHorasExtras = horasExtras * valorHora;
   const salarioBrutoEstimado = salarioBasePeriodo + bonificaciones + montoHorasExtras;
   const usaDeduccionFija = Boolean(Number(selectedEmpleado?.usa_deduccion_fija));
   const porcentajeCCSS = Number(selectedEmpleado?.porcentaje_ccss);
@@ -680,7 +677,7 @@ const Planilla = () => {
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Periodo</th>
                       <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipo de pago</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario base</th>
-                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Horas extras</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Monto horas extras</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Bonificaciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">CCSS</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Otras deducciones</th>
@@ -709,7 +706,7 @@ const Planilla = () => {
                           {formatCurrency(planilla.salario_monto)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {planilla.horas_extras ?? 0}
+                          {formatCurrency(planilla.horas_extras)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm text-gray-600">
                           {formatCurrency(planilla.bonificaciones)}
@@ -1039,7 +1036,7 @@ const Planilla = () => {
 
                               <div className="flex flex-col gap-2">
                                 <label htmlFor="horas_extras" className="text-sm font-medium text-gray-700">
-                                  Horas extras
+                                  Monto horas extras (CRC)
                                 </label>
                                 <input
                                   type="number"

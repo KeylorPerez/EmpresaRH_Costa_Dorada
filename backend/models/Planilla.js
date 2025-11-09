@@ -95,9 +95,7 @@ class Planilla {
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
 
-      const HORAS_POR_DIA = 8;
       const DIAS_POR_QUINCENA = 15;
-      const HORAS_POR_QUINCENA = HORAS_POR_DIA * DIAS_POR_QUINCENA;
 
       let diasTrabajadosCalculados = null;
       if (dias_trabajados === null || dias_trabajados === undefined) {
@@ -179,13 +177,11 @@ class Planilla {
         deduccionDiasMonto = Number(Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2));
       }
 
-      const horasExtrasNumber = Math.max(Number(horas_extras) || 0, 0);
+      const montoHorasExtras = Math.max(Number(horas_extras) || 0, 0);
       const bonificacionesNumber = Math.max(Number(bonificaciones) || 0, 0);
       const deduccionesBase = Math.max(Number(deducciones) || 0, 0);
 
-      const horasPorBase = tipo_pago === 'Diario' ? HORAS_POR_DIA : HORAS_POR_QUINCENA;
-      const valorHora = horasPorBase > 0 ? salario_base / horasPorBase : 0;
-      const pagoHorasExtras = Number((horasExtrasNumber * valorHora).toFixed(2));
+      const pagoHorasExtras = Number(montoHorasExtras.toFixed(2));
 
       const salario_bruto_base = Number((salarioBasePeriodo + bonificacionesNumber + pagoHorasExtras).toFixed(2));
       const salario_bruto = salario_bruto_base;
@@ -231,7 +227,7 @@ class Planilla {
           .input('bonificaciones', sql.Decimal(12, 2), bonificacionesNumber)
           .input('deducciones', sql.Decimal(12, 2), deducciones_totales)
           .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
-          .input('horas_extras', sql.Decimal(6, 2), horasExtrasNumber)
+          .input('horas_extras', sql.Decimal(12, 2), pagoHorasExtras)
           .input('pago_neto', sql.Decimal(12, 2), pago_neto)
           .input('fecha_pago', sql.Date, fecha_pago);
 
@@ -345,11 +341,11 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
 
-      const horasExtrasNumber = Number(horas_extras) || 0;
+      const montoHorasExtras = Math.max(Number(horas_extras) || 0, 0);
       const bonificacionesNumber = Number(bonificaciones) || 0;
       const deduccionesNumber = Number(deducciones) || 0;
 
-      const salario_bruto = salario_base + bonificacionesNumber + (horasExtrasNumber * (salario_base / 160));
+      const salario_bruto = salario_base + bonificacionesNumber + montoHorasExtras;
       const ccss_deduccion = usa_deduccion_fija
         ? deduccion_fija
         : Number((salario_bruto * (porcentaje_ccss / 100)).toFixed(2));
@@ -358,7 +354,7 @@ class Planilla {
 
       await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
-        .input('horas_extras', sql.Decimal(6,2), horasExtrasNumber)
+        .input('horas_extras', sql.Decimal(12,2), montoHorasExtras)
         .input('bonificaciones', sql.Decimal(12,2), bonificacionesNumber)
         .input('deducciones', sql.Decimal(12,2), deduccionesNumber)
         .input('ccss_deduccion', sql.Decimal(10,2), ccss_deduccion)
