@@ -31,6 +31,11 @@ const Asistencia = ({ mode }) => {
     handleRangeSubmit,
     clearRangeFilters,
     empleadosOptions,
+    selectedEmpleado,
+    handleEmpleadoSelect,
+    exportingFormat,
+    exportAsistencia,
+    shareAsistencia,
     editingRegistro,
     startEdit,
     cancelEdit,
@@ -72,6 +77,9 @@ const Asistencia = ({ mode }) => {
 
   const roleColor = isAdmin ? "blue" : "green";
   const tituloPagina = isAdmin ? "Gestión de Asistencia" : "Mi Asistencia";
+  const isExportingPdf = exportingFormat === "pdf";
+  const isExportingExcel = exportingFormat === "excel";
+  const exportDisabled = submitting || loading || (isAdmin && !selectedEmpleado);
 
   const formatUbicacion = (latitud, longitud) => {
     if (latitud === null || latitud === undefined || longitud === null || longitud === undefined) {
@@ -350,7 +358,28 @@ const Asistencia = ({ mode }) => {
                   Consulta las marcas registradas y filtra por rango de fechas.
                 </p>
               </div>
-              <form onSubmit={handleRangeSubmit} className="flex flex-col sm:flex-row gap-3">
+              <form onSubmit={handleRangeSubmit} className="flex flex-col lg:flex-row lg:items-end gap-3">
+                {isAdmin && (
+                  <div className="flex flex-col min-w-[220px]">
+                    <label className="text-xs text-gray-600 mb-1" htmlFor="empleado_filter">
+                      Empleado
+                    </label>
+                    <select
+                      id="empleado_filter"
+                      name="empleado_filter"
+                      value={selectedEmpleado}
+                      onChange={handleEmpleadoSelect}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">Todos los empleados</option>
+                      {empleadosOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex flex-col">
                   <label className="text-xs text-gray-600 mb-1" htmlFor="start">
                     Desde
@@ -391,6 +420,35 @@ const Asistencia = ({ mode }) => {
                   </Button>
                 </div>
               </form>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  disabled={exportDisabled || isExportingPdf}
+                  onClick={() => exportAsistencia("pdf")}
+                >
+                  {isExportingPdf ? "Generando PDF..." : "📄 Exportar PDF"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="success"
+                  size="sm"
+                  disabled={exportDisabled || isExportingExcel}
+                  onClick={() => exportAsistencia("excel")}
+                >
+                  {isExportingExcel ? "Generando Excel..." : "📊 Exportar Excel"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="warning"
+                  size="sm"
+                  disabled={exportDisabled || exportingFormat !== null}
+                  onClick={shareAsistencia}
+                >
+                  {exportingFormat ? "Preparando..." : "📤 Compartir"}
+                </Button>
+              </div>
             </header>
 
             {loading ? (
@@ -399,7 +457,8 @@ const Asistencia = ({ mode }) => {
               <p className="text-sm text-gray-500">No hay marcas registradas para el criterio seleccionado.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
+                <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-100">
+                  <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                     <tr>
                       <th className="px-4 py-3 text-left">Fecha</th>
@@ -448,7 +507,8 @@ const Asistencia = ({ mode }) => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </section>
