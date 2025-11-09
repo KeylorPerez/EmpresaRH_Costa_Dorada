@@ -769,8 +769,8 @@ const Planilla = () => {
                       )}
 
                       <div className="flex flex-col gap-6 lg:flex-row">
-                        <aside className="space-y-6 lg:w-80 flex-shrink-0">
-                          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
+                        <aside className="space-y-6 lg:w-80 flex-shrink-0 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 lg:min-h-0">
+                          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4 flex flex-col min-h-0 lg:max-h-[60vh]">
                             {!selectedEmpleado && (
                               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
                                 Selecciona un colaborador desde la lista para ver sus datos.
@@ -809,7 +809,7 @@ const Planilla = () => {
                                     />
                                   </div>
                                 </div>
-                                <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
+                                <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-[12rem]">
                                   {empleadosFiltrados.length === 0 ? (
                                     <p className="text-sm text-gray-500">
                                       No hay colaboradores que coincidan con la búsqueda o el filtro.
