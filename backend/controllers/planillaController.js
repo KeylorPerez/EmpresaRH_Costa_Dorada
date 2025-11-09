@@ -153,9 +153,10 @@ const getPlanillaAttendance = async (req, res) => {
       return res.json({ dias: 0 });
     }
 
-    const dias = await Asistencia.countDistinctDays(empleadoId, periodo_inicio, periodo_fin);
+    const fechas = await Asistencia.getDistinctAttendanceDays(empleadoId, periodo_inicio, periodo_fin);
+    const dias = Array.isArray(fechas) ? fechas.length : 0;
 
-    return res.json({ dias });
+    return res.json({ dias, fechas });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

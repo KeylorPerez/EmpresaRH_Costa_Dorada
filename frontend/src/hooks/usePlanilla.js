@@ -60,7 +60,12 @@ export const usePlanilla = () => {
   const [editingPlanilla, setEditingPlanilla] = useState(null);
   const [formData, setFormData] = useState(() => createEmptyForm(calculateQuincenaDefaults()));
   const [prestamoSelections, setPrestamoSelections] = useState({});
-  const [attendanceState, setAttendanceState] = useState({ loading: false, dias: null, error: "" });
+  const [attendanceState, setAttendanceState] = useState({
+    loading: false,
+    dias: null,
+    fechas: [],
+    error: "",
+  });
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
@@ -111,7 +116,7 @@ export const usePlanilla = () => {
     if (name === "id_empleado") {
       autoDiasRef.current = null;
       autoMontoDescuentoRef.current = null;
-      setAttendanceState({ loading: false, dias: null, error: "" });
+      setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
       setFormData((prev) => ({
         ...prev,
         id_empleado: value,
@@ -126,7 +131,7 @@ export const usePlanilla = () => {
 
     if (name === "periodo_inicio" || name === "periodo_fin") {
       autoDiasRef.current = null;
-      setAttendanceState((prev) => ({ ...prev, dias: null, error: "" }));
+      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [], error: "" }));
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -137,7 +142,7 @@ export const usePlanilla = () => {
     setEditingPlanilla(null);
     setError("");
     setPrestamoSelections({});
-    setAttendanceState({ loading: false, dias: null, error: "" });
+    setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
     setAttendanceReloadKey(0);
     autoDiasRef.current = null;
     autoMontoDescuentoRef.current = null;
@@ -261,6 +266,87 @@ export const usePlanilla = () => {
     }
 
     return detalles;
+  }, []);
+
+  const syncDetalleWithAttendance = useCallback((fechasAsistidas) => {
+    if (!Array.isArray(fechasAsistidas)) {
+      return;
+    }
+
+    const fechasNormalizadas = fechasAsistidas
+      .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+      .filter((fecha) => fecha.length > 0);
+
+    const asistenciaSet = new Set(fechasNormalizadas);
+    const salarioCero = Number(0).toFixed(2);
+
+    setDetalleDias((prev) => {
+      if (!prev || prev.length === 0) {
+        return prev;
+      }
+
+      if (asistenciaSet.size === 0) {
+        const updated = prev.map((detalle) => {
+          if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
+            return detalle.salario_dia === salarioCero
+              ? detalle
+              : { ...detalle, salario_dia: salarioCero };
+          }
+
+          return {
+            ...detalle,
+            asistio: false,
+            salario_dia: salarioCero,
+          };
+        });
+
+        const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
+        return hasChanges ? updated : prev;
+      }
+
+      const updated = prev.map((detalle) => {
+        const asistio = asistenciaSet.has(detalle.fecha);
+
+        if (!asistio) {
+          if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
+            return detalle.salario_dia === salarioCero
+              ? detalle
+              : { ...detalle, salario_dia: salarioCero };
+          }
+
+          return {
+            ...detalle,
+            asistio: false,
+            salario_dia: salarioCero,
+          };
+        }
+
+        const salarioBase = Number(detalle.salario_base);
+        const factor = detalle.es_dia_doble ? 2 : 1;
+        const salarioCalculado = (() => {
+          if (Number.isFinite(salarioBase) && salarioBase >= 0) {
+            return salarioBase * factor;
+          }
+          const actual = Number(detalle.salario_dia);
+          return Number.isFinite(actual) && actual >= 0 ? actual : 0;
+        })();
+
+        const salarioTexto = Number(salarioCalculado).toFixed(2);
+
+        if (detalle.asistio && detalle.salario_dia === salarioTexto) {
+          return detalle;
+        }
+
+        return {
+          ...detalle,
+          asistio: true,
+          salario_dia: salarioTexto,
+        };
+      });
+
+      const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
+      return hasChanges ? updated : prev;
+    });
   }, []);
 
   useEffect(() => {
@@ -550,7 +636,7 @@ export const usePlanilla = () => {
         if (!prev.loading && prev.dias === null && !prev.error) {
           return prev;
         }
-        return { loading: false, dias: null, error: "" };
+        return { loading: false, dias: null, fechas: [], error: "" };
       });
       return;
     }
@@ -564,7 +650,7 @@ export const usePlanilla = () => {
         if (!prev.loading && prev.dias === null && !prev.error) {
           return prev;
         }
-        return { loading: false, dias: null, error: "" };
+        return { loading: false, dias: null, fechas: [], error: "" };
       });
       return;
     }
@@ -573,14 +659,14 @@ export const usePlanilla = () => {
     const fin = parseDateSafe(formData.periodo_fin);
 
     if (!inicio || !fin || fin < inicio) {
-      setAttendanceState((prev) => ({ ...prev, dias: null }));
+      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [] }));
       return;
     }
 
     let cancelled = false;
 
     const fetchDias = async () => {
-      setAttendanceState((prev) => ({ ...prev, loading: true, error: "" }));
+      setAttendanceState((prev) => ({ ...prev, loading: true, fechas: [], error: "" }));
       try {
         const data = await planillaService.getAttendanceSummary({
           id_empleado: formData.id_empleado,
@@ -591,10 +677,19 @@ export const usePlanilla = () => {
         if (cancelled) return;
 
         const dias = Number(data?.dias) || 0;
+        const fechas = Array.isArray(data?.fechas)
+          ? Array.from(
+              new Set(
+                data.fechas
+                  .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+                  .filter((fecha) => fecha.length > 0)
+              )
+            )
+          : [];
         const previousAuto = autoDiasRef.current;
         autoDiasRef.current = dias;
 
-        setAttendanceState({ loading: false, dias, error: "" });
+        setAttendanceState({ loading: false, dias, fechas, error: "" });
 
         setFormData((prev) => {
           const actualNumero = Number(prev.dias_trabajados);
@@ -607,12 +702,15 @@ export const usePlanilla = () => {
           }
           return prev;
         });
+
+        syncDetalleWithAttendance(fechas);
       } catch (err) {
         if (cancelled) return;
         console.error(err);
         setAttendanceState({
           loading: false,
           dias: null,
+          fechas: [],
           error: "No fue posible obtener los días de asistencia",
         });
       }
@@ -631,6 +729,35 @@ export const usePlanilla = () => {
     formData.periodo_fin,
     empleados,
     attendanceReloadKey,
+  ]);
+
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+    if (!formData.id_empleado) return;
+    if (detalleDias.length === 0) return;
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === formData.id_empleado
+    );
+
+    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Diario") {
+      return;
+    }
+
+    if (attendanceState.dias === null) {
+      return;
+    }
+
+    syncDetalleWithAttendance(attendanceState.fechas);
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData.id_empleado,
+    detalleDias,
+    empleados,
+    attendanceState.dias,
+    attendanceState.fechas,
+    syncDetalleWithAttendance,
   ]);
 
   useEffect(() => {

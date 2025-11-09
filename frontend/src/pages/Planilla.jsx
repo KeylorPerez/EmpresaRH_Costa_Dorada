@@ -925,16 +925,16 @@ const Planilla = () => {
                             </div>
 
                             {!isEditing && selectedEmpleado?.tipo_pago === "Diario" && (
-                              <div className="mt-4 space-y-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                              <div className="mt-4 space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <label htmlFor="dias_trabajados" className="text-sm font-medium text-blue-900">
+                                  <label htmlFor="dias_trabajados" className="text-sm font-medium text-gray-700">
                                     Días trabajados en el periodo
                                   </label>
                                   <button
                                     type="button"
                                     onClick={refreshAttendance}
                                     disabled={attendanceState.loading}
-                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-blue-300"
+                                    className="text-xs font-semibold text-gray-600 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
                                   >
                                     {attendanceState.loading ? "Consultando…" : "Actualizar asistencia"}
                                   </button>
@@ -948,7 +948,7 @@ const Planilla = () => {
                                     name="dias_trabajados"
                                     value={formData.dias_trabajados}
                                     onChange={handleChange}
-                                    className="w-full sm:w-48 rounded-lg border border-blue-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    className="w-full sm:w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-gray-400"
                                   />
                                   <div className="flex-1 text-xs text-gray-600">
                                     {attendanceState.error ? (
@@ -964,7 +964,7 @@ const Planilla = () => {
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div className="flex flex-col gap-2">
-                                    <label htmlFor="dias_dobles" className="text-sm font-medium text-blue-900">
+                                    <label htmlFor="dias_dobles" className="text-sm font-medium text-gray-700">
                                       Días dobles a pagar
                                     </label>
                                     <input
@@ -975,11 +975,11 @@ const Planilla = () => {
                                       name="dias_dobles"
                                       value={formData.dias_dobles}
                                       onChange={handleChange}
-                                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-gray-400"
                                     />
                                   </div>
                                   <div className="flex flex-col gap-2">
-                                    <label htmlFor="monto_dias_dobles" className="text-sm font-medium text-blue-900">
+                                    <label htmlFor="monto_dias_dobles" className="text-sm font-medium text-gray-700">
                                       Monto extra por días dobles
                                     </label>
                                     <input
@@ -991,9 +991,9 @@ const Planilla = () => {
                                       value={formData.monto_dias_dobles}
                                       onChange={handleChange}
                                       placeholder="Automático"
-                                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-gray-400"
                                     />
-                                    <p className="text-xs text-blue-800">
+                                    <p className="text-xs text-gray-600">
                                       Deja el campo vacío para calcularlo según el salario diario; ingresa un monto si necesitas un valor personalizado.
                                     </p>
                                   </div>
@@ -1174,10 +1174,10 @@ const Planilla = () => {
                             )}
 
                             {!isEditing && (
-                              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 shadow-sm">
-                                <p className="text-xs uppercase tracking-wide text-blue-600">Monto neto estimado a pagar</p>
-                                <p className="mt-1 text-xl font-semibold text-blue-900">{formatCurrency(pagoNetoEstimado)}</p>
-                                <p className="mt-1 text-xs text-blue-900/80">
+                              <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                <p className="text-xs uppercase tracking-wide text-gray-500">Monto neto estimado a pagar</p>
+                                <p className="mt-1 text-xl font-semibold text-gray-800">{formatCurrency(pagoNetoEstimado)}</p>
+                                <p className="mt-1 text-xs text-gray-600">
                                   {tipoPago === "Diario"
                                     ? "Incluye salario diario según los días aplicados, montos por días dobles, bonificaciones y todas las deducciones seleccionadas."
                                     : "Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual."}

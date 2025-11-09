@@ -55,6 +55,30 @@ class Asistencia {
     }
   }
 
+  static async getDistinctAttendanceDays(id_empleado, startDate, endDate) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('start', sql.VarChar(10), startDate)
+        .input('end', sql.VarChar(10), endDate)
+        .query(`
+          SELECT CONVERT(varchar(10), fecha, 23) AS fecha
+          FROM Asistencia
+          WHERE id_empleado = @id_empleado
+            AND fecha BETWEEN CONVERT(date, @start, 23) AND CONVERT(date, @end, 23)
+          GROUP BY fecha
+          ORDER BY fecha
+        `);
+
+      return result.recordset
+        .map((row) => row.fecha)
+        .filter((fecha) => typeof fecha === 'string' && fecha.length > 0);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // Obtener marcas por empleado
   static async getByEmpleado(id_empleado) {
     try {
