@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -467,6 +467,14 @@ const Planilla = () => {
     selectEmpleado,
   ]);
 
+  const autoResizeTextarea = useCallback((element) => {
+    if (!element) return;
+
+    // Reset height to properly calculate the scroll height with the latest content.
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, []);
+
   const DetalleResumenBadges = ({ className = "" }) => (
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
       <span>Días: {detalleDias.length}</span>
@@ -488,6 +496,12 @@ const Planilla = () => {
       );
     }
 
+    const handleJustificacionChange = (event, rowIndex) => {
+      const { value, target } = event;
+      autoResizeTextarea(target);
+      updateDetalleDia(rowIndex, { justificacion: value });
+    };
+
     return (
       <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -497,9 +511,9 @@ const Planilla = () => {
               <th className="px-4 py-3 text-left">Día</th>
               <th className="px-4 py-3 text-center">Asistencia</th>
               <th className="px-4 py-3 text-center">Tipo</th>
-              <th className="px-4 py-3 text-left">Estado</th>
+              <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
               <th className="px-4 py-3 text-center">Justificado</th>
-              <th className="px-4 py-3 text-left">Justificación</th>
+              <th className="px-4 py-3 text-left min-w-[240px]">Justificación</th>
               <th className="px-4 py-3 text-right">Salario día</th>
               <th className="px-4 py-3 text-left">Observación</th>
             </tr>
@@ -535,7 +549,7 @@ const Planilla = () => {
                     {detalle.es_dia_doble ? "Día doble" : "Normal"}
                   </button>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 min-w-[160px]">
                   <select
                     value={detalle.estado || "Presente"}
                     onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
@@ -556,15 +570,20 @@ const Planilla = () => {
                     className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <textarea
                     value={detalle.justificacion || ""}
-                    onChange={(event) => updateDetalleDia(index, { justificacion: event.target.value })}
+                    onChange={(event) => handleJustificacionChange(event, index)}
                     placeholder="Describe la justificación"
                     rows={2}
                     maxLength={500}
                     disabled={!detalle.justificado}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+                    ref={(element) => {
+                      if (element) {
+                        autoResizeTextarea(element);
+                      }
+                    }}
+                    className="w-full min-h-[3rem] rounded-lg border border-gray-200 px-3 py-2 text-sm leading-relaxed text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none overflow-hidden disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                   />
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -1661,7 +1680,7 @@ const Planilla = () => {
                     role="dialog"
                     aria-modal="true"
                     aria-label="Detalle diario del periodo"
-                    className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
+                    className="relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
                       <div className="space-y-1">
