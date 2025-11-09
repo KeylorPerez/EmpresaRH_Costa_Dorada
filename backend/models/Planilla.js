@@ -9,7 +9,7 @@ class Planilla {
       const pool = await poolPromise;
       const result = await pool.request()
         .query(`
-          SELECT pl.*, e.nombre, e.apellido, e.salario_monto
+          SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado
           FROM Planilla pl
           LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
           ORDER BY pl.periodo_inicio DESC
