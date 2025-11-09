@@ -29,6 +29,8 @@ export const useEmpleado = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmpleado, setEditingEmpleado] = useState(null);
   const [formData, setFormData] = useState(() => createEmptyFormData());
+  const [successMessage, setSuccessMessage] = useState("");
+  const [exportingFormat, setExportingFormat] = useState(null);
 
   useEffect(() => {
     fetchEmpleados();
@@ -71,6 +73,8 @@ export const useEmpleado = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setError("");
+      setSuccessMessage("");
       if (
         !formData.nombre ||
         !formData.apellido ||
@@ -129,8 +133,10 @@ export const useEmpleado = () => {
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
+        setSuccessMessage("Empleado actualizado correctamente");
       } else {
         await empleadoService.create(payload);
+        setSuccessMessage("Empleado creado correctamente");
       }
 
       setModalOpen(false);
@@ -194,7 +200,10 @@ export const useEmpleado = () => {
 
   const handleDeactivate = async (id) => {
     try {
+      setError("");
+      setSuccessMessage("");
       await empleadoService.deactivate(id);
+      setSuccessMessage("Empleado desactivado correctamente");
       fetchEmpleados();
     } catch (err) {
       console.error(err);
@@ -204,11 +213,114 @@ export const useEmpleado = () => {
 
   const handleActivate = async (id) => {
     try {
+      setError("");
+      setSuccessMessage("");
       await empleadoService.activate(id);
+      setSuccessMessage("Empleado activado correctamente");
       fetchEmpleados();
     } catch (err) {
       console.error(err);
       setError("Error al activar empleado");
+    }
+  };
+
+  const exportEmpleados = async (
+    format,
+    { status = "all", openInNewTab = true, silent = false } = {}
+  ) => {
+    setError("");
+    if (!silent) {
+      setSuccessMessage("");
+    }
+
+    try {
+      setExportingFormat(format);
+      const response = await empleadoService.export({ format, status });
+      const fileUrl = response?.url;
+      const responseFormat = response?.format || format;
+      const filename = response?.filename || "";
+
+      if (!fileUrl) {
+        throw new Error("No se recibió la URL del archivo exportado.");
+      }
+
+      if (openInNewTab && typeof window !== "undefined") {
+        window.open(fileUrl, "_blank", "noopener");
+      }
+
+      if (!silent) {
+        setSuccessMessage(
+          responseFormat === "excel"
+            ? "Reporte de empleados en Excel generado correctamente."
+            : "Reporte de empleados en PDF generado correctamente."
+        );
+      }
+
+      return { url: fileUrl, filename, format: responseFormat };
+    } catch (err) {
+      console.error(err);
+      const message =
+        err.response?.data?.error ||
+        err.message ||
+        "No fue posible exportar los empleados.";
+      setError(message);
+      return null;
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const shareEmpleados = async ({ status = "all" } = {}) => {
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+      setError("La función de compartir no está disponible en este dispositivo.");
+      return;
+    }
+
+    setError("");
+    setSuccessMessage("");
+
+    const exportData = await exportEmpleados("pdf", {
+      status,
+      openInNewTab: false,
+      silent: true,
+    });
+
+    if (!exportData?.url) {
+      return;
+    }
+
+    const { url, filename } = exportData;
+    const fallbackName = filename || `empleados-${status}.pdf`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("No se pudo descargar el PDF generado.");
+      }
+
+      const blob = await response.blob();
+      const fileType = blob.type || "application/pdf";
+      const fileName = fallbackName.endsWith(".pdf") ? fallbackName : `${fallbackName}.pdf`;
+      const file = new File([blob], fileName, { type: fileType });
+
+      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+        throw new Error("Este dispositivo no permite compartir archivos PDF.");
+      }
+
+      await navigator.share({
+        files: [file],
+        title: "Reporte de empleados",
+        text: "Te comparto el reporte de empleados generado desde EmpresaRH.",
+      });
+
+      setSuccessMessage("Reporte de empleados compartido correctamente.");
+    } catch (err) {
+      console.error(err);
+      const message =
+        err.response?.data?.error ||
+        err.message ||
+        "No fue posible compartir el reporte de empleados.";
+      setError(message);
     }
   };
 
@@ -217,6 +329,7 @@ export const useEmpleado = () => {
     puestos,
     loading,
     error,
+    successMessage,
     modalOpen,
     setModalOpen,
     editingEmpleado,
@@ -229,6 +342,10 @@ export const useEmpleado = () => {
     resetForm,
     fetchEmpleados,
     setError,
+    setSuccessMessage,
+    exportingFormat,
+    exportEmpleados,
+    shareEmpleados,
   };
 };
 
