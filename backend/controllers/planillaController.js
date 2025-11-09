@@ -50,6 +50,14 @@ const capitalize = (text = '') => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+const stripDiacritics = (text = '') => {
+  if (!text) return '';
+  if (typeof text.normalize !== 'function') return String(text);
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
 const sanitizePdfText = (text = '') =>
   String(text)
     .replace(/\u00A0/g, ' ')
@@ -58,7 +66,7 @@ const sanitizePdfText = (text = '') =>
     .replace(/\s+/g, ' ');
 
 const normalizePdfEncoding = (text = '') =>
-  Array.from(String(text))
+  Array.from(stripDiacritics(text))
     .map((char) => {
       const code = char.codePointAt(0);
       if (code === undefined) return '';
