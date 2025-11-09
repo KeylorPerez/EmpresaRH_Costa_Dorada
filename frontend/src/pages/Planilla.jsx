@@ -33,6 +33,23 @@ const formatPeriodo = (inicio, fin) => {
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
 };
 
+const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();
+
+const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
+  const tipoNormalizado = normalizarTipoPago(valor);
+
+  if (tipoNormalizado === "diario") {
+    return "Pago diario";
+  }
+
+  if (tipoNormalizado === "quincenal") {
+    return "Pago quincenal";
+  }
+
+  const textoOriginal = (valor ?? "").toString().trim();
+  return textoOriginal || etiquetaPorDefecto;
+};
+
 const Planilla = () => {
   const { user, logoutUser } = useAuth();
   const {
@@ -70,19 +87,17 @@ const Planilla = () => {
   const [activeEmpleadoIndex, setActiveEmpleadoIndex] = useState(0);
   const [wizardSearch, setWizardSearch] = useState("");
   const [tipoPagoFiltro, setTipoPagoFiltro] = useState("todos");
+  const [wizardTipoPagoFiltro, setWizardTipoPagoFiltro] = useState("todos");
 
   const planillasFiltradas = useMemo(() => {
     if (!Array.isArray(planillas) || tipoPagoFiltro === "todos") {
       return planillas;
     }
 
-    const filtroNormalizado = tipoPagoFiltro.toLowerCase();
+    const filtroNormalizado = normalizarTipoPago(tipoPagoFiltro);
 
     return planillas.filter((planilla) => {
-      const tipo = (planilla?.tipo_pago_empleado || planilla?.tipo_pago || "")
-        .toString()
-        .trim()
-        .toLowerCase();
+      const tipo = normalizarTipoPago(planilla?.tipo_pago_empleado ?? planilla?.tipo_pago);
 
       if (!tipo) {
         return false;
@@ -112,12 +127,10 @@ const Planilla = () => {
     };
   }, [planillasFiltradas]);
 
-  const obtenerTipoPagoPlanilla = (planilla) => {
-    const tipo = (planilla?.tipo_pago_empleado || planilla?.tipo_pago || "")
-      .toString()
-      .trim();
-    return tipo || "No especificado";
-  };
+  const obtenerTipoPagoPlanilla = (planilla) =>
+    formatearTipoPago(planilla?.tipo_pago_empleado ?? planilla?.tipo_pago, {
+      etiquetaPorDefecto: "No especificado",
+    });
 
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
@@ -247,13 +260,78 @@ const Planilla = () => {
   );
 
   const empleadosFiltrados = useMemo(() => {
-    if (!wizardSearch.trim()) return empleados;
-    const term = wizardSearch.trim().toLowerCase();
+    const terminoBusqueda = wizardSearch.trim().toLowerCase();
+
     return empleados.filter((empleado) => {
       const nombreCompleto = `${empleado.nombre || ""} ${empleado.apellido || ""}`.toLowerCase();
-      return nombreCompleto.includes(term) || String(empleado.id_empleado).includes(term);
+      const coincideBusqueda =
+        terminoBusqueda.length === 0 ||
+        nombreCompleto.includes(terminoBusqueda) ||
+        String(empleado.id_empleado).includes(terminoBusqueda);
+
+      if (!coincideBusqueda) {
+        return false;
+      }
+
+      const tipoNormalizado = normalizarTipoPago(empleado.tipo_pago);
+
+      if (wizardTipoPagoFiltro === "todos") {
+        return true;
+      }
+
+      if (wizardTipoPagoFiltro === "diario") {
+        return tipoNormalizado === "diario";
+      }
+
+      if (wizardTipoPagoFiltro === "quincenal") {
+        return tipoNormalizado === "quincenal";
+      }
+
+      return true;
     });
-  }, [empleados, wizardSearch]);
+  }, [empleados, wizardSearch, wizardTipoPagoFiltro]);
+
+  const empleadosNavegables = useMemo(
+    () => (isEditing ? empleados : empleadosFiltrados),
+    [empleados, empleadosFiltrados, isEditing]
+  );
+
+  useEffect(() => {
+    if (empleadosNavegables.length === 0) {
+      if (activeEmpleadoIndex !== 0) {
+        setActiveEmpleadoIndex(0);
+      }
+      return;
+    }
+
+    const indiceActual = empleadosNavegables.findIndex(
+      (emp) => String(emp.id_empleado) === formData.id_empleado
+    );
+
+    if (indiceActual === -1) {
+      if (isEditing) {
+        return;
+      }
+
+      const primerEmpleado = empleadosNavegables[0];
+
+      if (primerEmpleado) {
+        setActiveEmpleadoIndex(0);
+        selectEmpleado(primerEmpleado.id_empleado);
+      }
+      return;
+    }
+
+    if (indiceActual !== activeEmpleadoIndex) {
+      setActiveEmpleadoIndex(indiceActual);
+    }
+  }, [
+    activeEmpleadoIndex,
+    empleadosNavegables,
+    formData.id_empleado,
+    isEditing,
+    selectEmpleado,
+  ]);
 
   const DetalleResumenBadges = ({ className = "" }) => (
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
@@ -460,19 +538,8 @@ const Planilla = () => {
   useEffect(() => {
     if (!modalOpen || isEditing) return;
     setWizardSearch("");
+    setWizardTipoPagoFiltro("todos");
   }, [modalOpen, isEditing]);
-
-  useEffect(() => {
-    if (!modalOpen || isEditing || empleados.length === 0) return;
-
-    const indexActual = empleados.findIndex((emp) => String(emp.id_empleado) === formData.id_empleado);
-    if (indexActual === -1) {
-      setActiveEmpleadoIndex(0);
-      selectEmpleado(empleados[0].id_empleado);
-    } else {
-      setActiveEmpleadoIndex(indexActual);
-    }
-  }, [modalOpen, isEditing, empleados, formData.id_empleado, selectEmpleado]);
 
   const handleCambiarEmpleado = (nuevoEmpleado) => {
     if (!nuevoEmpleado) return;
@@ -480,10 +547,11 @@ const Planilla = () => {
   };
 
   const handleNavegarEmpleado = (step) => {
-    if (empleados.length === 0) return;
-    const nextIndex = (activeEmpleadoIndex + step + empleados.length) % empleados.length;
+    if (empleadosNavegables.length === 0) return;
+    const nextIndex =
+      (activeEmpleadoIndex + step + empleadosNavegables.length) % empleadosNavegables.length;
     setActiveEmpleadoIndex(nextIndex);
-    const empleadoDestino = empleados[nextIndex];
+    const empleadoDestino = empleadosNavegables[nextIndex];
     handleCambiarEmpleado(empleadoDestino);
   };
 
@@ -697,7 +765,7 @@ const Planilla = () => {
                               <button
                                 type="button"
                                 onClick={() => handleNavegarEmpleado(-1)}
-                                disabled={isEditing || empleados.length === 0}
+                                disabled={isEditing || empleadosNavegables.length === 0}
                                 className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 Anterior
@@ -709,16 +777,16 @@ const Planilla = () => {
                                     ? `${selectedEmpleado.nombre} ${selectedEmpleado.apellido}`
                                     : "Selecciona un colaborador"}
                                 </p>
-                                {!isEditing && empleados.length > 0 && (
+                                {!isEditing && empleadosFiltrados.length > 0 && (
                                   <p className="text-xs text-gray-500">
-                                    {activeEmpleadoIndex + 1} de {empleados.length}
+                                    {activeEmpleadoIndex + 1} de {empleadosFiltrados.length}
                                   </p>
                                 )}
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleNavegarEmpleado(1)}
-                                disabled={isEditing || empleados.length === 0}
+                                disabled={isEditing || empleadosNavegables.length === 0}
                                 className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 Siguiente
@@ -727,6 +795,24 @@ const Planilla = () => {
 
                             {!isEditing && (
                               <>
+                                <div className="space-y-2">
+                                  <label
+                                    className="text-xs font-semibold text-gray-500"
+                                    htmlFor="filtro-colaborador-tipo-pago"
+                                  >
+                                    Tipo de pago
+                                  </label>
+                                  <select
+                                    id="filtro-colaborador-tipo-pago"
+                                    value={wizardTipoPagoFiltro}
+                                    onChange={(event) => setWizardTipoPagoFiltro(event.target.value)}
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                  >
+                                    <option value="todos">Todos</option>
+                                    <option value="diario">Pago diario</option>
+                                    <option value="quincenal">Pago quincenal</option>
+                                  </select>
+                                </div>
                                 <div className="space-y-2">
                                   <label className="text-xs font-semibold text-gray-500" htmlFor="buscador-empleado">
                                     Buscar colaborador
@@ -743,20 +829,17 @@ const Planilla = () => {
                                 <div className="max-h-56 overflow-y-auto pr-1 space-y-2">
                                   {empleadosFiltrados.length === 0 ? (
                                     <p className="text-sm text-gray-500">
-                                      No hay colaboradores que coincidan con la búsqueda.
+                                      No hay colaboradores que coincidan con la búsqueda o el filtro.
                                     </p>
                                   ) : (
-                                    empleadosFiltrados.map((empleado) => {
+                                    empleadosFiltrados.map((empleado, index) => {
                                       const esActivo = formData.id_empleado === String(empleado.id_empleado);
-                                      const indiceGlobal = empleados.findIndex(
-                                        (item) => item.id_empleado === empleado.id_empleado
-                                      );
                                       return (
                                         <button
                                           key={empleado.id_empleado}
                                           type="button"
                                           onClick={() => {
-                                            setActiveEmpleadoIndex(indiceGlobal === -1 ? 0 : indiceGlobal);
+                                            setActiveEmpleadoIndex(index);
                                             handleCambiarEmpleado(empleado);
                                           }}
                                           className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
@@ -769,7 +852,7 @@ const Planilla = () => {
                                             {empleado.nombre} {empleado.apellido}
                                           </p>
                                           <p className="text-xs text-gray-500">
-                                            #{empleado.id_empleado} · {empleado.tipo_pago || "Sin tipo"}
+                                            #{empleado.id_empleado} · {formatearTipoPago(empleado.tipo_pago)}
                                           </p>
                                         </button>
                                       );
