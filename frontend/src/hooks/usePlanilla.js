@@ -776,9 +776,9 @@ export const usePlanilla = () => {
         const diasDoblesManual = parseNonNegative(formData.dias_dobles);
         const montoDoblesManual = parseOptionalNonNegative(formData.monto_dias_dobles);
 
-        const usaDoblesManualPayload =
-          tipoPagoEmpleado === "Diario" &&
-          ((formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0);
+        const ingresoManualDobles =
+          (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
+        const usaDoblesManualPayload = tipoPagoEmpleado !== "Diario" || ingresoManualDobles;
 
         let diasDoblesPayload = 0;
         let montoDoblesPayload = null;
@@ -789,7 +789,11 @@ export const usePlanilla = () => {
             montoDoblesPayload = montoDoblesManual;
           } else if (diasDoblesManual > 0) {
             const salarioBaseEmpleado = Number(empleadoSeleccionado?.salario_monto) || 0;
-            montoDoblesPayload = Number((salarioBaseEmpleado * diasDoblesManual).toFixed(2));
+            const salarioReferenciaDobles =
+              tipoPagoEmpleado === "Diario"
+                ? salarioBaseEmpleado
+                : salarioBaseEmpleado / 15;
+            montoDoblesPayload = Number((salarioReferenciaDobles * diasDoblesManual).toFixed(2));
           } else {
             montoDoblesPayload = 0;
           }
