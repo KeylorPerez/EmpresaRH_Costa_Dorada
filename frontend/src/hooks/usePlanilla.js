@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
+import asistenciaService from "../services/asistenciaService";
 
 const ESTADOS_ASISTENCIA = [
   "Presente",
@@ -19,6 +20,13 @@ export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
 const estadoAsistenciaSet = new Set(ESTADOS_ASISTENCIA);
 const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
+const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
+const DETALLE_JUSTIFICACIONES_INICIAL = {
+  key: "",
+  loading: false,
+  registros: [],
+  error: "",
+};
 
 const normalizeEstado = (value) => {
   if (typeof value !== "string") return ESTADO_PRESENTE;
@@ -39,6 +47,148 @@ const ajustarEstadoPorAsistencia = (estadoActual, asistio) => {
     return ESTADO_AUSENTE;
   }
   return normalizado;
+};
+
+const normalizarJustificacionRegistro = (registro) => {
+  if (!registro) return null;
+
+  const fecha = typeof registro.fecha === "string" ? registro.fecha.trim() : "";
+  if (!fecha) return null;
+
+  const justificado =
+    registro.justificado === true ||
+    registro.justificado === 1 ||
+    registro.justificado === "1";
+
+  if (!justificado) {
+    return null;
+  }
+
+  const estadoNormalizado = normalizeEstado(registro.estado);
+
+  const estadoFinal = estadoNormalizado === ESTADO_PRESENTE ? ESTADO_AUSENTE : estadoNormalizado;
+
+  const justificacionTexto = (() => {
+    const texto =
+      registro.justificacion === undefined || registro.justificacion === null
+        ? ""
+        : String(registro.justificacion).trim();
+
+    if (texto) return texto;
+
+    const tipo =
+      registro.justificacion_solicitud_tipo === undefined ||
+      registro.justificacion_solicitud_tipo === null
+        ? ""
+        : String(registro.justificacion_solicitud_tipo).trim();
+
+    const respuesta =
+      registro.justificacion_solicitud_respuesta === undefined ||
+      registro.justificacion_solicitud_respuesta === null
+        ? ""
+        : String(registro.justificacion_solicitud_respuesta).trim();
+
+    const descripcion =
+      registro.justificacion_solicitud_descripcion === undefined ||
+      registro.justificacion_solicitud_descripcion === null
+        ? ""
+        : String(registro.justificacion_solicitud_descripcion).trim();
+
+    const partes = [tipo, descripcion, respuesta].filter((parte) => parte.length > 0);
+    if (partes.length > 0) {
+      return partes.join(" - ");
+    }
+
+    return "";
+  })();
+
+  return {
+    fecha,
+    estado: estadoFinal,
+    justificacion: justificacionTexto,
+  };
+};
+
+const calcularSalarioDiaDesdeDetalle = (detalle) => {
+  const base = Number(detalle.salario_base);
+  if (Number.isFinite(base) && base >= 0) {
+    const factor = detalle.es_dia_doble ? 2 : 1;
+    return (base * factor).toFixed(2);
+  }
+
+  const actual = Number(detalle.salario_dia);
+  if (Number.isFinite(actual) && actual >= 0) {
+    return actual.toFixed(2);
+  }
+
+  return SALARIO_CERO_TEXTO;
+};
+
+const aplicarJustificacionesAuto = (detalles, registros) => {
+  if (!Array.isArray(detalles) || detalles.length === 0) {
+    return detalles;
+  }
+
+  const mapa = new Map();
+  if (Array.isArray(registros)) {
+    registros.forEach((item) => {
+      if (item && item.fecha) {
+        mapa.set(item.fecha, item);
+      }
+    });
+  }
+
+  return detalles.map((detalle) => {
+    const info = mapa.get(detalle.fecha);
+
+    if (info) {
+      const debeAplicar = detalle.autoJustificacion || (!detalle.justificado && detalle.asistio);
+      if (!debeAplicar) {
+        return detalle;
+      }
+
+      const justificacionTexto = info.justificacion || "";
+      const estadoFinal = info.estado || ESTADO_AUSENTE;
+
+      if (
+        detalle.asistio === false &&
+        detalle.salario_dia === SALARIO_CERO_TEXTO &&
+        detalle.estado === estadoFinal &&
+        detalle.justificado === true &&
+        (detalle.justificacion || "") === justificacionTexto &&
+        detalle.autoJustificacion === true
+      ) {
+        return detalle;
+      }
+
+      return {
+        ...detalle,
+        asistio: false,
+        salario_dia: SALARIO_CERO_TEXTO,
+        estado: estadoFinal,
+        justificado: true,
+        justificacion: justificacionTexto,
+        autoJustificacion: true,
+      };
+    }
+
+    if (!detalle.autoJustificacion) {
+      return detalle;
+    }
+
+    const salarioRestaurado = calcularSalarioDiaDesdeDetalle(detalle);
+    const estadoRestaurado = ESTADO_PRESENTE;
+
+    return {
+      ...detalle,
+      asistio: true,
+      salario_dia: salarioRestaurado,
+      estado: estadoRestaurado,
+      justificado: false,
+      justificacion: "",
+      autoJustificacion: false,
+    };
+  });
 };
 
 const createEmptyForm = (defaults = {}) => ({
@@ -106,6 +256,9 @@ export const usePlanilla = () => {
   });
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
+  const [detalleJustificaciones, setDetalleJustificaciones] = useState(
+    DETALLE_JUSTIFICACIONES_INICIAL,
+  );
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
   const autoDiasRef = useRef(null);
   const autoMontoDescuentoRef = useRef(null);
@@ -186,6 +339,7 @@ export const usePlanilla = () => {
     autoMontoDescuentoRef.current = null;
     setDetalleDias([]);
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
+    setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
   };
 
   const openCreateModal = () => {
@@ -260,6 +414,72 @@ export const usePlanilla = () => {
     });
   }, [modalOpen, prestamosEmpleado, formData.id_empleado, editingPlanilla]);
 
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) {
+      setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      return;
+    }
+
+    const { id_empleado, periodo_inicio, periodo_fin } = formData;
+
+    if (!id_empleado || !periodo_inicio || !periodo_fin) {
+      setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === String(id_empleado),
+    );
+
+    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Quincenal") {
+      setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      return;
+    }
+
+    let cancelado = false;
+    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+
+    const fetchJustificaciones = async () => {
+      setDetalleJustificaciones({ key, loading: true, registros: [], error: "" });
+
+      try {
+        const data = await asistenciaService.getByRange(
+          periodo_inicio,
+          periodo_fin,
+          id_empleado,
+        );
+        if (cancelado) return;
+
+        const registros = Array.isArray(data)
+          ? data.map(normalizarJustificacionRegistro).filter(Boolean)
+          : [];
+
+        setDetalleJustificaciones({ key, loading: false, registros, error: "" });
+      } catch (err) {
+        if (cancelado) return;
+
+        const message =
+          err?.response?.data?.error ||
+          err?.message ||
+          "No se pudieron obtener las justificaciones del periodo seleccionado.";
+        setDetalleJustificaciones({ key, loading: false, registros: [], error: message });
+      }
+    };
+
+    fetchJustificaciones();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    empleados,
+  ]);
+
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
@@ -303,6 +523,7 @@ export const usePlanilla = () => {
         justificado: false,
         justificacion: "",
         observacion: "",
+        autoJustificacion: false,
       });
     }
 
@@ -447,6 +668,52 @@ export const usePlanilla = () => {
     buildDetalleDias,
   ]);
 
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+
+    const contextoActual = detalleContextRef.current;
+    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
+    const keyJustificaciones = detalleJustificaciones.key;
+    const registrosJustificados = Array.isArray(detalleJustificaciones.registros)
+      ? detalleJustificaciones.registros
+      : [];
+
+    if (!keyJustificaciones || keyActual !== keyJustificaciones) {
+      if (!keyJustificaciones && detalleDias.length > 0) {
+        setDetalleDias((prev) => {
+          if (!Array.isArray(prev) || prev.length === 0) {
+            return prev;
+          }
+
+          const restaurados = aplicarJustificacionesAuto(prev, []);
+          const cambio = restaurados.some((detalle, index) => detalle !== prev[index]);
+          return cambio ? restaurados : prev;
+        });
+      }
+      return;
+    }
+
+    if (!Array.isArray(detalleDias) || detalleDias.length === 0) {
+      return;
+    }
+
+    setDetalleDias((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) {
+        return prev;
+      }
+
+      const aplicados = aplicarJustificacionesAuto(prev, registrosJustificados);
+      const cambio = aplicados.some((detalle, index) => detalle !== prev[index]);
+      return cambio ? aplicados : prev;
+    });
+  }, [
+    modalOpen,
+    editingPlanilla,
+    detalleJustificaciones.key,
+    detalleJustificaciones.registros,
+    detalleDias,
+  ]);
+
   const updateDetalleDia = useCallback((index, updates) => {
     setDetalleDias((prev) =>
       prev.map((detalle, idx) => {
@@ -519,6 +786,19 @@ export const usePlanilla = () => {
           }
         }
 
+        const overrideKeys = [
+          "asistio",
+          "estado",
+          "justificado",
+          "justificacion",
+          "salario_dia",
+          "observacion",
+        ];
+
+        if (overrideKeys.some((key) => Object.prototype.hasOwnProperty.call(updates, key))) {
+          siguiente.autoJustificacion = false;
+        }
+
         return siguiente;
       })
     );
@@ -555,6 +835,7 @@ export const usePlanilla = () => {
                   ? formatear(baseReferencia * (detalle.es_dia_doble ? 2 : 1))
                   : formatear(0),
                 estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
+                autoJustificacion: false,
               };
             })()
           : detalle
@@ -591,6 +872,7 @@ export const usePlanilla = () => {
                   ? baseNormalizado
                   : detalle.salario_base,
                 salario_dia: detalle.asistio ? formatear(baseReferencia * factor) : formatear(0),
+                autoJustificacion: false,
               };
             })()
           : detalle
