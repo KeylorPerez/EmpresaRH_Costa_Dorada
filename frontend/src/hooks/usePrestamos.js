@@ -24,6 +24,7 @@ export const formatearMonto = (value) => {
   return numero.toLocaleString("es-CR", {
     style: "currency",
     currency: "CRC",
+    currencyDisplay: "narrowSymbol",
     minimumFractionDigits: 2,
   });
 };

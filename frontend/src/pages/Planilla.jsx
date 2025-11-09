@@ -9,6 +9,7 @@ import { usePlanilla } from "../hooks/usePlanilla";
 const currencyFormatter = new Intl.NumberFormat("es-CR", {
   style: "currency",
   currency: "CRC",
+  currencyDisplay: "narrowSymbol",
   minimumFractionDigits: 2,
 });
 
@@ -1036,7 +1037,7 @@ const Planilla = () => {
 
                               <div className="flex flex-col gap-2">
                                 <label htmlFor="horas_extras" className="text-sm font-medium text-gray-700">
-                                  Monto horas extras (CRC)
+                                  Monto horas extras (₡)
                                 </label>
                                 <input
                                   type="number"
