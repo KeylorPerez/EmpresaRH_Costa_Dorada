@@ -147,7 +147,7 @@ const buildPdfLines = (planilla, detalles) => {
   const labelWidth = 22;
 
   lines.push(titleDivider);
-  lines.push(`Detalle de planilla #${planilla.id_planilla}`);
+  lines.push(`Detalle de planilla #${planilla.id_planilla} - Distribuidora Astua Pirie`);
   lines.push(titleDivider);
   lines.push('');
 
