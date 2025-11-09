@@ -15,7 +15,21 @@ const currencyFormatter = new Intl.NumberFormat('es-CR', {
   minimumFractionDigits: 2,
 });
 
-const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
+const normalizeCurrencySpacing = (text = '') =>
+  text
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const formatCurrency = (value) => {
+  const formatted = currencyFormatter.format(Number(value) || 0);
+  const sanitized = normalizeCurrencySpacing(formatted);
+  // Helvetica (fuente estándar en el PDF) no contiene el símbolo de colón costarricense,
+  // por lo que lo reemplazamos por la abreviatura de la moneda para evitar caracteres extraños.
+  return sanitized.replace(/₡/g, 'CRC ');
+};
 
 const formatDateValue = (value) => {
   if (!value) return '-';
@@ -36,9 +50,16 @@ const capitalize = (text = '') => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+const sanitizePdfText = (text = '') =>
+  String(text)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\s+/g, ' ');
+
 const wrapText = (text, maxLength = 95) => {
   if (!text) return [''];
-  const words = text.split(/\s+/);
+  const words = sanitizePdfText(text).split(/\s+/);
   const lines = [];
   let currentLine = '';
 
@@ -101,29 +122,62 @@ const buildPdfLines = (planilla, detalles) => {
     .join(' ')
     .trim() || `ID ${planilla.id_empleado}`;
 
-  lines.push(`Planilla #${planilla.id_planilla}`);
+  const sectionDivider = '-'.repeat(100);
+  const titleDivider = '='.repeat(100);
+  const labelWidth = 22;
+
+  lines.push(titleDivider);
+  lines.push(`Detalle de planilla #${planilla.id_planilla}`);
+  lines.push(titleDivider);
   lines.push('');
-  lines.push(`Colaborador: ${nombreColaborador}`);
-  lines.push(`Identificación: ${planilla.cedula || 'No registrada'}`);
-  lines.push(`Correo: ${planilla.email || 'No registrado'}`);
-  lines.push(`Periodo: ${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(planilla.periodo_fin)}`);
-  lines.push(`Fecha de pago: ${formatDateDisplay(planilla.fecha_pago)}`);
-  lines.push(`Tipo de pago: ${planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado'}`);
+
+  const generalInfo = [
+    ['Colaborador', nombreColaborador],
+    ['Identificación', planilla.cedula || 'No registrada'],
+    ['Correo', planilla.email || 'No registrado'],
+    [
+      'Periodo',
+      `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(planilla.periodo_fin)}`,
+    ],
+    ['Fecha de pago', formatDateDisplay(planilla.fecha_pago)],
+    ['Tipo de pago', planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado'],
+  ];
+
+  generalInfo.forEach(([label, value]) => {
+    const sanitizedValue = sanitizePdfText(value || '');
+    lines.push(`${label.padEnd(labelWidth, ' ')}: ${sanitizedValue}`);
+  });
+
   lines.push('');
-  lines.push('Resumen financiero:');
-  lines.push(`  Salario base: ${formatCurrency(planilla.salario_monto)}`);
-  lines.push(`  Horas extras: ${formatCurrency(planilla.horas_extras)}`);
-  lines.push(`  Bonificaciones: ${formatCurrency(planilla.bonificaciones)}`);
-  lines.push(`  Salario bruto: ${formatCurrency(planilla.salario_bruto)}`);
-  lines.push(`  CCSS: ${formatCurrency(planilla.ccss_deduccion)}`);
-  lines.push(`  Otras deducciones: ${formatCurrency(planilla.deducciones)}`);
+  lines.push('Resumen financiero');
+  lines.push(sectionDivider);
+
+  const resumenFinanciero = [
+    ['Salario base', formatCurrency(planilla.salario_monto)],
+    ['Horas extras', formatCurrency(planilla.horas_extras)],
+    ['Bonificaciones', formatCurrency(planilla.bonificaciones)],
+    ['Salario bruto', formatCurrency(planilla.salario_bruto)],
+    ['CCSS', formatCurrency(planilla.ccss_deduccion)],
+    ['Otras deducciones', formatCurrency(planilla.deducciones)],
+  ];
+
   const totalDeducciones = (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
-  lines.push(`  Total deducciones: ${formatCurrency(totalDeducciones)}`);
-  lines.push(`  Pago neto: ${formatCurrency(planilla.pago_neto)}`);
+  resumenFinanciero.push(['Total deducciones', formatCurrency(totalDeducciones)]);
+  resumenFinanciero.push(['Pago neto', formatCurrency(planilla.pago_neto)]);
+
+  const valueWidth = 20;
+  resumenFinanciero.forEach(([label, value]) => {
+    const sanitizedValue = sanitizePdfText(value);
+    const dottedLineLength = Math.max(4, 70 - label.length);
+    const dottedLine = '.'.repeat(dottedLineLength);
+    lines.push(`${label} ${dottedLine} ${sanitizedValue.padStart(valueWidth, ' ')}`);
+  });
+
   lines.push('');
-  lines.push('Detalle diario:');
-  lines.push('Fecha        | Día        | Asistencia   | Tipo        | Salario día        | Observación');
-  lines.push('-'.repeat(95));
+  lines.push('Detalle diario');
+  lines.push(sectionDivider);
+  lines.push('Fecha       | Día         | Asistencia  | Tipo         | Salario día        | Observación');
+  lines.push(sectionDivider);
 
   if (!Array.isArray(detalles) || detalles.length === 0) {
     lines.push('Sin registros de detalle para esta planilla.');
@@ -131,12 +185,12 @@ const buildPdfLines = (planilla, detalles) => {
   }
 
   detalles.forEach((detalle) => {
-    const fecha = formatDateDisplay(detalle.fecha).padEnd(12, ' ');
-    const dia = capitalize(detalle.dia_semana || '').padEnd(10, ' ');
-    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(12, ' ');
-    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(12, ' ');
+    const fecha = formatDateDisplay(detalle.fecha).padEnd(11, ' ');
+    const dia = capitalize(detalle.dia_semana || '').padEnd(11, ' ');
+    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(11, ' ');
+    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(11, ' ');
     const salario = formatCurrency(detalle.salario_dia).padEnd(18, ' ');
-    const observacion = detalle.observacion ? detalle.observacion.trim() : '';
+    const observacion = sanitizePdfText(detalle.observacion ? detalle.observacion.trim() : '');
     const baseLine = `${fecha}| ${dia}| ${asistencia}| ${tipo}| ${salario}| ${observacion}`;
     const wrapped = wrapText(baseLine, 95);
     wrapped.forEach((line, index) => {
@@ -146,6 +200,7 @@ const buildPdfLines = (planilla, detalles) => {
         lines.push(` ${line}`);
       }
     });
+    lines.push(sectionDivider);
   });
 
   return lines;
