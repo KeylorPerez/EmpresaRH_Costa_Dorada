@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getAsistencia, getByRange, createMarca, updateMarca } = require('../controllers/asistenciaController');
+const {
+  getAsistencia,
+  getByRange,
+  createMarca,
+  updateMarca,
+  exportAsistencia,
+} = require('../controllers/asistenciaController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // GET /api/asistencia  -> admin: todo / empleado: sus marcas
@@ -8,6 +14,9 @@ router.get('/', authenticateToken, getAsistencia);
 
 // GET /api/asistencia/range?start=YYYY-MM-DD&end=YYYY-MM-DD
 router.get('/range', authenticateToken, getByRange);
+
+// GET /api/asistencia/export?start=&end=&id_empleado?&format?
+router.get('/export', authenticateToken, authorizeRoles(1), exportAsistencia);
 
 // POST /api/asistencia  -> crear marca (empleado puede crear la suya; admin puede crear para cualquiera)
 router.post('/', authenticateToken, createMarca);

@@ -6,9 +6,26 @@ const asistenciaService = {
     return response.data;
   },
 
-  getByRange: async (start, end) => {
-    const response = await api.get("/asistencia/range", {
-      params: { start, end },
+  getByRange: async (start, end, id_empleado) => {
+    const params = { start, end };
+    if (id_empleado) {
+      params.id_empleado = id_empleado;
+    }
+    const response = await api.get("/asistencia/range", { params });
+    return response.data;
+  },
+
+  exportByRange: async ({ start, end, id_empleado, format }) => {
+    const params = { start, end };
+    if (id_empleado) {
+      params.id_empleado = id_empleado;
+    }
+    if (format) {
+      params.format = format;
+    }
+
+    const response = await api.get("/asistencia/export", {
+      params,
     });
     return response.data;
   },

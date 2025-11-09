@@ -27,6 +27,20 @@ export const formatearHora = (value) => {
 
 const pad = (value) => value.toString().padStart(2, "0");
 
+const createDefaultRange = () => {
+  const now = new Date();
+  const startDay = now.getDate() <= 15 ? 1 : 16;
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const endDay = now.getDate() <= 15 ? 15 : lastDayOfMonth;
+  const month = pad(now.getMonth() + 1);
+  const year = now.getFullYear();
+
+  return {
+    start: `${year}-${month}-${pad(startDay)}`,
+    end: `${year}-${month}-${pad(endDay)}`,
+  };
+};
+
 const DEFAULT_LATITUDE =
   import.meta.env.VITE_BUSINESS_LATITUDE ??
   import.meta.env.VITE_OFFICE_LATITUDE ??
@@ -68,9 +82,12 @@ export const useAsistencia = ({ mode } = {}) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState(() => createInitialForm(isAdmin));
   const [submitting, setSubmitting] = useState(false);
-  const [rangeFilters, setRangeFilters] = useState({ start: "", end: "" });
-  const [appliedRange, setAppliedRange] = useState(null);
+  const defaultRange = useMemo(() => createDefaultRange(), []);
+  const [rangeFilters, setRangeFilters] = useState(defaultRange);
+  const [appliedRange, setAppliedRange] = useState(defaultRange);
   const [employees, setEmployees] = useState([]);
+  const [selectedEmpleado, setSelectedEmpleado] = useState("");
+  const [exportingFormat, setExportingFormat] = useState(null);
 
   const [editingRegistro, setEditingRegistro] = useState(null);
   const [editForm, setEditForm] = useState({ tipo_marca: "", observaciones: "" });
@@ -105,7 +122,11 @@ export const useAsistencia = ({ mode } = {}) => {
       setError("");
       let data;
       if (range?.start && range?.end) {
-        data = await asistenciaService.getByRange(range.start, range.end);
+        data = await asistenciaService.getByRange(
+          range.start,
+          range.end,
+          isAdmin ? range?.id_empleado : undefined
+        );
       } else {
         data = await asistenciaService.getAll();
       }
@@ -117,11 +138,11 @@ export const useAsistencia = ({ mode } = {}) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
-    fetchRegistros();
-  }, [fetchRegistros]);
+    fetchRegistros({ ...defaultRange });
+  }, [fetchRegistros, defaultRange]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -154,15 +175,29 @@ export const useAsistencia = ({ mode } = {}) => {
       return;
     }
 
-    const rangePayload = { start, end };
+    const rangePayload = {
+      start,
+      end,
+      ...(isAdmin && selectedEmpleado
+        ? { id_empleado: Number(selectedEmpleado) }
+        : {}),
+    };
     await fetchRegistros(rangePayload);
-    setAppliedRange(rangePayload);
+    setAppliedRange({ start, end });
   };
 
   const clearRangeFilters = async () => {
-    setRangeFilters({ start: "", end: "" });
-    setAppliedRange(null);
-    await fetchRegistros();
+    const fallbackRange = { ...defaultRange };
+    setRangeFilters(fallbackRange);
+    setAppliedRange(fallbackRange);
+    setError("");
+    setSuccessMessage("");
+    await fetchRegistros({
+      ...fallbackRange,
+      ...(isAdmin && selectedEmpleado
+        ? { id_empleado: Number(selectedEmpleado) }
+        : {}),
+    });
   };
 
   const handleChange = (event) => {
@@ -176,6 +211,20 @@ export const useAsistencia = ({ mode } = {}) => {
   const resetForm = () => {
     setFormData(createInitialForm(isAdmin));
     resetLocation();
+  };
+
+  const handleEmpleadoSelect = (event) => {
+    const value = event.target.value || "";
+    setSelectedEmpleado(value);
+
+    if (!isAdmin) return;
+    if (!appliedRange?.start || !appliedRange?.end) return;
+
+    fetchRegistros({
+      start: appliedRange.start,
+      end: appliedRange.end,
+      ...(value ? { id_empleado: Number(value) } : {}),
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -250,7 +299,14 @@ export const useAsistencia = ({ mode } = {}) => {
       await asistenciaService.createMarca(payload);
       setSuccessMessage("Marca registrada correctamente");
       resetForm();
-      await fetchRegistros(appliedRange);
+      await fetchRegistros({
+        ...(appliedRange?.start && appliedRange?.end
+          ? appliedRange
+          : defaultRange),
+        ...(isAdmin && selectedEmpleado
+          ? { id_empleado: Number(selectedEmpleado) }
+          : {}),
+      });
     } catch (err) {
       console.error(err);
       const message = err.response?.data?.error || "No fue posible registrar la marca";
@@ -298,13 +354,128 @@ export const useAsistencia = ({ mode } = {}) => {
       });
       setSuccessMessage("Marca actualizada correctamente");
       cancelEdit();
-      await fetchRegistros(appliedRange);
+      await fetchRegistros({
+        ...(appliedRange?.start && appliedRange?.end
+          ? appliedRange
+          : defaultRange),
+        ...(isAdmin && selectedEmpleado
+          ? { id_empleado: Number(selectedEmpleado) }
+          : {}),
+      });
     } catch (err) {
       console.error(err);
       const message = err.response?.data?.error || "No fue posible actualizar la marca";
       setError(message);
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const exportAsistencia = async (format, { openInNewTab = true, silent = false } = {}) => {
+    if (!appliedRange?.start || !appliedRange?.end) {
+      setError("Selecciona un rango de fechas antes de exportar.");
+      return null;
+    }
+
+    if (isAdmin && !selectedEmpleado) {
+      setError("Selecciona un empleado para exportar su asistencia.");
+      return null;
+    }
+
+    setError("");
+    if (!silent) {
+      setSuccessMessage("");
+    }
+
+    try {
+      setExportingFormat(format);
+      const response = await asistenciaService.exportByRange({
+        start: appliedRange.start,
+        end: appliedRange.end,
+        format,
+        id_empleado:
+          isAdmin && selectedEmpleado ? Number(selectedEmpleado) : undefined,
+      });
+
+      const fileUrl = response?.url;
+      const responseFormat = response?.format || format;
+      const filename = response?.filename || "";
+
+      if (!fileUrl) {
+        throw new Error("No se recibió la URL del archivo exportado.");
+      }
+
+      if (openInNewTab && typeof window !== "undefined") {
+        window.open(fileUrl, "_blank", "noopener");
+      }
+
+      if (!silent) {
+        setSuccessMessage(
+          responseFormat === "excel"
+            ? "Reporte de asistencia en Excel generado correctamente."
+            : "Reporte de asistencia en PDF generado correctamente."
+        );
+      }
+
+      return { url: fileUrl, filename, format: responseFormat };
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.error || err.message || "No fue posible exportar la asistencia.";
+      setError(message);
+      return null;
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const shareAsistencia = async () => {
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+      setError("La función de compartir no está disponible en este dispositivo.");
+      return;
+    }
+
+    setError("");
+    setSuccessMessage("");
+
+    const exportData = await exportAsistencia("pdf", { openInNewTab: false, silent: true });
+    if (!exportData?.url) {
+      return;
+    }
+
+    const { url, filename } = exportData;
+    const fallbackName =
+      filename ||
+      `asistencia-${appliedRange?.start ?? "inicio"}-${appliedRange?.end ?? "fin"}.pdf`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("No se pudo descargar el PDF generado.");
+      }
+
+      const blob = await response.blob();
+      const fileType = blob.type || "application/pdf";
+      const fileName = fallbackName.endsWith(".pdf") ? fallbackName : `${fallbackName}.pdf`;
+      const file = new File([blob], fileName, { type: fileType });
+
+      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+        throw new Error("Este dispositivo no permite compartir archivos PDF.");
+      }
+
+      await navigator.share({
+        files: [file],
+        title: "Reporte de asistencia",
+        text: "Te comparto el reporte de asistencia generado desde EmpresaRH.",
+      });
+
+      setSuccessMessage("Reporte de asistencia compartido correctamente.");
+    } catch (shareError) {
+      console.error(shareError);
+      const message =
+        shareError.response?.data?.error ||
+        shareError.message ||
+        "No fue posible compartir el reporte de asistencia.";
+      setError(message);
     }
   };
 
@@ -393,6 +564,11 @@ export const useAsistencia = ({ mode } = {}) => {
     handleRangeChange,
     handleRangeSubmit,
     clearRangeFilters,
+    selectedEmpleado,
+    handleEmpleadoSelect,
+    exportingFormat,
+    exportAsistencia,
+    shareAsistencia,
     empleadosOptions,
     editingRegistro,
     startEdit,
