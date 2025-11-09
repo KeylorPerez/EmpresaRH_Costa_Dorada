@@ -6,12 +6,16 @@ const {
   createEmpleado,
   updateEmpleado,
   deactivateEmpleado,
-  activateEmpleado
+  activateEmpleado,
+  exportEmpleados,
 } = require('../controllers/empleadoController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 //  Obtener todos los empleados (solo autenticado)
 router.get('/', authenticateToken, getEmpleados);
+
+//  Exportar empleados (solo admin)
+router.get('/export', authenticateToken, authorizeRoles(1), exportEmpleados);
 
 //  Obtener un empleado por ID
 router.get('/:id', authenticateToken, getEmpleadoById);

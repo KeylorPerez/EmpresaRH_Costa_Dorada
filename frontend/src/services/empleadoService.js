@@ -29,7 +29,14 @@ const empleadoService = {
   activate: async (id) => {
     const response = await api.patch(`/empleados/${id}/activar`);
     return response.data;
-  }
+  },
+
+  export: async ({ format = 'pdf', status = 'all' } = {}) => {
+    const response = await api.get('/empleados/export', {
+      params: { format, status },
+    });
+    return response.data;
+  },
 };
 
 export default empleadoService;

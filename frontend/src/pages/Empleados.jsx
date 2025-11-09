@@ -12,6 +12,7 @@ const Empleados = () => {
     puestos,
     loading,
     error,
+    successMessage,
     modalOpen,
     setModalOpen,
     editingEmpleado,
@@ -23,6 +24,10 @@ const Empleados = () => {
     handleActivate,
     resetForm,
     setError,
+    setSuccessMessage,
+    exportingFormat,
+    exportEmpleados,
+    shareEmpleados,
   } = useEmpleado();
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -48,6 +53,10 @@ const Empleados = () => {
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
 
+  const isExportingPdf = exportingFormat === "pdf";
+  const isExportingExcel = exportingFormat === "excel";
+  const exportDisabled = loading || Boolean(exportingFormat);
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar links={adminLinks} roleColor="blue" />
@@ -67,31 +76,63 @@ const Empleados = () => {
                 <strong>Empleados</strong> de SQL Server.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-              </select>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => {
-                  resetForm();
-                  setError("");
-                  setModalOpen(true);
-                }}
-              >
-                Agregar Empleado
-              </Button>
+            <div className="flex flex-col md:items-end md:gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Todos</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => {
+                    resetForm();
+                    setError("");
+                    setSuccessMessage("");
+                    setModalOpen(true);
+                  }}
+                >
+                  Agregar Empleado
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 md:justify-end md:mt-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={exportDisabled}
+                  onClick={() => exportEmpleados("pdf", { status: statusFilter })}
+                >
+                  {isExportingPdf ? "Generando PDF..." : "Exportar PDF"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={exportDisabled}
+                  onClick={() => exportEmpleados("excel", { status: statusFilter })}
+                >
+                  {isExportingExcel ? "Generando Excel..." : "Exportar Excel"}
+                </Button>
+                <Button
+                  variant="success"
+                  size="sm"
+                  disabled={exportDisabled}
+                  onClick={() => shareEmpleados({ status: statusFilter })}
+                >
+                  Compartir
+                </Button>
+              </div>
             </div>
           </div>
 
           {error && <p className="text-red-500 mb-2">{error}</p>}
+          {successMessage && (
+            <p className="text-green-600 mb-2 font-medium">{successMessage}</p>
+          )}
 
           {loading ? (
             <p>Cargando empleados...</p>
