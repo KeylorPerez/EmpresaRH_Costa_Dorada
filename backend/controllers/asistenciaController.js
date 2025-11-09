@@ -4,6 +4,7 @@ const Asistencia = require('../models/Asistencia');
 const Usuario = require('../models/Usuario'); // para resolver id_empleado del usuario
 const Empleado = require('../models/Empleado');
 const allowedTypes = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
+const allowedStates = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
@@ -306,8 +307,8 @@ const sanitizeCsvLine = (value = '') =>
 
 const buildAttendancePdfLines = (rows, { start, end, empleado }) => {
   const lines = [];
-  const divider = '-'.repeat(100);
-  const titleDivider = '='.repeat(100);
+  const divider = '-'.repeat(140);
+  const titleDivider = '='.repeat(140);
   const totalMarcas = Array.isArray(rows) ? rows.length : 0;
   const nombreEmpleado = empleado
     ? [empleado.nombre, empleado.apellido].filter(Boolean).join(' ').trim() || `ID ${empleado.id_empleado}`
@@ -323,7 +324,16 @@ const buildAttendancePdfLines = (rows, { start, end, empleado }) => {
   }
   lines.push(`Total de marcas: ${totalMarcas}`);
   lines.push('');
-  lines.push('Fecha        Hora    Tipo                Ubicación               Observaciones');
+  const headerColumns = [
+    'Fecha'.padEnd(12, ' '),
+    'Hora'.padEnd(8, ' '),
+    'Tipo'.padEnd(18, ' '),
+    'Estado'.padEnd(12, ' '),
+    'Justificado'.padEnd(12, ' '),
+    'Ubicación'.padEnd(22, ' '),
+    'Observaciones / Justificación',
+  ];
+  lines.push(headerColumns.join(' '));
   lines.push(divider);
 
   if (!totalMarcas) {
@@ -336,16 +346,22 @@ const buildAttendancePdfLines = (rows, { start, end, empleado }) => {
     const hora = formatTimeDisplay(registro.hora).padEnd(8, ' ');
     const tipo = (tipoMarcaLabels[registro.tipo_marca] || registro.tipo_marca || '-')
       .toString()
-      .padEnd(20, ' ');
+      .padEnd(18, ' ');
+    const estado = (registro.estado || 'Presente').toString().padEnd(12, ' ');
+    const justificado = (registro.justificado ? 'Sí' : 'No').padEnd(12, ' ');
     const ubicacion = formatLocationDisplay(registro.latitud, registro.longitud).padEnd(22, ' ');
-    const observaciones = registro.observaciones ? sanitizePdfText(registro.observaciones) : '-';
-    const observationLines = wrapText(observaciones, 45);
+    const observaciones = registro.observaciones ? sanitizePdfText(registro.observaciones) : '';
+    const justificacionTexto = registro.justificacion ? sanitizePdfText(registro.justificacion) : '';
+    const detalle = [observaciones, justificacionTexto].filter((text) => text && text.length > 0).join(' | ');
+    const observationLines = wrapText(detalle || '-', 50);
 
     observationLines.forEach((linea, index) => {
       if (index === 0) {
-        lines.push(`${fecha} ${hora} ${tipo} ${ubicacion} ${linea}`);
+        lines.push(`${fecha} ${hora} ${tipo} ${estado} ${justificado} ${ubicacion} ${linea}`);
       } else {
-        lines.push(`${' '.repeat(12)} ${' '.repeat(8)} ${' '.repeat(20)} ${' '.repeat(22)} ${linea}`);
+        lines.push(
+          `${' '.repeat(12)} ${' '.repeat(8)} ${' '.repeat(18)} ${' '.repeat(12)} ${' '.repeat(12)} ${' '.repeat(22)} ${linea}`,
+        );
       }
     });
   });
@@ -372,7 +388,7 @@ const createAttendanceCsv = async (filePath, rows, meta) => {
   lines.push(`Empleado;${escapeCsv(nombreEmpleado)}`);
   lines.push(`Total marcas;${Array.isArray(rows) ? rows.length : 0}`);
   lines.push('');
-  lines.push('Fecha;Hora;Tipo;Ubicación;Observaciones');
+  lines.push('Fecha;Hora;Tipo;Estado;Justificado;Justificación;Ubicación;Observaciones');
 
   if (Array.isArray(rows) && rows.length > 0) {
     rows.forEach((registro) => {
@@ -380,13 +396,16 @@ const createAttendanceCsv = async (filePath, rows, meta) => {
         formatDateDisplay(registro.fecha),
         formatTimeDisplay(registro.hora),
         tipoMarcaLabels[registro.tipo_marca] || registro.tipo_marca || '-',
-        formatLocationDisplay(registro.latitud, registro.longitud),
+        escapeCsv(registro.estado || 'Presente'),
+        escapeCsv(registro.justificado ? 'Sí' : 'No'),
+        escapeCsv(registro.justificacion || ''),
+        escapeCsv(formatLocationDisplay(registro.latitud, registro.longitud)),
         escapeCsv(registro.observaciones || ''),
       ].join(';');
       lines.push(row);
     });
   } else {
-    lines.push('Sin registros;;;;');
+    lines.push('Sin registros;;;;;;;');
   }
 
   const sanitizedLines = lines.map((line) => sanitizeCsvLine(line));
@@ -539,6 +558,9 @@ const createMarca = async (req, res) => {
       fecha: fechaBody,
       hora: horaBody,
       observaciones,
+      estado: estadoBody,
+      justificado: justificadoBody,
+      justificacion,
       latitud: latitudBody,
       longitud: longitudBody,
     } = req.body;
@@ -586,6 +608,37 @@ const createMarca = async (req, res) => {
       }
     }
 
+    let estadoFinal = 'Presente';
+    if (estadoBody !== undefined && estadoBody !== null && estadoBody !== '') {
+      const estadoTrimmed = estadoBody.toString().trim();
+      if (!allowedStates.includes(estadoTrimmed)) {
+        return res.status(400).json({
+          error: `estado inválido. Debe ser uno de: ${allowedStates.join(', ')}`,
+        });
+      }
+      estadoFinal = estadoTrimmed;
+    }
+
+    let justificadoFinal = false;
+    if (justificadoBody !== undefined && justificadoBody !== null) {
+      justificadoFinal = isTruthy(justificadoBody);
+    }
+
+    let justificacionTexto = '';
+    if (justificadoFinal) {
+      if (justificacion !== undefined && justificacion !== null) {
+        justificacionTexto = justificacion.toString().trim();
+      }
+    } else {
+      justificacionTexto = '';
+    }
+
+    if (userToken.id_rol !== 1) {
+      estadoFinal = 'Presente';
+      justificadoFinal = false;
+      justificacionTexto = '';
+    }
+
     const existingMarca = await Asistencia.findByEmpleadoFechaTipo(id_empleado_final, fechaSql, tipo_marca);
     if (existingMarca) {
       return res.status(409).json({ error: 'Esta marca ya fue registrada para la fecha seleccionada' });
@@ -599,6 +652,9 @@ const createMarca = async (req, res) => {
       observaciones,
       latitud,
       longitud,
+      estado: estadoFinal,
+      justificado: justificadoFinal,
+      justificacion: justificacionTexto,
     });
 
     return res.status(201).json({ message: 'Marca registrada', id_asistencia: created.id_asistencia });
@@ -611,13 +667,60 @@ const createMarca = async (req, res) => {
 const updateMarca = async (req, res) => {
   try {
     const id_asistencia = parseInt(req.params.id, 10);
-    const { tipo_marca, observaciones } = req.body;
+    const {
+      tipo_marca,
+      observaciones,
+      estado: estadoBody,
+      justificado: justificadoBody,
+      justificacion,
+    } = req.body;
 
     if (!tipo_marca || !allowedTypes.includes(tipo_marca)) {
       return res.status(400).json({ error: `tipo_marca inválido. Debe ser uno de: ${allowedTypes.join(', ')}` });
     }
 
-    await Asistencia.update(id_asistencia, { tipo_marca, observaciones });
+    let estadoFinal = null;
+    if (estadoBody !== undefined) {
+      if (estadoBody === null || estadoBody === '') {
+        return res.status(400).json({ error: 'estado es requerido' });
+      }
+      const estadoTrimmed = estadoBody.toString().trim();
+      if (!allowedStates.includes(estadoTrimmed)) {
+        return res.status(400).json({
+          error: `estado inválido. Debe ser uno de: ${allowedStates.join(', ')}`,
+        });
+      }
+      estadoFinal = estadoTrimmed;
+    }
+
+    let justificadoFinal = null;
+    if (justificadoBody !== undefined && justificadoBody !== null) {
+      justificadoFinal = isTruthy(justificadoBody);
+    }
+
+    let justificacionTexto;
+    if (justificadoBody !== undefined) {
+      if (justificadoFinal) {
+        justificacionTexto = justificacion !== undefined && justificacion !== null ? justificacion.toString().trim() : '';
+      } else {
+        justificacionTexto = '';
+      }
+    } else if (justificacion !== undefined && justificacion !== null) {
+      justificacionTexto = justificacion.toString().trim();
+    }
+
+    const payload = { tipo_marca, observaciones };
+    if (estadoBody !== undefined) {
+      payload.estado = estadoFinal;
+    }
+    if (justificadoBody !== undefined) {
+      payload.justificado = justificadoFinal;
+      payload.justificacion = justificacionTexto;
+    } else if (justificacionTexto !== undefined) {
+      payload.justificacion = justificacionTexto;
+    }
+
+    await Asistencia.update(id_asistencia, payload);
     res.json({ message: 'Marca actualizada' });
   } catch (err) {
     res.status(500).json({ error: err.message });

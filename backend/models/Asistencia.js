@@ -1,6 +1,7 @@
 const { poolPromise, sql } = require('../db/db');
 
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
 class Asistencia {
   // Obtener todas las marcas (con información básica del empleado)
@@ -15,6 +16,9 @@ class Asistencia {
             CONVERT(varchar(8), a.hora, 108) AS hora,
             a.id_empleado,
             a.tipo_marca,
+            a.estado,
+            a.justificado,
+            a.justificacion,
             a.observaciones,
             a.latitud,
             a.longitud,
@@ -92,6 +96,9 @@ class Asistencia {
             CONVERT(varchar(8), hora, 108) AS hora,
             id_empleado,
             tipo_marca,
+            estado,
+            justificado,
+            justificacion,
             observaciones,
             latitud,
             longitud
@@ -120,6 +127,9 @@ class Asistencia {
           CONVERT(varchar(8), a.hora, 108) AS hora,
           a.id_empleado,
           a.tipo_marca,
+          a.estado,
+          a.justificado,
+          a.justificacion,
           a.observaciones,
           a.latitud,
           a.longitud,
@@ -170,6 +180,9 @@ class Asistencia {
     fecha = null,
     hora,
     tipo_marca,
+    estado = 'Presente',
+    justificado = false,
+    justificacion = null,
     observaciones = null,
     latitud = null,
     longitud = null,
@@ -178,6 +191,16 @@ class Asistencia {
       if (!TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
+
+      const estadoNormalizado =
+        typeof estado === 'string' && ESTADOS_ASISTENCIA.includes(estado.trim())
+          ? estado.trim()
+          : 'Presente';
+      const justificadoValor = justificado === true || justificado === 1 || justificado === '1';
+      const justificacionValor =
+        justificacion === undefined || justificacion === null
+          ? null
+          : String(justificacion).trim() || null;
 
       // 🔹 Formatear hora para SQL Server
       let horaSql;
@@ -201,16 +224,22 @@ class Asistencia {
         .input('fecha', sql.VarChar(10), fecha)
         .input('hora', sql.Time, horaSql)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
+        .input('estado', sql.NVarChar(20), estadoNormalizado)
+        .input('justificado', sql.Bit, justificadoValor ? 1 : 0)
+        .input('justificacion', sql.NVarChar(sql.MAX), justificacionValor)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
         .input('latitud', sql.Decimal(9, 6), latitud)
         .input('longitud', sql.Decimal(9, 6), longitud)
         .query(`
-          INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, observaciones, latitud, longitud)
+          INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, estado, justificado, justificacion, observaciones, latitud, longitud)
           VALUES (
             @id_empleado,
             COALESCE(CONVERT(date, @fecha, 23), CAST(GETDATE() AS date)),
             @hora,
             @tipo_marca,
+            @estado,
+            @justificado,
+            @justificacion,
             @observaciones,
             @latitud,
             @longitud
@@ -224,10 +253,42 @@ class Asistencia {
   }
 
   // Actualizar tipo_marca u observaciones
-  static async update(id_asistencia, { tipo_marca, observaciones = null }) {
+  static async update(id_asistencia, { tipo_marca, observaciones = null, estado, justificado, justificacion }) {
     try {
       if (tipo_marca && !TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
+      }
+
+      let estadoNormalizado = null;
+      if (estado !== undefined) {
+        if (estado === null) {
+          throw new Error(`estado inválido. Debe ser uno de: ${ESTADOS_ASISTENCIA.join(', ')}`);
+        }
+        if (typeof estado !== 'string') {
+          throw new Error(`estado inválido. Debe ser uno de: ${ESTADOS_ASISTENCIA.join(', ')}`);
+        }
+        const trimmed = estado.trim();
+        if (!ESTADOS_ASISTENCIA.includes(trimmed)) {
+          throw new Error(`estado inválido. Debe ser uno de: ${ESTADOS_ASISTENCIA.join(', ')}`);
+        }
+        estadoNormalizado = trimmed;
+      }
+
+      let justificadoValor = null;
+      if (justificado !== undefined && justificado !== null) {
+        justificadoValor = justificado === true || justificado === 1 || justificado === '1';
+      }
+
+      let justificacionValor = null;
+      let actualizarJustificacion = 0;
+      if (justificacion !== undefined) {
+        actualizarJustificacion = 1;
+        if (justificacion === null) {
+          justificacionValor = null;
+        } else {
+          const trimmed = String(justificacion).trim();
+          justificacionValor = trimmed || null;
+        }
       }
 
       const pool = await poolPromise;
@@ -235,10 +296,17 @@ class Asistencia {
         .input('id_asistencia', sql.Int, id_asistencia)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
+        .input('estado', sql.NVarChar(20), estadoNormalizado)
+        .input('justificado', sql.Bit, justificadoValor !== null ? (justificadoValor ? 1 : 0) : null)
+        .input('justificacion', sql.NVarChar(sql.MAX), justificacionValor)
+        .input('actualizarJustificacion', sql.Bit, actualizarJustificacion)
         .query(`
           UPDATE Asistencia
           SET tipo_marca = @tipo_marca,
-              observaciones = @observaciones
+              observaciones = @observaciones,
+              estado = COALESCE(@estado, estado),
+              justificado = COALESCE(@justificado, justificado),
+              justificacion = CASE WHEN @actualizarJustificacion = 1 THEN @justificacion ELSE justificacion END
           WHERE id_asistencia = @id_asistencia
         `);
       return { message: 'Asistencia actualizada' };

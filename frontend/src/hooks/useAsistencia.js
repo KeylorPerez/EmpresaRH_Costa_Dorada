@@ -15,6 +15,19 @@ const tipoMarcaMap = tipoMarcaOptions.reduce((acc, option) => {
   return acc;
 }, {});
 
+export const estadoOptions = [
+  { value: "Presente", label: "Presente" },
+  { value: "Ausente", label: "Ausente" },
+  { value: "Permiso", label: "Permiso" },
+  { value: "Vacaciones", label: "Vacaciones" },
+  { value: "Incapacidad", label: "Incapacidad" },
+];
+
+const estadoMap = estadoOptions.reduce((acc, option) => {
+  acc[option.value] = option.label;
+  return acc;
+}, {});
+
 export const formatearFecha = (value) => formatDateValue(value);
 
 export const formatearHora = (value) => {
@@ -71,6 +84,9 @@ const createInitialForm = (isAdmin) => {
     hora,
     tipo_marca: "entrada",
     observaciones: "",
+    estado: "Presente",
+    justificado: false,
+    justificacion: "",
   };
 };
 
@@ -90,7 +106,13 @@ export const useAsistencia = ({ mode } = {}) => {
   const [exportingFormat, setExportingFormat] = useState(null);
 
   const [editingRegistro, setEditingRegistro] = useState(null);
-  const [editForm, setEditForm] = useState({ tipo_marca: "", observaciones: "" });
+  const [editForm, setEditForm] = useState({
+    tipo_marca: "",
+    observaciones: "",
+    estado: "Presente",
+    justificado: false,
+    justificacion: "",
+  });
   const [editLoading, setEditLoading] = useState(false);
 
   const defaultLocation = useMemo(
@@ -130,7 +152,21 @@ export const useAsistencia = ({ mode } = {}) => {
       } else {
         data = await asistenciaService.getAll();
       }
-      setRegistros(Array.isArray(data) ? data : []);
+      const registrosNormalizados = Array.isArray(data)
+        ? data.map((registro) => ({
+            ...registro,
+            estado: registro.estado || "Presente",
+            justificado:
+              registro.justificado === true ||
+              registro.justificado === 1 ||
+              registro.justificado === "1",
+            justificacion:
+              registro.justificacion === undefined || registro.justificacion === null
+                ? ""
+                : registro.justificacion,
+          }))
+        : [];
+      setRegistros(registrosNormalizados);
     } catch (err) {
       console.error(err);
       const message = err.response?.data?.error || "No fue posible cargar la asistencia";
@@ -201,11 +237,15 @@ export const useAsistencia = ({ mode } = {}) => {
   };
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    if (!isAdmin && (name === "fecha" || name === "hora")) {
+    const { name, value, type, checked } = event.target;
+    if (
+      !isAdmin &&
+      (name === "fecha" || name === "hora" || name === "estado" || name === "justificado" || name === "justificacion")
+    ) {
       return;
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const nextValue = type === "checkbox" ? checked : value;
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const resetForm = () => {
@@ -251,6 +291,14 @@ export const useAsistencia = ({ mode } = {}) => {
 
     if (formData.hora) {
       payload.hora = formData.hora;
+    }
+
+    if (isAdmin) {
+      payload.estado = formData.estado || "Presente";
+      payload.justificado = Boolean(formData.justificado);
+      const justificacionTexto =
+        typeof formData.justificacion === "string" ? formData.justificacion.trim() : "";
+      payload.justificacion = payload.justificado ? justificacionTexto : "";
     }
 
     let latitudValue = parseCoordinateInput(location.latitud);
@@ -322,6 +370,13 @@ export const useAsistencia = ({ mode } = {}) => {
     setEditForm({
       tipo_marca: registro.tipo_marca || "",
       observaciones: registro.observaciones || "",
+      estado: registro.estado || "Presente",
+      justificado:
+        registro.justificado === true || registro.justificado === 1 || registro.justificado === "1",
+      justificacion:
+        registro.justificacion === undefined || registro.justificacion === null
+          ? ""
+          : registro.justificacion,
     });
     setError("");
     setSuccessMessage("");
@@ -329,12 +384,19 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const cancelEdit = () => {
     setEditingRegistro(null);
-    setEditForm({ tipo_marca: "", observaciones: "" });
+    setEditForm({
+      tipo_marca: "",
+      observaciones: "",
+      estado: "Presente",
+      justificado: false,
+      justificacion: "",
+    });
   };
 
   const handleEditChange = (event) => {
-    const { name, value } = event.target;
-    setEditForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    const nextValue = type === "checkbox" ? checked : value;
+    setEditForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleEditSubmit = async (event) => {
@@ -348,10 +410,18 @@ export const useAsistencia = ({ mode } = {}) => {
 
     try {
       setEditLoading(true);
-      await asistenciaService.updateMarca(editingRegistro.id_asistencia, {
+      const payload = {
         tipo_marca: editForm.tipo_marca,
         observaciones: editForm.observaciones,
-      });
+        estado: editForm.estado || "Presente",
+        justificado: Boolean(editForm.justificado),
+      };
+
+      const justificacionTexto =
+        typeof editForm.justificacion === "string" ? editForm.justificacion.trim() : "";
+      payload.justificacion = payload.justificado ? justificacionTexto : "";
+
+      await asistenciaService.updateMarca(editingRegistro.id_asistencia, payload);
       setSuccessMessage("Marca actualizada correctamente");
       cancelEdit();
       await fetchRegistros({
@@ -589,3 +659,4 @@ export const useAsistencia = ({ mode } = {}) => {
 };
 
 export const obtenerEtiquetaTipo = (tipo) => tipoMarcaMap[tipo] || tipo;
+export const obtenerEtiquetaEstado = (estado) => estadoMap[estado] || estado || "Presente";
