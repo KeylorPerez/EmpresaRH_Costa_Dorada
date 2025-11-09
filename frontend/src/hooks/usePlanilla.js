@@ -3,6 +3,44 @@ import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 
+const ESTADOS_ASISTENCIA = [
+  "Presente",
+  "Ausente",
+  "Permiso",
+  "Vacaciones",
+  "Incapacidad",
+];
+
+export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
+  value: estado,
+  label: estado,
+}));
+
+const estadoAsistenciaSet = new Set(ESTADOS_ASISTENCIA);
+const ESTADO_PRESENTE = "Presente";
+const ESTADO_AUSENTE = "Ausente";
+
+const normalizeEstado = (value) => {
+  if (typeof value !== "string") return ESTADO_PRESENTE;
+  const trimmed = value.trim();
+  return estadoAsistenciaSet.has(trimmed) ? trimmed : ESTADO_PRESENTE;
+};
+
+const ajustarEstadoPorAsistencia = (estadoActual, asistio) => {
+  const normalizado = normalizeEstado(estadoActual);
+  if (asistio) {
+    if (!estadoAsistenciaSet.has(normalizado) || normalizado === ESTADO_AUSENTE) {
+      return ESTADO_PRESENTE;
+    }
+    return normalizado;
+  }
+
+  if (!estadoAsistenciaSet.has(normalizado) || normalizado === ESTADO_PRESENTE) {
+    return ESTADO_AUSENTE;
+  }
+  return normalizado;
+};
+
 const createEmptyForm = (defaults = {}) => ({
   id_empleado: "",
   periodo_inicio: "",
@@ -261,6 +299,9 @@ export const usePlanilla = () => {
         salario_dia: salarioDiarioReferencia.toFixed(2),
         asistio: true,
         es_dia_doble: false,
+        estado: ESTADO_PRESENTE,
+        justificado: false,
+        justificacion: "",
         observacion: "",
       });
     }
@@ -290,13 +331,18 @@ export const usePlanilla = () => {
           if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
             return detalle.salario_dia === salarioCero
               ? detalle
-              : { ...detalle, salario_dia: salarioCero };
+              : {
+                  ...detalle,
+                  salario_dia: salarioCero,
+                  estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                };
           }
 
           return {
             ...detalle,
             asistio: false,
             salario_dia: salarioCero,
+            estado: ajustarEstadoPorAsistencia(detalle.estado, false),
           };
         });
 
@@ -311,13 +357,18 @@ export const usePlanilla = () => {
           if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
             return detalle.salario_dia === salarioCero
               ? detalle
-              : { ...detalle, salario_dia: salarioCero };
+              : {
+                  ...detalle,
+                  salario_dia: salarioCero,
+                  estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                };
           }
 
           return {
             ...detalle,
             asistio: false,
             salario_dia: salarioCero,
+            estado: ajustarEstadoPorAsistencia(detalle.estado, false),
           };
         }
 
@@ -341,6 +392,7 @@ export const usePlanilla = () => {
           ...detalle,
           asistio: true,
           salario_dia: salarioTexto,
+          estado: ajustarEstadoPorAsistencia(detalle.estado, true),
         };
       });
 
@@ -421,6 +473,52 @@ export const usePlanilla = () => {
           }
         }
 
+        if (Object.prototype.hasOwnProperty.call(updates, "justificacion")) {
+          const valor = updates.justificacion;
+          if (valor === null || valor === undefined) {
+            siguiente.justificacion = "";
+          } else {
+            siguiente.justificacion = String(valor);
+          }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, "justificado")) {
+          siguiente.justificado = Boolean(updates.justificado);
+          if (!siguiente.justificado) {
+            siguiente.justificacion = "";
+          }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, "estado")) {
+          const nuevoEstado = normalizeEstado(updates.estado);
+          siguiente.estado = nuevoEstado;
+
+          if (nuevoEstado === ESTADO_PRESENTE) {
+            const baseReferencia = (() => {
+              const base = Number(detalle.salario_base);
+              if (!Number.isNaN(base)) return base;
+
+              const salarioActual = Number(detalle.salario_dia);
+              if (Number.isNaN(salarioActual)) return 0;
+
+              return detalle.es_dia_doble && salarioActual > 0
+                ? salarioActual / 2
+                : salarioActual;
+            })();
+
+            const factor = siguiente.es_dia_doble ? 2 : 1;
+            const formatear = (valor) => Number(valor).toFixed(2);
+            siguiente.asistio = true;
+            siguiente.salario_base = Number.isNaN(Number(detalle.salario_base))
+              ? Number(baseReferencia.toFixed(2))
+              : detalle.salario_base;
+            siguiente.salario_dia = formatear(baseReferencia * factor);
+          } else if (nuevoEstado === ESTADO_AUSENTE) {
+            siguiente.asistio = false;
+            siguiente.salario_dia = Number(0).toFixed(2);
+          }
+        }
+
         return siguiente;
       })
     );
@@ -456,6 +554,7 @@ export const usePlanilla = () => {
                 salario_dia: asistio
                   ? formatear(baseReferencia * (detalle.es_dia_doble ? 2 : 1))
                   : formatear(0),
+                estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
               };
             })()
           : detalle
@@ -935,6 +1034,12 @@ export const usePlanilla = () => {
           salario_dia: buildNumber(detalle.salario_dia),
           asistio: Boolean(detalle.asistio),
           es_dia_doble: Boolean(detalle.es_dia_doble),
+          estado: normalizeEstado(detalle.estado),
+          justificado: Boolean(detalle.justificado),
+          justificacion:
+            Boolean(detalle.justificado) && detalle.justificacion
+              ? String(detalle.justificacion).trim()
+              : null,
           observacion:
             detalle.observacion && detalle.observacion.trim() !== ""
               ? detalle.observacion.trim()
@@ -1032,6 +1137,7 @@ export const usePlanilla = () => {
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
     detalleDiasResumen,
+    detalleEstadoOptions,
   };
 };
 

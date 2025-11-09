@@ -102,6 +102,15 @@ const PlanillaDetalle = () => {
               ...item,
               asistio: Boolean(item.asistio),
               es_dia_doble: Boolean(item.es_dia_doble),
+              estado: typeof item.estado === "string" && item.estado.trim() !== ""
+                ? item.estado
+                : "Presente",
+              justificado:
+                item.justificado === true || item.justificado === 1 || item.justificado === "1",
+              justificacion:
+                item.justificacion === undefined || item.justificacion === null
+                  ? ""
+                  : String(item.justificacion),
             }))
           : [];
         setDetalle(dias);
@@ -506,6 +515,9 @@ const PlanillaDetalle = () => {
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Día</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Asistencia</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Tipo</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Estado</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Justificado</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Justificación</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-right">Salario día</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Observación</th>
                         </tr>
@@ -532,6 +544,23 @@ const PlanillaDetalle = () => {
                               >
                                 {item.es_dia_doble ? "Día doble" : "Normal"}
                               </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.estado || "-"}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                  item.justificado
+                                    ? "bg-indigo-100 text-indigo-700"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {item.justificado ? "Sí" : "No"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {item.justificacion && item.justificacion.trim() !== ""
+                                ? item.justificacion
+                                : "-"}
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-gray-800">
                               {formatCurrency(item.salario_dia)}
