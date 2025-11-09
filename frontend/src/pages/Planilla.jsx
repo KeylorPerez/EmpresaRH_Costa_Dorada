@@ -546,15 +546,6 @@ const Planilla = () => {
     selectEmpleado(nuevoEmpleado.id_empleado);
   };
 
-  const handleNavegarEmpleado = (step) => {
-    if (empleadosNavegables.length === 0) return;
-    const nextIndex =
-      (activeEmpleadoIndex + step + empleadosNavegables.length) % empleadosNavegables.length;
-    setActiveEmpleadoIndex(nextIndex);
-    const empleadoDestino = empleadosNavegables[nextIndex];
-    handleCambiarEmpleado(empleadoDestino);
-  };
-
   const obtenerCuotaSugerida = (prestamo) => {
     const saldo = Math.max(Number(prestamo?.saldo) || 0, 0);
     const cuotas = Math.max(Number(prestamo?.cuotas) || 1, 1);
@@ -759,74 +750,61 @@ const Planilla = () => {
                       )}
 
                       <div className="flex flex-col gap-6 lg:flex-row">
-                        <aside className="space-y-6 lg:w-72 flex-shrink-0">
+                        <aside className="space-y-6 lg:w-80 flex-shrink-0">
                           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleNavegarEmpleado(-1)}
-                                disabled={isEditing || empleadosNavegables.length === 0}
-                                className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Anterior
-                              </button>
-                              <div className="flex-1 text-center">
-                                <p className="text-xs uppercase tracking-wide text-gray-400">Colaborador</p>
-                                <p className="text-sm font-semibold text-gray-800">
-                                  {selectedEmpleado
-                                    ? `${selectedEmpleado.nombre} ${selectedEmpleado.apellido}`
-                                    : "Selecciona un colaborador"}
+                            {selectedEmpleado ? (
+                              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                                <p className="font-semibold text-blue-800">
+                                  {selectedEmpleado.nombre} {selectedEmpleado.apellido}
                                 </p>
                                 {!isEditing && empleadosFiltrados.length > 0 && (
-                                  <p className="text-xs text-gray-500">
-                                    {activeEmpleadoIndex + 1} de {empleadosFiltrados.length}
+                                  <p className="text-xs text-blue-600">
+                                    {activeEmpleadoIndex + 1} de {empleadosFiltrados.length} colaboradores
                                   </p>
                                 )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleNavegarEmpleado(1)}
-                                disabled={isEditing || empleadosNavegables.length === 0}
-                                className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Siguiente
-                              </button>
-                            </div>
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                Selecciona un colaborador desde la lista para ver sus datos.
+                              </div>
+                            )}
 
                             {!isEditing && (
                               <>
-                                <div className="space-y-2">
-                                  <label
-                                    className="text-xs font-semibold text-gray-500"
-                                    htmlFor="filtro-colaborador-tipo-pago"
-                                  >
-                                    Tipo de pago
-                                  </label>
-                                  <select
-                                    id="filtro-colaborador-tipo-pago"
-                                    value={wizardTipoPagoFiltro}
-                                    onChange={(event) => setWizardTipoPagoFiltro(event.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                  >
-                                    <option value="todos">Todos</option>
-                                    <option value="diario">Pago diario</option>
-                                    <option value="quincenal">Pago quincenal</option>
-                                  </select>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="space-y-2 sm:col-span-1">
+                                    <label
+                                      className="text-xs font-semibold text-gray-500"
+                                      htmlFor="filtro-colaborador-tipo-pago"
+                                    >
+                                      Tipo de pago
+                                    </label>
+                                    <select
+                                      id="filtro-colaborador-tipo-pago"
+                                      value={wizardTipoPagoFiltro}
+                                      onChange={(event) => setWizardTipoPagoFiltro(event.target.value)}
+                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    >
+                                      <option value="todos">Todos</option>
+                                      <option value="diario">Pago diario</option>
+                                      <option value="quincenal">Pago quincenal</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-2 sm:col-span-2">
+                                    <label className="text-xs font-semibold text-gray-500" htmlFor="buscador-empleado">
+                                      Buscar colaborador
+                                    </label>
+                                    <input
+                                      id="buscador-empleado"
+                                      type="text"
+                                      placeholder="Nombre o ID"
+                                      value={wizardSearch}
+                                      onChange={(event) => setWizardSearch(event.target.value)}
+                                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                    />
+                                  </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <label className="text-xs font-semibold text-gray-500" htmlFor="buscador-empleado">
-                                    Buscar colaborador
-                                  </label>
-                                  <input
-                                    id="buscador-empleado"
-                                    type="text"
-                                    placeholder="Nombre o ID"
-                                    value={wizardSearch}
-                                    onChange={(event) => setWizardSearch(event.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                  />
-                                </div>
-                                <div className="max-h-56 overflow-y-auto pr-1 space-y-2">
+                                <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
                                   {empleadosFiltrados.length === 0 ? (
                                     <p className="text-sm text-gray-500">
                                       No hay colaboradores que coincidan con la búsqueda o el filtro.
