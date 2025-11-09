@@ -39,6 +39,16 @@ const asistenciaService = {
     const response = await api.put(`/asistencia/${id}`, payload);
     return response.data;
   },
+
+  createJustificacionSolicitud: async (id_asistencia, payload) => {
+    const response = await api.post(`/asistencia/${id_asistencia}/justificaciones`, payload);
+    return response.data;
+  },
+
+  resolverJustificacionSolicitud: async (id_solicitud, payload) => {
+    const response = await api.patch(`/asistencia/justificaciones/${id_solicitud}`, payload);
+    return response.data;
+  },
 };
 
 export default asistenciaService;
