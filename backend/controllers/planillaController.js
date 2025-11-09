@@ -364,6 +364,17 @@ const escapeCsv = (value) => {
   return str;
 };
 
+const CSV_BOM = Buffer.from([0xef, 0xbb, 0xbf]).toString('utf8');
+
+const sanitizeCsvLine = (value = '') =>
+  String(value)
+    // Excel puede interpretar caracteres de espacio especiales de forma incorrecta.
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    // Reemplazar saltos de línea no estándar por espacios para evitar filas quebradas.
+    .replace(/[\u2028\u2029]/g, ' ');
+
 const createCsvFile = async (filePath, planilla, detalles) => {
   const nombreColaborador = [planilla.nombre, planilla.apellido]
     .filter(Boolean)
@@ -409,7 +420,8 @@ const createCsvFile = async (filePath, planilla, detalles) => {
     lines.push('Sin registros;;;;;');
   }
 
-  const content = `${lines.join('\n')}\n`;
+  const sanitizedLines = lines.map((line) => sanitizeCsvLine(line));
+  const content = `${CSV_BOM}${sanitizedLines.join('\r\n')}\r\n`;
   await fsPromises.writeFile(filePath, content, 'utf8');
 };
 
