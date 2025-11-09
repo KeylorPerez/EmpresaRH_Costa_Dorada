@@ -326,11 +326,10 @@ const Planilla = () => {
     tipoPago === "Diario" ? salarioBaseReferencia : salarioBaseReferencia / 15;
   const diasDoblesValor = Number(formData.dias_dobles);
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
+  const ingresoManualDiasDobles =
+    (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
   const usaDoblesManual =
-    tipoPago === "Diario" &&
-    (!usaDetalleParaCalculos ||
-      (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) ||
-      diasDoblesManual > 0);
+    tipoPago !== "Diario" || !usaDetalleParaCalculos || ingresoManualDiasDobles;
   const diasDoblesAplicados = usaDoblesManual
     ? diasDoblesManual
     : Number(detalleDiasResumen.diasDobles) || 0;
@@ -347,7 +346,6 @@ const Planilla = () => {
       const resumenMonto = Number(detalleDiasResumen.montoDiasDobles) || 0;
       return Math.max(resumenMonto, 0);
     }
-    if (tipoPago !== "Diario") return 0;
     if (montoDiasDoblesManual !== null) {
       return Math.max(montoDiasDoblesManual, 0);
     }
@@ -369,7 +367,8 @@ const Planilla = () => {
       const base = salarioDiarioReferencia * diasTrabajadosAplicados + pagoExtraDiasDobles;
       return Number.isNaN(base) || base < 0 ? 0 : base;
     }
-    return Math.max(salarioBaseReferencia, 0);
+    const base = Math.max(salarioBaseReferencia, 0);
+    return usaDoblesManual ? base + pagoExtraDiasDobles : base;
   })();
   let deduccionDiasCalculada = 0;
   if (tipoPago === "Quincenal") {
@@ -1006,41 +1005,80 @@ const Planilla = () => {
                             )}
 
                             {!isEditing && selectedEmpleado?.tipo_pago === "Quincenal" && (
-                              <div className="mt-4 grid gap-4 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 md:grid-cols-2">
-                                <div className="flex flex-col gap-2">
-                                  <label htmlFor="dias_descuento" className="text-sm font-medium text-gray-700">
-                                    Días a descontar
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    id="dias_descuento"
-                                    name="dias_descuento"
-                                    value={formData.dias_descuento}
-                                    onChange={handleChange}
-                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
-                                  />
+                              <div className="mt-4 space-y-4 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
+                                <div className="text-sm font-semibold text-gray-700">
+                                  Ajustes para pago quincenal
                                 </div>
-                                <div className="flex flex-col gap-2">
-                                  <label htmlFor="monto_descuento_dias" className="text-sm font-medium text-gray-700">
-                                    Monto por días descontados
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    id="monto_descuento_dias"
-                                    name="monto_descuento_dias"
-                                    value={formData.monto_descuento_dias}
-                                    onChange={handleChange}
-                                    placeholder="Automático"
-                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
-                                  />
-                                  <p className="text-xs text-gray-500">
-                                    Deja el campo vacío para que el sistema calcule el monto según los días indicados; ajusta el valor para reflejar medios días u otros acuerdos.
-                                  </p>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="dias_descuento" className="text-sm font-medium text-gray-700">
+                                      Días a descontar
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="dias_descuento"
+                                      name="dias_descuento"
+                                      value={formData.dias_descuento}
+                                      onChange={handleChange}
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="monto_descuento_dias" className="text-sm font-medium text-gray-700">
+                                      Monto por días descontados
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="monto_descuento_dias"
+                                      name="monto_descuento_dias"
+                                      value={formData.monto_descuento_dias}
+                                      onChange={handleChange}
+                                      placeholder="Automático"
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="dias_dobles_quincenal" className="text-sm font-medium text-gray-700">
+                                      Días dobles a pagar
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="dias_dobles_quincenal"
+                                      name="dias_dobles"
+                                      value={formData.dias_dobles}
+                                      onChange={handleChange}
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label htmlFor="monto_dias_dobles_quincenal" className="text-sm font-medium text-gray-700">
+                                      Monto extra por días dobles
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      id="monto_dias_dobles_quincenal"
+                                      name="monto_dias_dobles"
+                                      value={formData.monto_dias_dobles}
+                                      onChange={handleChange}
+                                      placeholder="Automático"
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                      Deja el monto vacío para calcularlo según el salario diario o ingresa un valor personalizado si la empresa maneja otro criterio.
+                                    </p>
+                                  </div>
                                 </div>
+                                <p className="text-xs text-gray-500">
+                                  Utiliza estos campos para reflejar descuentos, medios días, días dobles y otros ajustes especiales.
+                                </p>
                               </div>
                             )}
 
