@@ -26,19 +26,20 @@ const Vacaciones = ({ mode }) => {
     rejectSolicitud,
     setError,
   } = useVacaciones();
+  const isAdmin = mode === "admin";
+  const estadoDefault = isAdmin ? "1" : "todos";
   const [diasAprobados, setDiasAprobados] = useState({});
-  const [estadoFiltro, setEstadoFiltro] = useState("todos");
+  const [estadoFiltro, setEstadoFiltro] = useState(estadoDefault);
   const [busquedaNombre, setBusquedaNombre] = useState("");
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState("");
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
 
   const hayFiltrosActivos =
-    estadoFiltro !== "todos" ||
+    estadoFiltro !== estadoDefault ||
     busquedaNombre.trim() !== "" ||
     fechaInicioFiltro !== "" ||
     fechaFinFiltro !== "";
 
-  const isAdmin = mode === "admin";
 
   const sidebarLinks = useMemo(() => {
     if (isAdmin) {
@@ -70,7 +71,7 @@ const Vacaciones = ({ mode }) => {
   };
 
   const handleResetFiltros = () => {
-    setEstadoFiltro("todos");
+    setEstadoFiltro(estadoDefault);
     setBusquedaNombre("");
     setFechaInicioFiltro("");
     setFechaFinFiltro("");
@@ -146,7 +147,7 @@ const Vacaciones = ({ mode }) => {
     try {
       await approveSolicitud(solicitud.id_vacacion, parsed);
       setDiasAprobados((prev) => ({ ...prev, [solicitud.id_vacacion]: "" }));
-    } catch (_) {
+    } catch {
       // El hook ya maneja el error
     }
   };
@@ -155,7 +156,7 @@ const Vacaciones = ({ mode }) => {
     try {
       await rejectSolicitud(solicitud.id_vacacion);
       setDiasAprobados((prev) => ({ ...prev, [solicitud.id_vacacion]: "" }));
-    } catch (_) {
+    } catch {
       // Error gestionado en el hook
     }
   };
@@ -261,6 +262,67 @@ const Vacaciones = ({ mode }) => {
               )}
             </header>
 
+            {isAdmin && (
+              <div className="mb-4 grid gap-4 md:grid-cols-4">
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Estado
+                  </label>
+                  <select
+                    value={estadoFiltro}
+                    onChange={(event) => setEstadoFiltro(event.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="todos">Todas</option>
+                    <option value="1">Pendientes</option>
+                    <option value="2">Aprobadas</option>
+                    <option value="3">Rechazadas</option>
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Buscar por nombre
+                  </label>
+                  <input
+                    type="text"
+                    value={busquedaNombre}
+                    onChange={(event) => setBusquedaNombre(event.target.value)}
+                    placeholder="Ej. Juan Pérez"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaInicioFiltro}
+                    onChange={(event) => setFechaInicioFiltro(event.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    max={fechaFinFiltro || undefined}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaFinFiltro}
+                    onChange={(event) => setFechaFinFiltro(event.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    min={fechaInicioFiltro || undefined}
+                  />
+                </div>
+                <div className="md:col-span-4 flex justify-end">
+                  <Button variant="secondary" size="sm" onClick={handleResetFiltros}>
+                    Limpiar filtros
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {filteredSolicitudes.length === 0 && !loading ? (
               <p className="text-gray-500 text-sm">
                 {isAdmin && hayFiltrosActivos
@@ -269,66 +331,6 @@ const Vacaciones = ({ mode }) => {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                {isAdmin && (
-                  <div className="mb-4 grid gap-4 md:grid-cols-4">
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                        Estado
-                      </label>
-                      <select
-                        value={estadoFiltro}
-                        onChange={(event) => setEstadoFiltro(event.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="todos">Todas</option>
-                        <option value="1">Pendientes</option>
-                        <option value="2">Aprobadas</option>
-                        <option value="3">Rechazadas</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                        Buscar por nombre
-                      </label>
-                      <input
-                        type="text"
-                        value={busquedaNombre}
-                        onChange={(event) => setBusquedaNombre(event.target.value)}
-                        placeholder="Ej. Juan Pérez"
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                        Desde
-                      </label>
-                      <input
-                        type="date"
-                        value={fechaInicioFiltro}
-                        onChange={(event) => setFechaInicioFiltro(event.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        max={fechaFinFiltro || undefined}
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                        Hasta
-                      </label>
-                      <input
-                        type="date"
-                        value={fechaFinFiltro}
-                        onChange={(event) => setFechaFinFiltro(event.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        min={fechaInicioFiltro || undefined}
-                      />
-                    </div>
-                    <div className="md:col-span-4 flex justify-end">
-                      <Button variant="secondary" size="sm" onClick={handleResetFiltros}>
-                        Limpiar filtros
-                      </Button>
-                    </div>
-                  </div>
-                )}
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                     <tr>
