@@ -187,7 +187,7 @@ const buildPdfLines = (planilla, detalles) => {
 
   const summaryLabelWidth = 24;
   const summaryValueWidth = 18;
-  const summaryLineWidth = 80;
+  const summaryLineWidth = 72;
   resumenFinanciero.forEach(([label, value]) => {
     const sanitizedValue = sanitizePdfText(value);
     const paddedLabel = label.padEnd(summaryLabelWidth, ' ');
