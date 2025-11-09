@@ -27,6 +27,13 @@ const planillaService = {
     const response = await api.put(`/planilla/${id}`, payload);
     return response.data;
   },
+
+  exportFile: async (id, format = 'pdf') => {
+    const response = await api.get(`/planilla/${id}/export`, {
+      params: { format },
+    });
+    return response.data;
+  },
 };
 
 export default planillaService;

@@ -1,8 +1,305 @@
+const fs = require('fs');
+const path = require('path');
 const Planilla = require('../models/Planilla');
 const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
 const DetallePlanilla = require('../models/DetallePlanilla');
+
+const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+const { promises: fsPromises } = fs;
+
+const currencyFormatter = new Intl.NumberFormat('es-CR', {
+  style: 'currency',
+  currency: 'CRC',
+  minimumFractionDigits: 2,
+});
+
+const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
+
+const formatDateValue = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  const iso = formatDateValue(value);
+  if (!iso || iso === '-') return '-';
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const capitalize = (text = '') => {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const wrapText = (text, maxLength = 95) => {
+  if (!text) return [''];
+  const words = text.split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const tentative = currentLine ? `${currentLine} ${word}` : word;
+    if (tentative.length > maxLength) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      if (word.length > maxLength) {
+        let remaining = word;
+        while (remaining.length > maxLength) {
+          lines.push(remaining.slice(0, maxLength));
+          remaining = remaining.slice(maxLength);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    } else {
+      currentLine = tentative;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+};
+
+const escapePdfText = (text = '') =>
+  text
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const chunkArray = (items, size) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [[]];
+  }
+
+  const result = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+};
+
+const ensureExportsDir = async () => {
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    await fsPromises.mkdir(EXPORTS_DIR, { recursive: true });
+  }
+};
+
+const buildPdfLines = (planilla, detalles) => {
+  const lines = [];
+  const nombreColaborador = [planilla.nombre, planilla.apellido]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || `ID ${planilla.id_empleado}`;
+
+  lines.push(`Planilla #${planilla.id_planilla}`);
+  lines.push('');
+  lines.push(`Colaborador: ${nombreColaborador}`);
+  lines.push(`Identificación: ${planilla.cedula || 'No registrada'}`);
+  lines.push(`Correo: ${planilla.email || 'No registrado'}`);
+  lines.push(`Periodo: ${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(planilla.periodo_fin)}`);
+  lines.push(`Fecha de pago: ${formatDateDisplay(planilla.fecha_pago)}`);
+  lines.push(`Tipo de pago: ${planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado'}`);
+  lines.push('');
+  lines.push('Resumen financiero:');
+  lines.push(`  Salario base: ${formatCurrency(planilla.salario_monto)}`);
+  lines.push(`  Horas extras: ${formatCurrency(planilla.horas_extras)}`);
+  lines.push(`  Bonificaciones: ${formatCurrency(planilla.bonificaciones)}`);
+  lines.push(`  Salario bruto: ${formatCurrency(planilla.salario_bruto)}`);
+  lines.push(`  CCSS: ${formatCurrency(planilla.ccss_deduccion)}`);
+  lines.push(`  Otras deducciones: ${formatCurrency(planilla.deducciones)}`);
+  const totalDeducciones = (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
+  lines.push(`  Total deducciones: ${formatCurrency(totalDeducciones)}`);
+  lines.push(`  Pago neto: ${formatCurrency(planilla.pago_neto)}`);
+  lines.push('');
+  lines.push('Detalle diario:');
+  lines.push('Fecha        | Día        | Asistencia   | Tipo        | Salario día        | Observación');
+  lines.push('-'.repeat(95));
+
+  if (!Array.isArray(detalles) || detalles.length === 0) {
+    lines.push('Sin registros de detalle para esta planilla.');
+    return lines;
+  }
+
+  detalles.forEach((detalle) => {
+    const fecha = formatDateDisplay(detalle.fecha).padEnd(12, ' ');
+    const dia = capitalize(detalle.dia_semana || '').padEnd(10, ' ');
+    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(12, ' ');
+    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(12, ' ');
+    const salario = formatCurrency(detalle.salario_dia).padEnd(18, ' ');
+    const observacion = detalle.observacion ? detalle.observacion.trim() : '';
+    const baseLine = `${fecha}| ${dia}| ${asistencia}| ${tipo}| ${salario}| ${observacion}`;
+    const wrapped = wrapText(baseLine, 95);
+    wrapped.forEach((line, index) => {
+      if (index === 0) {
+        lines.push(line);
+      } else {
+        lines.push(` ${line}`);
+      }
+    });
+  });
+
+  return lines;
+};
+
+const buildPdfContentStream = (lines) => {
+  const safeLines = lines.length > 0 ? lines : [''];
+  const instructions = ['BT', '/F1 12 Tf', '50 780 Td'];
+  instructions.push(`(${escapePdfText(safeLines[0])}) Tj`);
+  for (let i = 1; i < safeLines.length; i += 1) {
+    instructions.push('0 -16 Td');
+    instructions.push(`(${escapePdfText(safeLines[i])}) Tj`);
+  }
+  instructions.push('ET');
+  return instructions.join('\n');
+};
+
+const buildPdfBuffer = (pagesContent) => {
+  const contentStreams = pagesContent.length > 0 ? pagesContent : ['BT\n/F1 12 Tf\n50 780 Td\n() Tj\nET'];
+  const objects = [];
+
+  const addObject = (value) => {
+    objects.push(value);
+    return objects.length;
+  };
+
+  const catalogId = addObject(null);
+  const pagesId = addObject(null);
+  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+  const pageIds = contentStreams.map((streamContent) => {
+    const contentId = addObject({ stream: streamContent });
+    const pageIndex = addObject({ contentId });
+    return { pageIndex, contentId };
+  });
+
+  const kids = pageIds.map(({ pageIndex }) => `${pageIndex} 0 R`).join(' ');
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${kids}] /Count ${pageIds.length} >>`;
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+
+  pageIds.forEach(({ pageIndex, contentId }) => {
+    objects[pageIndex - 1] = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+  });
+
+  const buffers = [];
+  const header = '%PDF-1.4\n';
+  buffers.push(Buffer.from(header, 'utf8'));
+  let offset = header.length;
+  const xrefPositions = [0];
+
+  objects.forEach((obj, index) => {
+    xrefPositions.push(offset);
+    const objectId = index + 1;
+    const objectHeader = `${objectId} 0 obj\n`;
+    let bodyBuffer;
+    if (obj && typeof obj === 'object' && obj.stream !== undefined) {
+      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const streamBuffer = Buffer.from(streamString, 'utf8');
+      const body = `<< /Length ${streamBuffer.length} >>\nstream\n${streamString}\nendstream\n`;
+      bodyBuffer = Buffer.from(body, 'utf8');
+    } else {
+      const body = `${obj || ''}\n`;
+      bodyBuffer = Buffer.from(body, 'utf8');
+    }
+    const objectBuffer = Buffer.concat([
+      Buffer.from(objectHeader, 'utf8'),
+      bodyBuffer,
+      Buffer.from('endobj\n', 'utf8'),
+    ]);
+    buffers.push(objectBuffer);
+    offset += objectBuffer.length;
+  });
+
+  const xrefStart = offset;
+  const xrefHeader = `xref\n0 ${objects.length + 1}\n`;
+  const xrefLines = ['0000000000 65535 f \n'];
+  for (let i = 1; i < xrefPositions.length; i += 1) {
+    xrefLines.push(`${xrefPositions[i].toString().padStart(10, '0')} 00000 n \n`);
+  }
+  const xrefBuffer = Buffer.from(xrefHeader + xrefLines.join(''), 'utf8');
+  buffers.push(xrefBuffer);
+  offset += xrefBuffer.length;
+
+  const trailer = `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  buffers.push(Buffer.from(trailer, 'utf8'));
+
+  return Buffer.concat(buffers);
+};
+
+const createPdfFile = async (filePath, planilla, detalles) => {
+  const lines = buildPdfLines(planilla, detalles);
+  const pages = chunkArray(lines, 40);
+  const contentStreams = pages.map((pageLines) => buildPdfContentStream(pageLines));
+  const pdfBuffer = buildPdfBuffer(contentStreams);
+  await fsPromises.writeFile(filePath, pdfBuffer);
+};
+
+const escapeCsv = (value) => {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (/[";\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+const createCsvFile = async (filePath, planilla, detalles) => {
+  const nombreColaborador = [planilla.nombre, planilla.apellido]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || `ID ${planilla.id_empleado}`;
+  const totalDeducciones = (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
+
+  const lines = [];
+  lines.push(`Planilla #${planilla.id_planilla}`);
+  lines.push(`Colaborador;${escapeCsv(nombreColaborador)}`);
+  lines.push(`Identificación;${escapeCsv(planilla.cedula || 'No registrada')}`);
+  lines.push(`Correo;${escapeCsv(planilla.email || 'No registrado')}`);
+  lines.push(`Periodo;${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(planilla.periodo_fin)}`);
+  lines.push(`Fecha de pago;${formatDateDisplay(planilla.fecha_pago)}`);
+  lines.push(`Tipo de pago;${escapeCsv(planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado')}`);
+  lines.push('');
+  lines.push('Resumen financiero');
+  lines.push(`Salario base;${formatCurrency(planilla.salario_monto)}`);
+  lines.push(`Horas extras;${formatCurrency(planilla.horas_extras)}`);
+  lines.push(`Bonificaciones;${formatCurrency(planilla.bonificaciones)}`);
+  lines.push(`Salario bruto;${formatCurrency(planilla.salario_bruto)}`);
+  lines.push(`CCSS;${formatCurrency(planilla.ccss_deduccion)}`);
+  lines.push(`Otras deducciones;${formatCurrency(planilla.deducciones)}`);
+  lines.push(`Total deducciones;${formatCurrency(totalDeducciones)}`);
+  lines.push(`Pago neto;${formatCurrency(planilla.pago_neto)}`);
+  lines.push('');
+  lines.push('Detalle');
+  lines.push('Fecha;Día;Asistencia;Tipo;Salario día;Observación');
+
+  if (Array.isArray(detalles) && detalles.length > 0) {
+    detalles.forEach((detalle) => {
+      const fila = [
+        formatDateValue(detalle.fecha),
+        capitalize(detalle.dia_semana || ''),
+        detalle.asistio ? 'Asistió' : 'Faltó',
+        detalle.es_dia_doble ? 'Día doble' : 'Normal',
+        Number(detalle.salario_dia || 0).toFixed(2),
+        escapeCsv(detalle.observacion || ''),
+      ].join(';');
+      lines.push(fila);
+    });
+  } else {
+    lines.push('Sin registros;;;;;');
+  }
+
+  const content = `${lines.join('\n')}\n`;
+  await fsPromises.writeFile(filePath, content, 'utf8');
+};
 
 // 🔹 Obtener planillas
 const getPlanilla = async (req, res) => {
@@ -181,4 +478,66 @@ const getPlanillaDetalle = async (req, res) => {
   }
 };
 
-module.exports = { getPlanilla, calcularPlanilla, updatePlanilla, getPlanillaAttendance, getPlanillaDetalle };
+const exportPlanillaArchivo = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || user.id_rol !== 1) {
+      return res.status(403).json({ error: 'Solo admin puede exportar planillas' });
+    }
+
+    const id_planilla = parseInt(req.params.id, 10);
+    if (Number.isNaN(id_planilla)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const formatParam = (req.query.format || 'pdf').toLowerCase();
+    const formatMap = new Map([
+      ['pdf', 'pdf'],
+      ['excel', 'excel'],
+      ['xls', 'excel'],
+      ['xlsx', 'excel'],
+      ['csv', 'excel'],
+    ]);
+    const format = formatMap.get(formatParam);
+
+    if (!format) {
+      return res.status(400).json({ error: 'Formato de exportación no soportado' });
+    }
+
+    const planilla = await Planilla.getById(id_planilla);
+    if (!planilla) {
+      return res.status(404).json({ error: 'Planilla no encontrada' });
+    }
+
+    const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
+
+    await ensureExportsDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const baseName = `planilla-${id_planilla}-${timestamp}`;
+    const extension = format === 'pdf' ? 'pdf' : 'csv';
+    const filename = `${baseName}.${extension}`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    if (format === 'pdf') {
+      await createPdfFile(filePath, planilla, detalles);
+    } else {
+      await createCsvFile(filePath, planilla, detalles);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicUrl = `${baseUrl}/files/${filename}`;
+
+    return res.json({ url: publicUrl, filename, format });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  getPlanilla,
+  calcularPlanilla,
+  updatePlanilla,
+  getPlanillaAttendance,
+  getPlanillaDetalle,
+  exportPlanillaArchivo,
+};

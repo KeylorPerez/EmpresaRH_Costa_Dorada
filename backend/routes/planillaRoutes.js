@@ -6,6 +6,7 @@ const {
   updatePlanilla,
   getPlanillaAttendance,
   getPlanillaDetalle,
+  exportPlanillaArchivo,
 } = require('../controllers/planillaController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -14,6 +15,9 @@ router.get('/', authenticateToken, getPlanilla);
 
 // GET /api/planilla/asistencia -> resumen de días laborados para colaboradores con pago diario (solo admin)
 router.get('/asistencia', authenticateToken, authorizeRoles(1), getPlanillaAttendance);
+
+// GET /api/planilla/:id/export -> exportar planilla en PDF o Excel (solo admin)
+router.get('/:id/export', authenticateToken, authorizeRoles(1), exportPlanillaArchivo);
 
 // GET /api/planilla/:id/detalle -> detalle diario de una planilla (solo admin)
 router.get('/:id/detalle', authenticateToken, authorizeRoles(1), getPlanillaDetalle);
