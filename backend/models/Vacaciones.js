@@ -39,18 +39,19 @@ class Vacaciones {
   }
 
   // 🔹 Crear solicitud (empleado)
-  static async create({ id_empleado, fecha_inicio, fecha_fin }) {
+  static async create({ id_empleado, fecha_inicio, fecha_fin, motivo = null }) {
     try {
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .input('fecha_inicio', sql.Date, fecha_inicio)
         .input('fecha_fin', sql.Date, fecha_fin)
+        .input('motivo', sql.NVarChar(200), motivo)
         .input('dias_aprobados', sql.Int, 0) // pendiente, por defecto 0
         .input('id_estado', sql.Int, 1) // pendiente
         .query(`
-          INSERT INTO Vacaciones (id_empleado, fecha_inicio, fecha_fin, dias_aprobados, id_estado, created_at, updated_at)
-          VALUES (@id_empleado, @fecha_inicio, @fecha_fin, @dias_aprobados, @id_estado, GETDATE(), GETDATE());
+          INSERT INTO Vacaciones (id_empleado, fecha_inicio, fecha_fin, motivo, dias_aprobados, id_estado, created_at, updated_at)
+          VALUES (@id_empleado, @fecha_inicio, @fecha_fin, @motivo, @dias_aprobados, @id_estado, GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_vacacion;
         `);
       return result.recordset[0];
