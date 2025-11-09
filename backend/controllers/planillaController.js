@@ -208,15 +208,19 @@ const buildPdfLines = (planilla, detalles) => {
     dia: 13,
     asistencia: 13,
     tipo: 12,
-    salario: 18,
+    estado: 13,
+    justificado: 12,
+    salario: 16,
   };
   const headerLine = [
     'Fecha'.padEnd(columnWidths.fecha, ' '),
     'Día'.padEnd(columnWidths.dia, ' '),
     'Asistencia'.padEnd(columnWidths.asistencia, ' '),
     'Tipo'.padEnd(columnWidths.tipo, ' '),
+    'Estado'.padEnd(columnWidths.estado, ' '),
+    'Justificado'.padEnd(columnWidths.justificado, ' '),
     'Salario día'.padEnd(columnWidths.salario, ' '),
-    'Observación',
+    'Notas',
   ].join(' | ');
   lines.push(headerLine);
   lines.push(sectionDivider);
@@ -237,21 +241,36 @@ const buildPdfLines = (planilla, detalles) => {
       columnWidths.tipo,
       ' ',
     );
+    const estado = sanitizePdfText(detalle.estado || 'Presente').padEnd(
+      columnWidths.estado,
+      ' ',
+    );
+    const justificado = (detalle.justificado ? 'Sí' : 'No').padEnd(
+      columnWidths.justificado,
+      ' ',
+    );
     const salario = formatCurrency(detalle.salario_dia).padEnd(columnWidths.salario, ' ');
+    const justificacion = sanitizePdfText(
+      detalle.justificacion ? detalle.justificacion.trim() : '',
+    );
     const observacion = sanitizePdfText(detalle.observacion ? detalle.observacion.trim() : '');
-    const basePrefix = [fecha, dia, asistencia, tipo, salario].join(' | ');
-    const maxObservationWidth = Math.max(0, 95 - (basePrefix.length + 3));
-    const observationLines =
-      observacion && maxObservationWidth > 0
-        ? wrapText(observacion, maxObservationWidth)
-        : [observacion];
+    const notas = [
+      justificacion ? `Justificación: ${justificacion}` : '',
+      observacion ? `Observación: ${observacion}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    const basePrefix = [fecha, dia, asistencia, tipo, estado, justificado, salario].join(' | ');
+    const maxNotesWidth = Math.max(0, 95 - (basePrefix.length + 3));
+    const notesLines =
+      notas && maxNotesWidth > 0 ? wrapText(notas, maxNotesWidth) : [notas];
 
-    observationLines.forEach((obsLine, index) => {
+    notesLines.forEach((noteLine, index) => {
       if (index === 0) {
-        lines.push(`${basePrefix} | ${obsLine}`.trimEnd());
+        lines.push(`${basePrefix} | ${noteLine}`.trimEnd());
       } else {
-        const continuedObservation = obsLine ? obsLine : '';
-        lines.push(`${' '.repeat(basePrefix.length)} | ${continuedObservation}`.trimEnd());
+        const continued = noteLine ? noteLine : '';
+        lines.push(`${' '.repeat(basePrefix.length)} | ${continued}`.trimEnd());
       }
     });
     lines.push(sectionDivider);
@@ -402,7 +421,7 @@ const createCsvFile = async (filePath, planilla, detalles) => {
   lines.push(`Pago neto;${formatCurrency(planilla.pago_neto)}`);
   lines.push('');
   lines.push('Detalle');
-  lines.push('Fecha;Día;Asistencia;Tipo;Salario día;Observación');
+  lines.push('Fecha;Día;Asistencia;Tipo;Estado;Justificado;Salario día;Justificación;Observación');
 
   if (Array.isArray(detalles) && detalles.length > 0) {
     detalles.forEach((detalle) => {
@@ -411,7 +430,10 @@ const createCsvFile = async (filePath, planilla, detalles) => {
         capitalize(detalle.dia_semana || ''),
         detalle.asistio ? 'Asistió' : 'Faltó',
         detalle.es_dia_doble ? 'Día doble' : 'Normal',
+        escapeCsv(detalle.estado || 'Presente'),
+        detalle.justificado ? 'Sí' : 'No',
         Number(detalle.salario_dia || 0).toFixed(2),
+        escapeCsv(detalle.justificacion || ''),
         escapeCsv(detalle.observacion || ''),
       ].join(';');
       lines.push(fila);

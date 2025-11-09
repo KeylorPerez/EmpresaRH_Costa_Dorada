@@ -2,6 +2,8 @@ const { poolPromise, sql } = require('../db/db');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+
 class Planilla {
   // 🔹 Obtener todas las planillas (admin)
   static async getAll() {
@@ -263,17 +265,43 @@ class Planilla {
 
         const detallesSanitizados = Array.isArray(detalles)
           ? detalles
-              .map((detalle) => ({
-                fecha: detalle.fecha,
-                dia_semana: detalle.dia_semana,
-                salario_dia: Number(Number(detalle.salario_dia || 0).toFixed(2)),
-                asistio: Boolean(detalle.asistio),
-                es_dia_doble: Boolean(detalle.es_dia_doble),
-                observacion:
-                  detalle.observacion !== undefined && detalle.observacion !== null
-                    ? String(detalle.observacion).slice(0, 150)
-                    : null,
-              }))
+              .map((detalle) => {
+                const estadoTexto =
+                  typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
+                const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto)
+                  ? estadoTexto
+                  : 'Presente';
+
+                const justificadoValor =
+                  detalle.justificado === true ||
+                  detalle.justificado === 1 ||
+                  detalle.justificado === '1';
+
+                const justificacionTexto = (() => {
+                  if (!justificadoValor) return null;
+                  if (detalle.justificacion === undefined || detalle.justificacion === null) {
+                    return null;
+                  }
+                  const texto = String(detalle.justificacion).trim();
+                  if (!texto) return null;
+                  return texto.length > 500 ? texto.slice(0, 500) : texto;
+                })();
+
+                return {
+                  fecha: detalle.fecha,
+                  dia_semana: detalle.dia_semana,
+                  salario_dia: Number(Number(detalle.salario_dia || 0).toFixed(2)),
+                  asistio: Boolean(detalle.asistio),
+                  es_dia_doble: Boolean(detalle.es_dia_doble),
+                  estado: estadoNormalizado,
+                  justificado: justificadoValor,
+                  justificacion: justificacionTexto,
+                  observacion:
+                    detalle.observacion !== undefined && detalle.observacion !== null
+                      ? String(detalle.observacion).slice(0, 150)
+                      : null,
+                };
+              })
               .filter((detalle) => Boolean(detalle.fecha) && Boolean(detalle.dia_semana))
           : [];
 
