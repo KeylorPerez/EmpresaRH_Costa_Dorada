@@ -186,7 +186,7 @@ const buildPdfBuffer = (pagesContent) => {
 
   const catalogId = addObject(null);
   const pagesId = addObject(null);
-  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
 
   const pageIds = contentStreams.map((streamContent) => {
     const contentId = addObject({ stream: streamContent });
