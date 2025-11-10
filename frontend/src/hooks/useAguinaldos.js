@@ -77,12 +77,22 @@ const formatDateInput = (value) => {
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  const offsetMinutes = date.getTimezoneOffset();
-  const localDate = new Date(date.getTime() - offsetMinutes * 60 * 1000);
+  const looksLikeUtcMidnight =
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0 &&
+    (date.getHours() !== 0 ||
+      date.getMinutes() !== 0 ||
+      date.getSeconds() !== 0 ||
+      date.getMilliseconds() !== 0);
 
-  const year = localDate.getUTCFullYear();
-  const month = String(localDate.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(localDate.getUTCDate()).padStart(2, "0");
+  const year = looksLikeUtcMidnight ? date.getUTCFullYear() : date.getFullYear();
+  const monthIndex = looksLikeUtcMidnight ? date.getUTCMonth() : date.getMonth();
+  const dayValue = looksLikeUtcMidnight ? date.getUTCDate() : date.getDate();
+
+  const month = String(monthIndex + 1).padStart(2, "0");
+  const day = String(dayValue).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
