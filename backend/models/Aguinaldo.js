@@ -184,7 +184,12 @@ class Aguinaldo {
         fechaInicioParaGuardar = inicioCalculo;
 
         const MS_POR_DIA = 24 * 60 * 60 * 1000;
-        const diasPeriodo = Math.max(Math.floor((finPeriodo - inicioPeriodo) / MS_POR_DIA) + 1, 1);
+        const inicioReferenciaPeriodo =
+          inicioPeriodo < defaultInicio ? inicioPeriodo : defaultInicio;
+        const diasPeriodo = Math.max(
+          Math.floor((finPeriodo - inicioReferenciaPeriodo) / MS_POR_DIA) + 1,
+          1
+        );
         const diasTrabajados = Math.max(Math.floor((finPeriodo - inicioCalculo) / MS_POR_DIA) + 1, 0);
 
         const salarioBaseReferencia = (() => {
