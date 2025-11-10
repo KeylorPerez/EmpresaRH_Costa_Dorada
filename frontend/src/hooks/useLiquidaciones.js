@@ -248,7 +248,7 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
           fecha_liquidacion: fecha,
         });
         setSuccessMessage("Liquidación aprobada correctamente");
-      } catch (_) {
+      } catch {
         // El error ya se gestiona en updateLiquidacion
       }
     },
@@ -264,7 +264,7 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
           aprobado_por: null,
         });
         setSuccessMessage("Liquidación rechazada correctamente");
-      } catch (_) {
+      } catch {
         // El error ya se gestiona en updateLiquidacion
       }
     },

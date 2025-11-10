@@ -28,10 +28,11 @@ const Puestos = () => {
     { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
     { path: "/admin/puestos", label: "Puestos" },
-    { path: "/admin/planilla", label: "Planilla" },
-    { path: "/admin/vacaciones", label: "Vacaciones" },
-    { path: "/admin/prestamos", label: "Préstamos" },
-    { path: "/admin/liquidaciones", label: "Liquidaciones" },
+  { path: "/admin/planilla", label: "Planilla" },
+  { path: "/admin/vacaciones", label: "Vacaciones" },
+  { path: "/admin/prestamos", label: "Préstamos" },
+  { path: "/admin/liquidaciones", label: "Liquidaciones" },
+  { path: "/admin/aguinaldos", label: "Aguinaldos" },
   ];
 
   if (!user) return <p>Cargando usuario...</p>;

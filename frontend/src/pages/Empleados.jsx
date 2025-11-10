@@ -44,10 +44,11 @@ const Empleados = () => {
     { path: "/admin/usuarios", label: "Usuarios" },
     { path: "/admin/empleados", label: "Empleados" },
     { path: "/admin/puestos", label: "Puestos" },
-    { path: "/admin/planilla", label: "Planilla" },
-    { path: "/admin/vacaciones", label: "Vacaciones" },
-    { path: "/admin/prestamos", label: "Préstamos" },
-    { path: "/admin/liquidaciones", label: "Liquidaciones" },
+  { path: "/admin/planilla", label: "Planilla" },
+  { path: "/admin/vacaciones", label: "Vacaciones" },
+  { path: "/admin/prestamos", label: "Préstamos" },
+  { path: "/admin/liquidaciones", label: "Liquidaciones" },
+  { path: "/admin/aguinaldos", label: "Aguinaldos" },
   ];
 
   if (!user) return <p>Cargando usuario...</p>;
@@ -219,12 +220,12 @@ const Empleados = () => {
                           <td className="px-4 py-3">
                             <span
                               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                Boolean(Number(emp.permitir_marcacion_fuera))
+                                Number(emp.permitir_marcacion_fuera) === 1
                                   ? "bg-indigo-100 text-indigo-700"
                                   : "bg-gray-100 text-gray-600"
                               }`}
                             >
-                              {Boolean(Number(emp.permitir_marcacion_fuera))
+                              {Number(emp.permitir_marcacion_fuera) === 1
                                 ? "Permitida"
                                 : "Restringida"}
                             </span>
