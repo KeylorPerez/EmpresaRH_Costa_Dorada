@@ -71,12 +71,43 @@ class Aguinaldo {
     salarioQuincenal = null,
     fechaIngresoManual = null,
     tipoPagoManual = null,
+    fechaInicioPeriodo = null,
+    fechaFinPeriodo = null,
+    observacion = null,
   }) {
     try {
       const pool = await poolPromise;
 
-      const inicioPeriodo = new Date(anio - 1, 11, 1);
-      const finPeriodo = new Date(anio, 10, 30, 23, 59, 59, 997);
+      const parseFecha = (valor) => {
+        if (!valor) return null;
+        const fecha = valor instanceof Date ? new Date(valor) : new Date(valor);
+        if (Number.isNaN(fecha.getTime())) return null;
+        return fecha;
+      };
+
+      const defaultInicio = new Date(anio - 1, 11, 1);
+      defaultInicio.setHours(0, 0, 0, 0);
+      const defaultFin = new Date(anio, 10, 30);
+      defaultFin.setHours(23, 59, 59, 997);
+
+      const inicioPeriodo = parseFecha(fechaInicioPeriodo) || defaultInicio;
+      inicioPeriodo.setHours(0, 0, 0, 0);
+      const finPeriodo = parseFecha(fechaFinPeriodo) || defaultFin;
+      finPeriodo.setHours(23, 59, 59, 997);
+
+      if (finPeriodo < inicioPeriodo) {
+        const error = new Error('La fecha fin del periodo no puede ser anterior a la fecha de inicio');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const observacionNormalizada = (() => {
+        if (typeof observacion !== 'string') return null;
+        const trimmed = observacion.trim();
+        if (!trimmed) return null;
+        return trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed;
+      })();
+
       const metodoNormalizado = metodo === 'manual' ? 'manual' : 'automatico';
 
       let salarioPromedio;
@@ -100,17 +131,10 @@ class Aguinaldo {
           throw error;
         }
 
-        const parseDate = (value) => {
-          if (!value) return null;
-          const date = value instanceof Date ? value : new Date(value);
-          if (Number.isNaN(date.getTime())) return null;
-          return date;
-        };
-
         const fechaIngresoBase = (() => {
-          const preferenciaManual = parseDate(fechaIngresoManual);
+          const preferenciaManual = parseFecha(fechaIngresoManual);
           if (preferenciaManual) return preferenciaManual;
-          return parseDate(empleado.fecha_ingreso);
+          return parseFecha(empleado.fecha_ingreso);
         })();
 
         if (!fechaIngresoBase) {
@@ -287,11 +311,17 @@ class Aguinaldo {
           .input('id_aguinaldo', sql.Int, idAguinaldo)
           .input('salario_promedio', sql.Decimal(12, 2), salarioPromedio)
           .input('monto_aguinaldo', sql.Decimal(12, 2), montoAguinaldo)
+          .input('fecha_inicio_periodo', sql.Date, inicioPeriodo)
+          .input('fecha_fin_periodo', sql.Date, finPeriodo)
+          .input('observacion', sql.VarChar(200), observacionNormalizada)
           .query(`
             UPDATE Aguinaldos
             SET salario_promedio = @salario_promedio,
                 monto_aguinaldo = @monto_aguinaldo,
-                fecha_calculo = GETDATE()
+                fecha_calculo = GETDATE(),
+                fecha_inicio_periodo = @fecha_inicio_periodo,
+                fecha_fin_periodo = @fecha_fin_periodo,
+                observacion = @observacion
             WHERE id_aguinaldo = @id_aguinaldo
           `);
       } else {
@@ -301,9 +331,12 @@ class Aguinaldo {
           .input('anio', sql.Int, anio)
           .input('salario_promedio', sql.Decimal(12, 2), salarioPromedio)
           .input('monto_aguinaldo', sql.Decimal(12, 2), montoAguinaldo)
+          .input('fecha_inicio_periodo', sql.Date, inicioPeriodo)
+          .input('fecha_fin_periodo', sql.Date, finPeriodo)
+          .input('observacion', sql.VarChar(200), observacionNormalizada)
           .query(`
-            INSERT INTO Aguinaldos (id_empleado, anio, salario_promedio, monto_aguinaldo, fecha_calculo, pagado)
-            VALUES (@id_empleado, @anio, @salario_promedio, @monto_aguinaldo, GETDATE(), 0);
+            INSERT INTO Aguinaldos (id_empleado, anio, salario_promedio, monto_aguinaldo, fecha_calculo, pagado, fecha_inicio_periodo, fecha_fin_periodo, observacion)
+            VALUES (@id_empleado, @anio, @salario_promedio, @monto_aguinaldo, GETDATE(), 0, @fecha_inicio_periodo, @fecha_fin_periodo, @observacion);
             SELECT SCOPE_IDENTITY() AS id_aguinaldo;
           `);
 
@@ -325,12 +358,18 @@ class Aguinaldo {
           monto_aguinaldo: montoAguinaldo,
           fecha_calculo: new Date().toISOString(),
           pagado: pagadoActual,
+          fecha_inicio_periodo: inicioPeriodo,
+          fecha_fin_periodo: finPeriodo,
+          observacion: observacionNormalizada,
           detalle_calculo: detalleCalculo,
         };
       }
 
       return {
         ...aguinaldo,
+        fecha_inicio_periodo: aguinaldo.fecha_inicio_periodo || inicioPeriodo,
+        fecha_fin_periodo: aguinaldo.fecha_fin_periodo || finPeriodo,
+        observacion: aguinaldo.observacion || observacionNormalizada,
         detalle_calculo: detalleCalculo,
       };
     } catch (err) {

@@ -44,6 +44,14 @@ const formatearFechaInput = (value) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
 const Aguinaldos = ({ mode }) => {
   const isAdminView = mode === "admin";
   const { user, logoutUser } = useAuth();
@@ -83,14 +91,20 @@ const Aguinaldos = ({ mode }) => {
   const periodoCalculo = useMemo(() => {
     const anioNumero = Number(formData.anio);
     const anioValido = Number.isInteger(anioNumero) ? anioNumero : new Date().getFullYear();
-    const inicio = new Date(anioValido - 1, 11, 1);
-    const fin = new Date(anioValido, 10, 30);
+    const inicioDefecto = new Date(anioValido - 1, 11, 1);
+    inicioDefecto.setHours(0, 0, 0, 0);
+    const finDefecto = new Date(anioValido, 10, 30);
+    finDefecto.setHours(0, 0, 0, 0);
+    const inicio = parseDateOnly(formData.fecha_inicio_periodo) || inicioDefecto;
+    const fin = parseDateOnly(formData.fecha_fin_periodo) || finDefecto;
+    const inicioTexto = formatearFechaLarga(inicio) || formatearFechaInput(inicio);
+    const finTexto = formatearFechaLarga(fin) || formatearFechaInput(fin);
     return {
       inicio,
       fin,
-      etiqueta: `${formatearFechaLarga(inicio)} al ${formatearFechaLarga(fin)}`,
+      etiqueta: `${inicioTexto} al ${finTexto}`,
     };
-  }, [formData.anio]);
+  }, [formData.anio, formData.fecha_inicio_periodo, formData.fecha_fin_periodo]);
 
   const limitesFechaManual = useMemo(() => {
     return {
@@ -276,6 +290,60 @@ const Aguinaldos = ({ mode }) => {
                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
+                </div>
+
+                <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Inicio del periodo de cálculo
+                    </label>
+                    <input
+                      type="date"
+                      name="fecha_inicio_periodo"
+                      value={formData.fecha_inicio_periodo || ""}
+                      onChange={handleChange}
+                      max={formData.fecha_fin_periodo || undefined}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Corresponde al primer día considerado para el cálculo del aguinaldo.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Fin del periodo de cálculo
+                    </label>
+                    <input
+                      type="date"
+                      name="fecha_fin_periodo"
+                      value={formData.fecha_fin_periodo || ""}
+                      onChange={handleChange}
+                      min={formData.fecha_inicio_periodo || undefined}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Debe ser el último día del periodo a evaluar. No puede ser anterior a la fecha de inicio.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1">Observación</label>
+                  <textarea
+                    name="observacion"
+                    value={formData.observacion || ""}
+                    onChange={handleChange}
+                    rows={2}
+                    maxLength={200}
+                    placeholder="Comentarios adicionales sobre el cálculo (opcional)"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Máximo 200 caracteres. Esta nota se guardará junto al registro del aguinaldo.
+                  </p>
                 </div>
 
                 <div className="md:col-span-2">
@@ -485,7 +553,9 @@ const Aguinaldos = ({ mode }) => {
                       {isAdminView && <th className="px-4 py-3 text-left">Colaborador</th>}
                       <th className="px-4 py-3 text-left">Salario promedio</th>
                       <th className="px-4 py-3 text-left">Monto aguinaldo</th>
+                      <th className="px-4 py-3 text-left">Periodo</th>
                       <th className="px-4 py-3 text-left">Fecha cálculo</th>
+                      <th className="px-4 py-3 text-left">Observación</th>
                       <th className="px-4 py-3 text-left">Estado</th>
                       {isAdminView && <th className="px-4 py-3 text-left">Acciones</th>}
                     </tr>
@@ -512,7 +582,21 @@ const Aguinaldos = ({ mode }) => {
                           {formatearMontoCRC(registro.monto_aguinaldo)}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
+                          {registro.fecha_inicio_periodo || registro.fecha_fin_periodo
+                            ? `${formatearFechaCorta(registro.fecha_inicio_periodo)} al ${formatearFechaCorta(
+                                registro.fecha_fin_periodo
+                              )}`
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
                           {formatearFechaCorta(registro.fecha_calculo)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {registro.observacion ? (
+                            <span>{registro.observacion}</span>
+                          ) : (
+                            <span className="text-gray-400">Sin observación</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">{estadoBadge(registro.pagado)}</td>
                         {isAdminView && <td className="px-4 py-3">{renderAcciones(registro)}</td>}

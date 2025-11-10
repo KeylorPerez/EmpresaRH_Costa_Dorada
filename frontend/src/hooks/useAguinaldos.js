@@ -42,18 +42,24 @@ const calcularPromedio = (valores) => {
   return Number((suma / valores.length).toFixed(2));
 };
 
-const createInitialForm = () => ({
-  id_empleado: "",
-  anio: currentYear(),
-  metodo: "manual",
-  salario_quincenal: "",
-  fecha_ingreso_manual: "",
-  incluir_bonificaciones: true,
-  incluir_horas_extra: false,
-  tipo_pago_empleado: "",
-  puesto_nombre: "",
-  salarios_quincenales: "",
-});
+const createInitialForm = (anioValor = currentYear()) => {
+  const periodo = getPeriodoPorAnio(anioValor);
+  return {
+    id_empleado: "",
+    anio: String(anioValor),
+    metodo: "manual",
+    salario_quincenal: "",
+    fecha_ingreso_manual: "",
+    incluir_bonificaciones: true,
+    incluir_horas_extra: false,
+    tipo_pago_empleado: "",
+    puesto_nombre: "",
+    salarios_quincenales: "",
+    fecha_inicio_periodo: formatDateInput(periodo.inicio),
+    fecha_fin_periodo: formatDateInput(periodo.fin),
+    observacion: "",
+  };
+};
 
 const formatDateInput = (value) => {
   if (!value) return "";
@@ -88,18 +94,27 @@ const getPeriodoPorAnio = (anio) => {
   return { inicio, fin };
 };
 
-const clampDateToPeriodo = (value, anio) => {
-  if (!value) return "";
+const parseDateOnly = (value) => {
+  if (!value) return null;
   const date = value instanceof Date ? new Date(value) : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
-  const { inicio, fin } = getPeriodoPorAnio(anio);
+const clampDateToPeriodo = (value, periodo) => {
+  if (!value) return "";
+  const date = parseDateOnly(value);
+  if (!date) return "";
 
-  if (date < inicio) {
+  const inicio = periodo?.inicio ? parseDateOnly(periodo.inicio) : null;
+  const fin = periodo?.fin ? parseDateOnly(periodo.fin) : null;
+
+  if (inicio && date < inicio) {
     return formatDateInput(inicio);
   }
 
-  if (date > fin) {
+  if (fin && date > fin) {
     return formatDateInput(fin);
   }
 
@@ -137,6 +152,15 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState(() => createInitialForm());
+
+  const obtenerPeriodo = useCallback((state, overrides = {}) => {
+    const anioReferencia = overrides.anio ?? state.anio;
+    const base = getPeriodoPorAnio(anioReferencia);
+    const inicio =
+      parseDateOnly(overrides.fecha_inicio_periodo ?? state.fecha_inicio_periodo) || base.inicio;
+    const fin = parseDateOnly(overrides.fecha_fin_periodo ?? state.fecha_fin_periodo) || base.fin;
+    return { inicio, fin };
+  }, []);
 
   const fetchAguinaldos = useCallback(async () => {
     try {
@@ -188,11 +212,11 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         const selected = empleados.find(
           (empleado) => String(empleado.id_empleado) === String(value)
         );
-        const periodo = getPeriodoPorAnio(prev.anio);
+        const periodo = obtenerPeriodo(prev);
         const fechaPorDefecto = formatDateInput(periodo.inicio);
         const fechaClampeada = clampDateToPeriodo(
           selected?.fecha_ingreso || fechaPorDefecto,
-          prev.anio
+          periodo
         ) || fechaPorDefecto;
         return {
           ...prev,
@@ -217,13 +241,15 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         const fechaPorDefecto = formatDateInput(periodo.inicio);
         const fechaClampeada = clampDateToPeriodo(
           prev.fecha_ingreso_manual || fechaPorDefecto,
-          nuevoAnio
+          periodo
         ) || fechaPorDefecto;
 
         return {
           ...prev,
           anio: nuevoAnio,
           fecha_ingreso_manual: fechaClampeada,
+          fecha_inicio_periodo: formatDateInput(periodo.inicio),
+          fecha_fin_periodo: formatDateInput(periodo.fin),
         };
       });
       return;
@@ -231,12 +257,73 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
 
     if (name === "fecha_ingreso_manual") {
       setFormData((prev) => {
-        const fechaClampeada = clampDateToPeriodo(value, prev.anio);
+        const periodo = obtenerPeriodo(prev);
+        const fechaClampeada = clampDateToPeriodo(value, periodo);
         return {
           ...prev,
           fecha_ingreso_manual: fechaClampeada,
         };
       });
+      return;
+    }
+
+    if (name === "fecha_inicio_periodo") {
+      setFormData((prev) => {
+        const basePeriodo = obtenerPeriodo(prev, { fecha_inicio_periodo: value });
+        const nuevoInicio = parseDateOnly(value) || basePeriodo.inicio;
+        const inicioNormalizado = formatDateInput(nuevoInicio);
+        const finActual = parseDateOnly(prev.fecha_fin_periodo) || basePeriodo.fin;
+        const finNormalizado =
+          finActual < nuevoInicio ? formatDateInput(nuevoInicio) : formatDateInput(finActual);
+        const periodoAjustado = {
+          inicio: nuevoInicio,
+          fin: finActual < nuevoInicio ? nuevoInicio : finActual,
+        };
+        const fechaIngresoNormalizada = prev.fecha_ingreso_manual
+          ? clampDateToPeriodo(prev.fecha_ingreso_manual, periodoAjustado) || inicioNormalizado
+          : inicioNormalizado;
+
+        return {
+          ...prev,
+          fecha_inicio_periodo: inicioNormalizado,
+          fecha_fin_periodo: finNormalizado,
+          fecha_ingreso_manual: fechaIngresoNormalizada,
+        };
+      });
+      return;
+    }
+
+    if (name === "fecha_fin_periodo") {
+      setFormData((prev) => {
+        const basePeriodo = obtenerPeriodo(prev, { fecha_fin_periodo: value });
+        const inicioActual = parseDateOnly(prev.fecha_inicio_periodo) || basePeriodo.inicio;
+        const nuevoFin = parseDateOnly(value) || basePeriodo.fin;
+        const finNormalizado =
+          nuevoFin < inicioActual ? formatDateInput(inicioActual) : formatDateInput(nuevoFin);
+        const periodoAjustado = {
+          inicio: inicioActual,
+          fin: nuevoFin < inicioActual ? inicioActual : nuevoFin,
+        };
+        const fechaIngresoNormalizada = prev.fecha_ingreso_manual
+          ? clampDateToPeriodo(prev.fecha_ingreso_manual, periodoAjustado) ||
+            formatDateInput(periodoAjustado.inicio)
+          : formatDateInput(periodoAjustado.inicio);
+
+        return {
+          ...prev,
+          fecha_fin_periodo: finNormalizado,
+          fecha_ingreso_manual: fechaIngresoNormalizada,
+        };
+      });
+      return;
+    }
+
+    if (name === "observacion") {
+      const texto = typeof value === "string" ? value.slice(0, 200) : "";
+      setFormData((prev) => ({
+        ...prev,
+        observacion: texto,
+      }));
       return;
     }
 
@@ -263,9 +350,9 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
   };
 
   const resetForm = (anioValue, overrides = {}) => {
+    const baseAnio = anioValue ?? currentYear();
     setFormData({
-      ...createInitialForm(),
-      anio: anioValue ?? currentYear(),
+      ...createInitialForm(baseAnio),
       ...overrides,
     });
   };
@@ -306,10 +393,30 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       setSubmitting(true);
       const metodo = formData.metodo === "manual" ? "manual" : "automatico";
 
+      const periodoSeleccionado = obtenerPeriodo(formData);
+      const inicioPeriodoSeleccionado =
+        parseDateOnly(formData.fecha_inicio_periodo) || periodoSeleccionado.inicio;
+      const finPeriodoSeleccionado =
+        parseDateOnly(formData.fecha_fin_periodo) || periodoSeleccionado.fin;
+
+      if (!inicioPeriodoSeleccionado || !finPeriodoSeleccionado) {
+        setError("Selecciona un periodo de cálculo válido");
+        setSubmitting(false);
+        return;
+      }
+
+      if (finPeriodoSeleccionado < inicioPeriodoSeleccionado) {
+        setError("La fecha fin del periodo no puede ser anterior a la fecha de inicio");
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         id_empleado: empleadoId,
         anio: anioNumero,
         metodo,
+        fecha_inicio_periodo: formatDateInput(inicioPeriodoSeleccionado),
+        fecha_fin_periodo: formatDateInput(finPeriodoSeleccionado),
       };
 
       if (metodo === "manual") {
@@ -339,6 +446,13 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       } else {
         payload.incluir_bonificaciones = Boolean(formData.incluir_bonificaciones);
         payload.incluir_horas_extra = Boolean(formData.incluir_horas_extra);
+      }
+
+      if (formData.observacion && typeof formData.observacion === "string") {
+        const texto = formData.observacion.trim();
+        if (texto) {
+          payload.observacion = texto.slice(0, 200);
+        }
       }
 
       const response = await aguinaldoService.calcular(payload);
