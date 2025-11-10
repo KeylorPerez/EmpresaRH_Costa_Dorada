@@ -63,10 +63,26 @@ const calcularAguinaldo = async (req, res) => {
 
     const parseFecha = (valor) => {
       if (!valor) return null;
-      const fecha = valor instanceof Date ? new Date(valor) : new Date(valor);
+
+      if (typeof valor === 'string') {
+        const match = valor.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (match) {
+          const [, year, month, day] = match;
+          const date = new Date(
+            Date.UTC(Number(year), Number(month) - 1, Number(day))
+          );
+          if (!Number.isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+
+      const fecha = valor instanceof Date ? new Date(valor.getTime()) : new Date(valor);
       if (Number.isNaN(fecha.getTime())) return null;
-      fecha.setHours(0, 0, 0, 0);
-      return fecha;
+
+      return new Date(
+        Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())
+      );
     };
 
     const fechaInicioPeriodo = parseFecha(req.body?.fecha_inicio_periodo);
