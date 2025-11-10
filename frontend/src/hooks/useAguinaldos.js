@@ -121,6 +121,38 @@ const clampDateToPeriodo = (value, periodo) => {
   return formatDateInput(date);
 };
 
+const determinarFechaInicioPeriodo = (periodo, fechaIngreso) => {
+  const inicio = periodo?.inicio ? parseDateOnly(periodo.inicio) : null;
+  const fin = periodo?.fin ? parseDateOnly(periodo.fin) : null;
+
+  if (!inicio) {
+    return fin || null;
+  }
+
+  const ingreso = parseDateOnly(fechaIngreso);
+  if (!ingreso) {
+    return inicio;
+  }
+
+  if (fin && ingreso > fin) {
+    return fin;
+  }
+
+  return ingreso > inicio ? ingreso : inicio;
+};
+
+const determinarFechaIngresoParaCalculo = (periodo, fechaIngreso) => {
+  const fechaBase = determinarFechaInicioPeriodo(periodo, fechaIngreso);
+  if (!fechaBase) return null;
+
+  const fin = periodo?.fin ? parseDateOnly(periodo.fin) : null;
+  if (fin && fechaBase > fin) {
+    return fin;
+  }
+
+  return fechaBase;
+};
+
 export const formatearMontoCRC = (value) => {
   if (value === undefined || value === null || value === "") {
     return "₡0.00";
@@ -212,16 +244,29 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         const selected = empleados.find(
           (empleado) => String(empleado.id_empleado) === String(value)
         );
-        const periodo = obtenerPeriodo(prev);
-        const fechaPorDefecto = formatDateInput(periodo.inicio);
-        const fechaClampeada = clampDateToPeriodo(
-          selected?.fecha_ingreso || fechaPorDefecto,
-          periodo
-        ) || fechaPorDefecto;
+        const periodoBase = getPeriodoPorAnio(prev.anio);
+        const inicioCalculado = determinarFechaInicioPeriodo(
+          periodoBase,
+          selected?.fecha_ingreso
+        );
+        const fechaInicioNormalizada = formatDateInput(inicioCalculado);
+        const fechaFinNormalizada = formatDateInput(periodoBase.fin);
+        const periodoAjustado = {
+          inicio: inicioCalculado,
+          fin: periodoBase.fin,
+        };
+        const fechaIngresoNormalizada =
+          clampDateToPeriodo(
+            determinarFechaIngresoParaCalculo(periodoAjustado, selected?.fecha_ingreso) ||
+              fechaInicioNormalizada,
+            periodoAjustado
+          ) || fechaInicioNormalizada;
         return {
           ...prev,
           id_empleado: value,
-          fecha_ingreso_manual: fechaClampeada,
+          fecha_inicio_periodo: fechaInicioNormalizada,
+          fecha_fin_periodo: fechaFinNormalizada,
+          fecha_ingreso_manual: fechaIngresoNormalizada,
           salario_quincenal:
             selected?.salario_monto !== undefined && selected?.salario_monto !== null
               ? String(Number(selected.salario_monto) || "")
@@ -238,18 +283,31 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       setFormData((prev) => {
         const nuevoAnio = value;
         const periodo = getPeriodoPorAnio(nuevoAnio);
-        const fechaPorDefecto = formatDateInput(periodo.inicio);
-        const fechaClampeada = clampDateToPeriodo(
-          prev.fecha_ingreso_manual || fechaPorDefecto,
-          periodo
-        ) || fechaPorDefecto;
+        const selected = empleados.find(
+          (empleado) => String(empleado.id_empleado) === String(prev.id_empleado)
+        );
+        const inicioCalculado = determinarFechaInicioPeriodo(
+          periodo,
+          selected?.fecha_ingreso
+        );
+        const fechaInicioNormalizada = formatDateInput(inicioCalculado);
+        const fechaFinNormalizada = formatDateInput(periodo.fin);
+        const periodoAjustado = {
+          inicio: inicioCalculado,
+          fin: periodo.fin,
+        };
+        const fechaClampeada =
+          clampDateToPeriodo(
+            prev.fecha_ingreso_manual || fechaInicioNormalizada,
+            periodoAjustado
+          ) || fechaInicioNormalizada;
 
         return {
           ...prev,
           anio: nuevoAnio,
           fecha_ingreso_manual: fechaClampeada,
-          fecha_inicio_periodo: formatDateInput(periodo.inicio),
-          fecha_fin_periodo: formatDateInput(periodo.fin),
+          fecha_inicio_periodo: fechaInicioNormalizada,
+          fecha_fin_periodo: fechaFinNormalizada,
         };
       });
       return;

@@ -113,6 +113,8 @@ class Aguinaldo {
       let salarioPromedio;
       let montoAguinaldo;
       let detalleCalculo = null;
+      let fechaInicioParaGuardar = inicioPeriodo;
+      const fechaFinParaGuardar = finPeriodo;
 
       if (metodoNormalizado === 'manual') {
         const empleadoResult = await pool
@@ -143,13 +145,22 @@ class Aguinaldo {
           throw error;
         }
 
-        const inicioCalculo = fechaIngresoBase > inicioPeriodo ? fechaIngresoBase : inicioPeriodo;
+        fechaIngresoBase.setHours(0, 0, 0, 0);
+
+        const inicioCalculoMs = Math.max(
+          fechaIngresoBase.getTime(),
+          inicioPeriodo.getTime()
+        );
+        const inicioCalculo = new Date(inicioCalculoMs);
+        inicioCalculo.setHours(0, 0, 0, 0);
 
         if (inicioCalculo > finPeriodo) {
           const error = new Error('La fecha de ingreso se encuentra fuera del periodo de cálculo');
           error.statusCode = 400;
           throw error;
         }
+
+        fechaInicioParaGuardar = inicioCalculo;
 
         const MS_POR_DIA = 24 * 60 * 60 * 1000;
         const diasPeriodo = Math.max(Math.floor((finPeriodo - inicioPeriodo) / MS_POR_DIA) + 1, 1);
@@ -194,7 +205,7 @@ class Aguinaldo {
         detalleCalculo = {
           metodo: 'manual',
           periodo: {
-            inicio: inicioPeriodo.toISOString(),
+            inicio: fechaInicioParaGuardar.toISOString(),
             fin: finPeriodo.toISOString(),
             fecha_ingreso_utilizada: inicioCalculo.toISOString(),
             dias_trabajados: diasTrabajados,
@@ -311,8 +322,8 @@ class Aguinaldo {
           .input('id_aguinaldo', sql.Int, idAguinaldo)
           .input('salario_promedio', sql.Decimal(12, 2), salarioPromedio)
           .input('monto_aguinaldo', sql.Decimal(12, 2), montoAguinaldo)
-          .input('fecha_inicio_periodo', sql.Date, inicioPeriodo)
-          .input('fecha_fin_periodo', sql.Date, finPeriodo)
+          .input('fecha_inicio_periodo', sql.Date, fechaInicioParaGuardar)
+          .input('fecha_fin_periodo', sql.Date, fechaFinParaGuardar)
           .input('observacion', sql.VarChar(200), observacionNormalizada)
           .query(`
             UPDATE Aguinaldos
@@ -331,8 +342,8 @@ class Aguinaldo {
           .input('anio', sql.Int, anio)
           .input('salario_promedio', sql.Decimal(12, 2), salarioPromedio)
           .input('monto_aguinaldo', sql.Decimal(12, 2), montoAguinaldo)
-          .input('fecha_inicio_periodo', sql.Date, inicioPeriodo)
-          .input('fecha_fin_periodo', sql.Date, finPeriodo)
+          .input('fecha_inicio_periodo', sql.Date, fechaInicioParaGuardar)
+          .input('fecha_fin_periodo', sql.Date, fechaFinParaGuardar)
           .input('observacion', sql.VarChar(200), observacionNormalizada)
           .query(`
             INSERT INTO Aguinaldos (id_empleado, anio, salario_promedio, monto_aguinaldo, fecha_calculo, pagado, fecha_inicio_periodo, fecha_fin_periodo, observacion)
@@ -358,8 +369,8 @@ class Aguinaldo {
           monto_aguinaldo: montoAguinaldo,
           fecha_calculo: new Date().toISOString(),
           pagado: pagadoActual,
-          fecha_inicio_periodo: inicioPeriodo,
-          fecha_fin_periodo: finPeriodo,
+          fecha_inicio_periodo: fechaInicioParaGuardar,
+          fecha_fin_periodo: fechaFinParaGuardar,
           observacion: observacionNormalizada,
           detalle_calculo: detalleCalculo,
         };
@@ -367,8 +378,8 @@ class Aguinaldo {
 
       return {
         ...aguinaldo,
-        fecha_inicio_periodo: aguinaldo.fecha_inicio_periodo || inicioPeriodo,
-        fecha_fin_periodo: aguinaldo.fecha_fin_periodo || finPeriodo,
+        fecha_inicio_periodo: aguinaldo.fecha_inicio_periodo || fechaInicioParaGuardar,
+        fecha_fin_periodo: aguinaldo.fecha_fin_periodo || fechaFinParaGuardar,
         observacion: aguinaldo.observacion || observacionNormalizada,
         detalle_calculo: detalleCalculo,
       };
