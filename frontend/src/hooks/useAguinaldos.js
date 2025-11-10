@@ -27,6 +27,34 @@ const formatDateInput = (value) => {
   return `${year}-${month}-${day}`;
 };
 
+const getPeriodoPorAnio = (anio) => {
+  const parsedYear = Number(anio);
+  const baseYear = Number.isInteger(parsedYear) ? parsedYear : new Date().getFullYear();
+  const inicio = new Date(baseYear - 1, 11, 1);
+  inicio.setHours(0, 0, 0, 0);
+  const fin = new Date(baseYear, 10, 30);
+  fin.setHours(23, 59, 59, 999);
+  return { inicio, fin };
+};
+
+const clampDateToPeriodo = (value, anio) => {
+  if (!value) return "";
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const { inicio, fin } = getPeriodoPorAnio(anio);
+
+  if (date < inicio) {
+    return formatDateInput(inicio);
+  }
+
+  if (date > fin) {
+    return formatDateInput(fin);
+  }
+
+  return formatDateInput(date);
+};
+
 export const formatearMontoCRC = (value) => {
   if (value === undefined || value === null || value === "") {
     return "₡0.00";
@@ -109,15 +137,51 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         const selected = empleados.find(
           (empleado) => String(empleado.id_empleado) === String(value)
         );
+        const periodo = getPeriodoPorAnio(prev.anio);
+        const fechaPorDefecto = formatDateInput(periodo.inicio);
+        const fechaClampeada = clampDateToPeriodo(
+          selected?.fecha_ingreso || fechaPorDefecto,
+          prev.anio
+        ) || fechaPorDefecto;
         return {
           ...prev,
           id_empleado: value,
-          fecha_ingreso_manual: formatDateInput(selected?.fecha_ingreso),
+          fecha_ingreso_manual: fechaClampeada,
           salario_quincenal:
             selected?.salario_monto !== undefined && selected?.salario_monto !== null
               ? String(Number(selected.salario_monto) || "")
               : "",
           tipo_pago_empleado: selected?.tipo_pago || "",
+        };
+      });
+      return;
+    }
+
+    if (name === "anio") {
+      setFormData((prev) => {
+        const nuevoAnio = value;
+        const periodo = getPeriodoPorAnio(nuevoAnio);
+        const fechaPorDefecto = formatDateInput(periodo.inicio);
+        const fechaClampeada = clampDateToPeriodo(
+          prev.fecha_ingreso_manual || fechaPorDefecto,
+          nuevoAnio
+        ) || fechaPorDefecto;
+
+        return {
+          ...prev,
+          anio: nuevoAnio,
+          fecha_ingreso_manual: fechaClampeada,
+        };
+      });
+      return;
+    }
+
+    if (name === "fecha_ingreso_manual") {
+      setFormData((prev) => {
+        const fechaClampeada = clampDateToPeriodo(value, prev.anio);
+        return {
+          ...prev,
+          fecha_ingreso_manual: fechaClampeada,
         };
       });
       return;
