@@ -20,6 +20,11 @@ const vacacionesService = {
     const response = await api.put(`/vacaciones/${id}/rechazar`);
     return response.data;
   },
+
+  exportPdf: async (id) => {
+    const response = await api.get(`/vacaciones/${id}/export`);
+    return response.data;
+  },
 };
 
 export default vacacionesService;

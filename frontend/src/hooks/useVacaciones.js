@@ -129,6 +129,21 @@ export const useVacaciones = ({ autoFetch = true } = {}) => {
     [fetchSolicitudes]
   );
 
+  const exportSolicitud = useCallback(async (id_vacacion) => {
+    setError("");
+    setSuccessMessage("");
+    try {
+      const data = await vacacionesService.exportPdf(id_vacacion);
+      setSuccessMessage("Documento de vacaciones generado correctamente");
+      return data;
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.error || "No fue posible generar el documento";
+      setError(message);
+      throw err;
+    }
+  }, []);
+
   const sortedSolicitudes = useMemo(() => {
     return [...solicitudes].sort((a, b) => {
       const dateA = new Date(a.fecha_inicio);
@@ -151,6 +166,7 @@ export const useVacaciones = ({ autoFetch = true } = {}) => {
     fetchSolicitudes,
     approveSolicitud,
     rejectSolicitud,
+    exportSolicitud,
     setError,
     setSuccessMessage,
   };

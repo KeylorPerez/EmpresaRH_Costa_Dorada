@@ -38,6 +38,32 @@ class Vacaciones {
     }
   }
 
+  // 🔹 Obtener solicitud por ID con detalles de empleado y usuario aprobador
+  static async getById(id_vacacion) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_vacacion', sql.Int, id_vacacion)
+        .query(`
+          SELECT TOP 1
+            v.*,
+            e.nombre,
+            e.apellido,
+            e.cedula,
+            e.telefono,
+            e.email,
+            u.username AS aprobado_por_username
+          FROM Vacaciones v
+          LEFT JOIN Empleados e ON v.id_empleado = e.id_empleado
+          LEFT JOIN Usuarios u ON v.aprobado_por = u.id_usuario
+          WHERE v.id_vacacion = @id_vacacion
+        `);
+      return result.recordset[0] || null;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // 🔹 Crear solicitud (empleado)
   static async create({ id_empleado, fecha_inicio, fecha_fin, motivo = null }) {
     try {
