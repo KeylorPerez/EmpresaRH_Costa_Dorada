@@ -24,6 +24,7 @@ const Vacaciones = ({ mode }) => {
     handleSubmit,
     approveSolicitud,
     rejectSolicitud,
+    exportSolicitud,
     setError,
   } = useVacaciones();
   const isAdmin = mode === "admin";
@@ -33,6 +34,7 @@ const Vacaciones = ({ mode }) => {
   const [busquedaNombre, setBusquedaNombre] = useState("");
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState("");
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const hayFiltrosActivos =
     estadoFiltro !== estadoDefault ||
@@ -158,6 +160,20 @@ const Vacaciones = ({ mode }) => {
       setDiasAprobados((prev) => ({ ...prev, [solicitud.id_vacacion]: "" }));
     } catch {
       // Error gestionado en el hook
+    }
+  };
+
+  const onExport = async (solicitud) => {
+    try {
+      setDownloadingId(solicitud.id_vacacion);
+      const data = await exportSolicitud(solicitud.id_vacacion);
+      if (data?.url) {
+        window.open(data.url, "_blank", "noopener");
+      }
+    } catch {
+      // El hook maneja los errores y mensajes
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -342,6 +358,7 @@ const Vacaciones = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Estado</th>
                       <th className="px-4 py-3 text-left">Actualización</th>
                       <th className="px-4 py-3 text-left">Aprobado por</th>
+                      <th className="px-4 py-3 text-left">Documento</th>
                       {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                     </tr>
                   </thead>
@@ -356,7 +373,9 @@ const Vacaciones = ({ mode }) => {
                         badgeClass: "bg-gray-200 text-gray-700",
                       };
                       const isPending = solicitud.id_estado === 1;
+                      const isApproved = solicitud.id_estado === 2;
                       const approvedDays = solicitud.dias_aprobados || 0;
+                      const isGenerating = downloadingId === solicitud.id_vacacion;
 
                       return (
                         <tr
@@ -407,6 +426,22 @@ const Vacaciones = ({ mode }) => {
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             {solicitud.aprobado_por_username || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isApproved ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => onExport(solicitud)}
+                                disabled={isGenerating}
+                              >
+                                {isGenerating ? "Generando..." : "Descargar PDF"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                Disponible al aprobarse
+                              </span>
+                            )}
                           </td>
                           {isAdmin && (
                             <td className="px-4 py-3">

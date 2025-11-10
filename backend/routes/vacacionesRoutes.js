@@ -5,7 +5,8 @@ const {
   getVacaciones,
   createSolicitud,
   aprobarSolicitud,
-  rechazarSolicitud
+  rechazarSolicitud,
+  exportSolicitudPdf
 } = require('../controllers/vacacionesController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
@@ -22,6 +23,10 @@ router.get('/', authenticateToken, getVacaciones);
 // POST /api/vacaciones
 // Crear solicitud de vacaciones (empleado o admin)
 router.post('/', authenticateToken, createSolicitud);
+
+// GET /api/vacaciones/:id/export
+// Generar documento PDF de la solicitud
+router.get('/:id/export', authenticateToken, exportSolicitudPdf);
 
 // PUT /api/vacaciones/:id/aprobar
 // Aprobar solicitud (solo admin)
