@@ -164,6 +164,22 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
     [updateEstado]
   );
 
+  const exportPrestamo = useCallback(async (id_prestamo) => {
+    setError("");
+    setSuccessMessage("");
+    try {
+      const data = await prestamosService.exportPdf(id_prestamo);
+      setSuccessMessage("Documento del préstamo generado correctamente");
+      return data;
+    } catch (err) {
+      console.error(err);
+      const message =
+        err.response?.data?.error || "No fue posible generar el documento";
+      setError(message);
+      throw err;
+    }
+  }, []);
+
   const sortedPrestamos = useMemo(() => {
     return [...prestamos].sort((a, b) => {
       const fechaA = new Date(a.fecha_solicitud || 0);
@@ -184,6 +200,7 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
     resetForm,
     approvePrestamo,
     rejectPrestamo,
+    exportPrestamo,
     actionLoading,
     setError,
     setSuccessMessage,

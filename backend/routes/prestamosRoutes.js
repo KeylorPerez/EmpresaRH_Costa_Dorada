@@ -5,13 +5,17 @@ const {
   getPrestamoById,
   createPrestamo,
   pagarPrestamo,
-  updateEstadoPrestamo
+  updateEstadoPrestamo,
+  exportPrestamoPdf,
 } = require('../controllers/prestamosController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // GET /api/prestamos -> admin: todos / empleado: solo los suyos
 router.get('/', authenticateToken, getPrestamos);
+
+// GET /api/prestamos/:id/export -> generar constancia en PDF
+router.get('/:id/export', authenticateToken, exportPrestamoPdf);
 
 // GET /api/prestamos/:id -> préstamo específico
 router.get('/:id', authenticateToken, getPrestamoById);

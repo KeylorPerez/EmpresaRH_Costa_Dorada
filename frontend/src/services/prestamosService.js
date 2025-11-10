@@ -20,6 +20,11 @@ const prestamosService = {
     const response = await api.put(`/prestamos/${id}/pagar`, { monto_pago });
     return response.data;
   },
+
+  exportPdf: async (id) => {
+    const response = await api.get(`/prestamos/${id}/export`);
+    return response.data;
+  },
 };
 
 export default prestamosService;
