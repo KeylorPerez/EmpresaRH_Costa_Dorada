@@ -9,7 +9,23 @@ const currentYear = () => new Date().getFullYear().toString();
 const createInitialForm = () => ({
   id_empleado: "",
   anio: currentYear(),
+  metodo: "manual",
+  salario_quincenal: "",
+  fecha_ingreso_manual: "",
+  incluir_bonificaciones: true,
+  incluir_horas_extra: false,
+  tipo_pago_empleado: "",
 });
+
+const formatDateInput = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const formatearMontoCRC = (value) => {
   if (value === undefined || value === null || value === "") {
@@ -86,12 +102,39 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
   }, [isAdmin, fetchEmpleados]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+
+    if (name === "id_empleado") {
+      setFormData((prev) => {
+        const selected = empleados.find(
+          (empleado) => String(empleado.id_empleado) === String(value)
+        );
+        return {
+          ...prev,
+          id_empleado: value,
+          fecha_ingreso_manual: formatDateInput(selected?.fecha_ingreso),
+          salario_quincenal:
+            selected?.salario_monto !== undefined && selected?.salario_monto !== null
+              ? String(Number(selected.salario_monto) || "")
+              : "",
+          tipo_pago_empleado: selected?.tipo_pago || "",
+        };
+      });
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
-  const resetForm = (anioValue) => {
-    setFormData({ id_empleado: "", anio: anioValue ?? currentYear() });
+  const resetForm = (anioValue, overrides = {}) => {
+    setFormData({
+      ...createInitialForm(),
+      anio: anioValue ?? currentYear(),
+      ...overrides,
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -113,14 +156,57 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
 
     try {
       setSubmitting(true);
-      const response = await aguinaldoService.calcular({
+      const metodo = formData.metodo === "manual" ? "manual" : "automatico";
+
+      const payload = {
         id_empleado: empleadoId,
         anio: anioNumero,
-      });
+        metodo,
+      };
+
+      if (metodo === "manual") {
+        const salarioQuincenalNumero = Number(formData.salario_quincenal);
+        if (!Number.isFinite(salarioQuincenalNumero) || salarioQuincenalNumero <= 0) {
+          setError("Ingresa el salario quincenal fijo del colaborador");
+          setSubmitting(false);
+          return;
+        }
+
+        if (!formData.fecha_ingreso_manual) {
+          setError("Ingresa o confirma la fecha de ingreso del colaborador");
+          setSubmitting(false);
+          return;
+        }
+
+        const fechaIngreso = new Date(formData.fecha_ingreso_manual);
+        if (Number.isNaN(fechaIngreso.getTime())) {
+          setError("La fecha de ingreso no es válida");
+          setSubmitting(false);
+          return;
+        }
+
+        payload.salario_quincenal = salarioQuincenalNumero;
+        payload.fecha_ingreso = formatDateInput(fechaIngreso);
+        payload.tipo_pago = formData.tipo_pago_empleado || null;
+      } else {
+        payload.incluir_bonificaciones = Boolean(formData.incluir_bonificaciones);
+        payload.incluir_horas_extra = Boolean(formData.incluir_horas_extra);
+      }
+
+      const response = await aguinaldoService.calcular(payload);
       const message = response?.message || "Aguinaldo calculado correctamente";
       setSuccessMessage(message);
       const anioPersistir = formData.anio;
-      resetForm(anioPersistir);
+      const metodoPersistir = formData.metodo;
+      const overrides =
+        metodoPersistir === "automatico"
+          ? {
+              metodo: metodoPersistir,
+              incluir_bonificaciones: Boolean(formData.incluir_bonificaciones),
+              incluir_horas_extra: Boolean(formData.incluir_horas_extra),
+            }
+          : { metodo: metodoPersistir };
+      resetForm(anioPersistir, overrides);
       await fetchAguinaldos();
     } catch (err) {
       console.error(err);

@@ -23,6 +23,17 @@ const estadoBadge = (pagado) => {
   );
 };
 
+const formatearFechaLarga = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-CR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};
+
 const Aguinaldos = ({ mode }) => {
   const isAdminView = mode === "admin";
   const { user, logoutUser } = useAuth();
@@ -49,6 +60,24 @@ const Aguinaldos = ({ mode }) => {
   const tituloPagina = isAdminView ? "Gestión de Aguinaldos" : "Mis Aguinaldos";
 
   const [anioFiltro, setAnioFiltro] = useState("todos");
+
+  const empleadoSeleccionado = useMemo(() => {
+    const id = Number(formData.id_empleado);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return empleados.find((empleado) => Number(empleado.id_empleado) === id) || null;
+  }, [empleados, formData.id_empleado]);
+
+  const periodoCalculo = useMemo(() => {
+    const anioNumero = Number(formData.anio);
+    const anioValido = Number.isInteger(anioNumero) ? anioNumero : new Date().getFullYear();
+    const inicio = new Date(anioValido - 1, 11, 1);
+    const fin = new Date(anioValido, 10, 30);
+    return {
+      inicio,
+      fin,
+      etiqueta: `${formatearFechaLarga(inicio)} al ${formatearFechaLarga(fin)}`,
+    };
+  }, [formData.anio]);
 
   const sidebarLinks = useMemo(() => {
     if (isAdminView) {
@@ -198,6 +227,11 @@ const Aguinaldos = ({ mode }) => {
                       </option>
                     ))}
                   </select>
+                  {empleadoSeleccionado && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Ingreso registrado: {formatearFechaLarga(empleadoSeleccionado.fecha_ingreso) || "Sin registro"}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col">
@@ -213,6 +247,114 @@ const Aguinaldos = ({ mode }) => {
                     required
                   />
                 </div>
+
+                <div className="md:col-span-2">
+                  <fieldset className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <legend className="px-2 text-sm font-semibold text-gray-700">Método de cálculo</legend>
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 mt-2">
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="radio"
+                          name="metodo"
+                          value="manual"
+                          checked={formData.metodo === "manual"}
+                          onChange={handleChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span>Manual</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="radio"
+                          name="metodo"
+                          value="automatico"
+                          checked={formData.metodo === "automatico"}
+                          onChange={handleChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span>Automático</span>
+                      </label>
+                    </div>
+                    <p className="mt-3 text-xs text-gray-500">
+                      El periodo considerado es del {periodoCalculo.etiqueta}.
+                    </p>
+                  </fieldset>
+                </div>
+
+                {formData.metodo === "manual" && (
+                  <>
+                    <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1">
+                          Fecha de ingreso para el cálculo
+                        </label>
+                        <input
+                          type="date"
+                          name="fecha_ingreso_manual"
+                          value={formData.fecha_ingreso_manual}
+                          onChange={handleChange}
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Ajusta la fecha si el colaborador ingresó después del inicio del periodo.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-gray-700 mb-1">
+                          Salario quincenal fijo (CRC)
+                        </label>
+                        <input
+                          type="number"
+                          name="salario_quincenal"
+                          value={formData.salario_quincenal}
+                          onChange={handleChange}
+                          min="0"
+                          step="0.01"
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Se usa como base para proyectar el aguinaldo del periodo.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-700">
+                      El cálculo manual estima el aguinaldo según el tiempo laborado en el periodo y el salario quincenal fijo seleccionado.
+                    </div>
+                  </>
+                )}
+
+                {formData.metodo === "automatico" && (
+                  <div className="md:col-span-2 grid gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-gray-700">Opciones del cálculo automático</p>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        name="incluir_bonificaciones"
+                        checked={Boolean(formData.incluir_bonificaciones)}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      Incluir bonificaciones del periodo
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        name="incluir_horas_extra"
+                        checked={Boolean(formData.incluir_horas_extra)}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      Incluir horas extra registradas
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Si no se incluyen las bonificaciones u horas extra, el cálculo usará únicamente el salario base registrado en las planillas.
+                    </p>
+                  </div>
+                )}
 
                 <div className="col-span-full flex justify-end gap-2">
                   <Button

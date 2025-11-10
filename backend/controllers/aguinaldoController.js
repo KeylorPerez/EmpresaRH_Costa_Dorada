@@ -48,9 +48,54 @@ const calcularAguinaldo = async (req, res) => {
       return res.status(400).json({ error: 'Año inválido para el cálculo' });
     }
 
+    const metodoRaw = typeof req.body?.metodo === 'string' ? req.body.metodo.trim().toLowerCase() : 'automatico';
+    const metodo = metodoRaw === 'manual' ? 'manual' : 'automatico';
+
+    const incluirBonificaciones =
+      req.body?.incluir_bonificaciones !== undefined
+        ? Boolean(req.body.incluir_bonificaciones)
+        : true;
+    const incluirHorasExtra =
+      req.body?.incluir_horas_extra !== undefined
+        ? Boolean(req.body.incluir_horas_extra)
+        : false;
+
+    let salarioQuincenalManual = null;
+    let fechaIngresoManual = null;
+    let tipoPagoManual = null;
+
+    if (metodo === 'manual') {
+      const salarioNumero = Number(req.body?.salario_quincenal);
+      if (!Number.isFinite(salarioNumero) || salarioNumero <= 0) {
+        return res
+          .status(400)
+          .json({ error: 'Salario quincenal inválido para el cálculo manual' });
+      }
+
+      salarioQuincenalManual = salarioNumero;
+
+      if (req.body?.fecha_ingreso) {
+        const fechaIngreso = new Date(req.body.fecha_ingreso);
+        if (Number.isNaN(fechaIngreso.getTime())) {
+          return res.status(400).json({ error: 'Fecha de ingreso inválida' });
+        }
+        fechaIngresoManual = fechaIngreso.toISOString();
+      }
+
+      if (req.body?.tipo_pago) {
+        tipoPagoManual = String(req.body.tipo_pago);
+      }
+    }
+
     const aguinaldo = await Aguinaldo.calcularYGuardar({
       id_empleado: empleadoId,
       anio: anioNumero,
+      metodo,
+      incluirBonificaciones,
+      incluirHorasExtra,
+      salarioQuincenal: salarioQuincenalManual,
+      fechaIngresoManual,
+      tipoPagoManual,
     });
 
     return res.status(201).json({
