@@ -9,6 +9,27 @@ const toYearMonth = (value) => {
   return `${year}-${month}`;
 };
 
+const diffMonthsInclusive = (start, end) => {
+  if (!start || !end) return null;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return null;
+  }
+
+  const startYear = startDate.getFullYear();
+  const startMonth = startDate.getMonth();
+  const endYear = endDate.getFullYear();
+  const endMonth = endDate.getMonth();
+
+  const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+  if (totalMonths <= 0) {
+    return null;
+  }
+
+  return totalMonths;
+};
+
 class Aguinaldo {
   static async getAll() {
     try {
@@ -221,7 +242,7 @@ class Aguinaldo {
           .input('inicio_periodo', sql.Date, inicioPeriodo)
           .input('fin_periodo', sql.Date, finPeriodo)
           .query(`
-            SELECT pago_neto, periodo_inicio, periodo_fin, salario_bruto, bonificaciones, horas_extras
+            SELECT pago_neto, periodo_inicio, periodo_fin, salario_bruto, bonificaciones, horas_extras, fecha_pago
             FROM Planilla
             WHERE id_empleado = @id_empleado
               AND (
@@ -267,13 +288,43 @@ class Aguinaldo {
           (incluirHorasExtra ? totales.horas_extras : 0);
 
         const mesesLaborados = registros.reduce((set, row) => {
-          const referencia = row.periodo_fin || row.periodo_inicio;
+          const referencia = row.periodo_fin || row.periodo_inicio || row.fecha_pago;
           const ym = toYearMonth(referencia);
           if (ym) set.add(ym);
           return set;
         }, new Set());
 
-        const mesesCount = mesesLaborados.size > 0 ? mesesLaborados.size : 12;
+        const mesesCount = (() => {
+          if (mesesLaborados.size > 0) {
+            return mesesLaborados.size;
+          }
+
+          const fechasReferencia = registros
+            .map((row) => row.periodo_inicio || row.periodo_fin || row.fecha_pago)
+            .filter(Boolean)
+            .map((valor) => new Date(valor))
+            .filter((date) => !Number.isNaN(date.getTime()));
+
+          if (fechasReferencia.length > 0) {
+            const fechaMin = fechasReferencia.reduce((min, actual) =>
+              actual < min ? actual : min
+            );
+            const fechaMax = fechasReferencia.reduce((max, actual) =>
+              actual > max ? actual : max
+            );
+            const meses = diffMonthsInclusive(fechaMin, fechaMax);
+            if (meses) {
+              return Math.min(12, Math.max(1, meses));
+            }
+          }
+
+          const mesesPeriodo = diffMonthsInclusive(fechaInicioParaGuardar, fechaFinParaGuardar);
+          if (mesesPeriodo) {
+            return Math.min(12, Math.max(1, mesesPeriodo));
+          }
+
+          return 12;
+        })();
 
         salarioPromedio = Number(
           (mesesCount > 0 ? totalConsiderado / mesesCount : 0).toFixed(2)
