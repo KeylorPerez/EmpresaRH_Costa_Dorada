@@ -52,16 +52,63 @@ const stripDiacritics = (text = '') => {
     .replace(/[\u0300-\u036f]/g, '');
 };
 
+const PDF_SPECIAL_CHAR_MAP = {
+  '₡': 'CRC ',
+  '€': 'EUR ',
+  '£': 'GBP ',
+  '¥': 'JPY ',
+  '₩': 'KRW ',
+  '₦': 'NGN ',
+  '₱': 'PHP ',
+  '₭': 'LAK ',
+  '₮': 'MNT ',
+  '₨': 'INR ',
+  '₹': 'INR ',
+  '₴': 'UAH ',
+  '₲': 'PYG ',
+  '₵': 'GHS ',
+  '₽': 'RUB ',
+  '฿': 'THB ',
+  '₸': 'KZT ',
+  '–': '-',
+  '—': '-',
+  '‒': '-',
+  '―': '-',
+  '…': '...',
+  '•': '*',
+  '“': '"',
+  '”': '"',
+  '„': '"',
+  '’': "'",
+  '‘': "'",
+  '‚': "'",
+  '‹': "'",
+  '›': "'",
+};
+
+const encodeCharForPdf = (char) => {
+  if (Object.prototype.hasOwnProperty.call(PDF_SPECIAL_CHAR_MAP, char)) {
+    return PDF_SPECIAL_CHAR_MAP[char];
+  }
+
+  const code = char.codePointAt(0);
+  if (code !== undefined && code <= 0xff) {
+    return String.fromCharCode(code);
+  }
+
+  const stripped = stripDiacritics(char);
+  if (stripped && stripped !== char) {
+    return Array.from(stripped)
+      .map((nestedChar) => encodeCharForPdf(nestedChar))
+      .join('');
+  }
+
+  return '?';
+};
+
 const normalizePdfEncoding = (text = '') =>
-  Array.from(stripDiacritics(text))
-    .map((char) => {
-      const code = char.codePointAt(0);
-      if (code === undefined) return '';
-      if (code <= 0xff) {
-        return String.fromCharCode(code);
-      }
-      return '?';
-    })
+  Array.from(String(text || ''))
+    .map((char) => encodeCharForPdf(char))
     .join('');
 
 const escapePdfText = (text = '') =>
