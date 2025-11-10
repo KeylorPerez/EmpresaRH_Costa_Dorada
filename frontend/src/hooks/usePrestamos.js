@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import prestamosService from "../services/prestamosService";
-import { formatDateValue } from "../utils/dateUtils";
+import { formatDateValue, getTodayInputValue } from "../utils/dateUtils";
 
 const createInitialForm = () => ({
   monto: "",
   cuotas: "",
   interes: "",
-  fecha_solicitud: "",
+  fecha_solicitud: getTodayInputValue(),
 });
 
 export const estadosPrestamo = {

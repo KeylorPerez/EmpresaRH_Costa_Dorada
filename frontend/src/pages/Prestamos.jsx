@@ -11,6 +11,7 @@ import {
   formatearMonto,
   formatearPorcentaje,
 } from "../hooks/usePrestamos";
+import { getTodayInputValue } from "../utils/dateUtils";
 
 const Prestamos = ({ mode }) => {
   const { user, logoutUser } = useAuth();
@@ -41,6 +42,7 @@ const Prestamos = ({ mode }) => {
   const [downloadingId, setDownloadingId] = useState(null);
   const filtrosGridCols = isAdmin ? "md:grid-cols-4" : "md:grid-cols-3";
   const filtrosButtonColSpan = isAdmin ? "md:col-span-4" : "md:col-span-3";
+  const fechaSolicitudMaxima = getTodayInputValue();
 
   const hayFiltrosActivos =
     estadoFiltro !== estadoDefault ||
@@ -161,7 +163,7 @@ const Prestamos = ({ mode }) => {
           onClick={async () => {
             try {
               await approvePrestamo(prestamo.id_prestamo);
-            } catch (_) {
+            } catch {
               // Error gestionado en el hook
             }
           }}
@@ -175,7 +177,7 @@ const Prestamos = ({ mode }) => {
           onClick={async () => {
             try {
               await rejectPrestamo(prestamo.id_prestamo);
-            } catch (_) {
+            } catch {
               // Error gestionado en el hook
             }
           }}
@@ -193,7 +195,7 @@ const Prestamos = ({ mode }) => {
       if (data?.url) {
         window.open(data.url, "_blank", "noopener");
       }
-    } catch (_) {
+    } catch {
       // El hook gestiona los mensajes de error
     } finally {
       setDownloadingId(null);
@@ -246,102 +248,112 @@ const Prestamos = ({ mode }) => {
             </div>
           )}
 
-          {!isAdmin && (
-            <section className="bg-white rounded-xl shadow-sm p-6">
-              <header className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Solicitar préstamo
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Completa la información y envía tu solicitud de préstamo al departamento financiero.
-                </p>
-              </header>
+          <section className="bg-white rounded-xl shadow-sm p-6">
+            <header className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Solicitar préstamo
+              </h2>
+              <p className="text-sm text-gray-500">
+                {isAdmin
+                  ? "Registra una solicitud de préstamo con la información del día."
+                  : "Completa la información y envía tu solicitud de préstamo al departamento financiero."}
+              </p>
+            </header>
 
-              <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monto solicitado
-                  </label>
-                  <input
-                    type="number"
-                    name="monto"
-                    value={formData.monto}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                    placeholder="₡"
-                    required
-                  />
-                </div>
+            <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monto solicitado
+                </label>
+                <input
+                  type="number"
+                  name="monto"
+                  value={formData.monto}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  placeholder="₡"
+                  required
+                />
+              </div>
 
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cuotas
-                  </label>
-                  <input
-                    type="number"
-                    name="cuotas"
-                    value={formData.cuotas}
-                    onChange={handleChange}
-                    min="1"
-                    step="1"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                    placeholder="Ej. 12"
-                    required
-                  />
-                </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cuotas
+                </label>
+                <input
+                  type="number"
+                  name="cuotas"
+                  value={formData.cuotas}
+                  onChange={handleChange}
+                  min="1"
+                  step="1"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  placeholder="Ej. 12"
+                  required
+                />
+              </div>
 
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Interés (% anual)
-                  </label>
-                  <input
-                    type="number"
-                    name="interes"
-                    value={formData.interes}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                    placeholder="Ej. 8"
-                    required
-                  />
-                </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Interés (% anual)
+                </label>
+                <input
+                  type="number"
+                  name="interes"
+                  value={formData.interes}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  placeholder="Ej. 8"
+                  required
+                />
+              </div>
 
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha de solicitud
-                  </label>
-                  <input
-                    type="date"
-                    name="fecha_solicitud"
-                    value={formData.fecha_solicitud}
-                    onChange={handleChange}
-                    max={new Date().toISOString().split("T")[0]}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                    required
-                  />
-                </div>
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de solicitud
+                </label>
+                <input
+                  type="date"
+                  name="fecha_solicitud"
+                  value={formData.fecha_solicitud}
+                  onChange={handleChange}
+                  max={fechaSolicitudMaxima}
+                  className={`w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400 ${
+                    isAdmin ? "" : "bg-gray-100 cursor-not-allowed"
+                  }`}
+                  required
+                  readOnly={!isAdmin}
+                  disabled={!isAdmin}
+                  aria-readonly={!isAdmin}
+                />
+                {!isAdmin && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    La fecha se completa automáticamente con el día de hoy.
+                  </p>
+                )}
+              </div>
 
-                <div className="md:col-span-4 flex items-center gap-3">
-                  <Button type="submit" variant="primary" disabled={submitting}>
-                    {submitting ? "Enviando..." : "Enviar solicitud"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      limpiarMensajes();
-                      resetForm();
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                </div>
-              </form>
-            </section>
-          )}
+              <div className="md:col-span-4 flex items-center gap-3">
+                <Button type="submit" variant="primary" disabled={submitting}>
+                  {submitting ? "Enviando..." : "Enviar solicitud"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    limpiarMensajes();
+                    resetForm();
+                  }}
+                >
+                  Limpiar
+                </Button>
+              </div>
+            </form>
+          </section>
 
           <section className="bg-white rounded-xl shadow-sm p-6">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
