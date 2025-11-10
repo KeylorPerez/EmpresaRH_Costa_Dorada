@@ -19,6 +19,24 @@ class Prestamos {
     }
   }
 
+  static async getById(id_prestamo) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_prestamo', sql.Int, id_prestamo)
+        .query(`
+          SELECT p.*, e.nombre, e.apellido, e.cedula, e.email, e.telefono, es.nombre AS estado_nombre
+          FROM Prestamos p
+          LEFT JOIN Empleados e ON p.id_empleado = e.id_empleado
+          LEFT JOIN CatalogoEstados es ON p.id_estado = es.id_estado
+          WHERE p.id_prestamo = @id_prestamo
+        `);
+      return result.recordset[0] || null;
+    } catch (err) {
+      throw err;
+    }
+  }
+
   // 🔹 Obtener préstamos de un empleado específico
   static async getByEmpleado(id_empleado) {
     try {

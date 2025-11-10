@@ -1,5 +1,293 @@
+const fs = require('fs');
+const path = require('path');
 const Prestamos = require('../models/Prestamos');
 const Usuario = require('../models/Usuario');
+
+const { promises: fsPromises } = fs;
+const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+
+const ensureExportsDir = async () => {
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    await fsPromises.mkdir(EXPORTS_DIR, { recursive: true });
+  }
+};
+
+const formatDateValue = (value) => {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  const iso = formatDateValue(value);
+  if (!iso) return '';
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const sanitizePdfText = (text = '') =>
+  String(text)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\s+/g, ' ');
+
+const stripDiacritics = (text = '') => {
+  if (!text) return '';
+  if (typeof text.normalize !== 'function') return String(text);
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const normalizePdfEncoding = (text = '') =>
+  Array.from(stripDiacritics(text))
+    .map((char) => {
+      const code = char.codePointAt(0);
+      if (code === undefined) return '';
+      if (code <= 0xff) {
+        return String.fromCharCode(code);
+      }
+      return '?';
+    })
+    .join('');
+
+const escapePdfText = (text = '') =>
+  normalizePdfEncoding(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const wrapText = (text, maxLength = 95) => {
+  if (!text) return [''];
+  const words = sanitizePdfText(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const tentative = currentLine ? `${currentLine} ${word}` : word;
+    if (tentative.length > maxLength) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      if (word.length > maxLength) {
+        let remaining = word;
+        while (remaining.length > maxLength) {
+          lines.push(remaining.slice(0, maxLength));
+          remaining = remaining.slice(maxLength);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    } else {
+      currentLine = tentative;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+};
+
+const chunkArray = (items, size) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [[]];
+  }
+
+  const result = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+};
+
+const buildPdfContentStream = (lines) => {
+  const safeLines = lines.length > 0 ? lines : [''];
+  const escapedLines = safeLines.map((line) => escapePdfText(line));
+  const content = escapedLines.join('\n');
+  const contentLength = Buffer.byteLength(content, 'utf8');
+
+  return `<< /Length ${contentLength} >>\nstream\n${content}\nendstream`;
+};
+
+const buildPdfBuffer = (pagesContent) => {
+  const header = '%PDF-1.4';
+  const objects = [];
+  const xref = [];
+
+  const addObject = (objectContent) => {
+    const offset = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
+    xref.push(offset);
+    objects.push(objectContent);
+    return objects.length; // Número del objeto
+  };
+
+  const pageObjects = [];
+  pagesContent.forEach((contentStream) => {
+    const contentsObjNum = addObject(`${objects.length + 1} 0 obj\n${contentStream}\nendobj`);
+    const pageObj = `${objects.length + 1} 0 obj\n<< /Type /Page /Parent 1 0 R /MediaBox [0 0 595 842] /Contents ${contentsObjNum} 0 R >>\nendobj`;
+    const pageObjNum = addObject(pageObj);
+    pageObjects.push(pageObjNum);
+  });
+
+  const pagesKids = pageObjects.map((num) => `${num} 0 R`).join(' ');
+  const pagesObj = `1 0 obj\n<< /Type /Pages /Kids [${pagesKids}] /Count ${pageObjects.length} >>\nendobj`;
+  objects.unshift(pagesObj);
+  xref.unshift(Buffer.byteLength(header + '\n', 'utf8'));
+
+  const catalogObjNum = objects.length + 1;
+  const catalogObj = `${catalogObjNum} 0 obj\n<< /Type /Catalog /Pages 1 0 R >>\nendobj`;
+  const catalogOffset = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
+  xref.push(catalogOffset);
+  objects.push(catalogObj);
+
+  const xrefStart = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
+  const xrefEntries = ['xref', `0 ${objects.length + 1}`, '0000000000 65535 f '];
+  xref.forEach((offset) => {
+    xrefEntries.push(`${offset.toString().padStart(10, '0')} 00000 n `);
+  });
+
+  const trailer = [
+    'trailer',
+    `<< /Size ${objects.length + 1} /Root ${catalogObjNum} 0 R >>`,
+    'startxref',
+    `${xrefStart}`,
+    '%%EOF',
+  ].join('\n');
+
+  const pdfContent = [header, ...objects, xrefEntries.join('\n'), trailer].join('\n');
+  return Buffer.from(pdfContent, 'utf8');
+};
+
+const estadoPrestamoMap = {
+  1: 'Pendiente',
+  2: 'Aprobado',
+  3: 'Rechazado',
+};
+
+const currencyFormatter = new Intl.NumberFormat('es-CR', {
+  style: 'currency',
+  currency: 'CRC',
+  minimumFractionDigits: 2,
+});
+
+const formatCurrencyCRC = (value) => {
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) {
+    return '—';
+  }
+  return currencyFormatter.format(numero);
+};
+
+const formatPercentage = (value) => {
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) {
+    return '—';
+  }
+  return `${numero.toFixed(2)}%`;
+};
+
+const buildPrestamoPdfLines = (prestamo) => {
+  const lines = [];
+  const divider = '-'.repeat(110);
+  const titleDivider = '='.repeat(110);
+
+  const nombreCompleto = [prestamo.nombre, prestamo.apellido]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || `Empleado ID ${prestamo.id_empleado}`;
+  const estadoLabel = estadoPrestamoMap[prestamo.id_estado] || sanitizePdfText(prestamo.estado_nombre || 'Desconocido');
+
+  const cuotaSugerida = Number(prestamo.cuotas) > 0 && Number(prestamo.monto)
+    ? Number(prestamo.monto) / Number(prestamo.cuotas)
+    : null;
+
+  lines.push(titleDivider);
+  lines.push('Distribuidora Astua Pirie');
+  lines.push('Constancia de préstamo a colaborador');
+  lines.push(titleDivider);
+  lines.push('');
+
+  lines.push(`Número de préstamo: ${prestamo.id_prestamo}`);
+  lines.push(`Empleado: ${sanitizePdfText(nombreCompleto)} (ID ${prestamo.id_empleado})`);
+  if (prestamo.cedula) {
+    lines.push(`Cédula: ${sanitizePdfText(prestamo.cedula)}`);
+  }
+  if (prestamo.email || prestamo.telefono) {
+    const contacto = [
+      prestamo.email ? `Correo: ${sanitizePdfText(prestamo.email)}` : null,
+      prestamo.telefono ? `Teléfono: ${sanitizePdfText(prestamo.telefono)}` : null,
+    ].filter(Boolean);
+    if (contacto.length > 0) {
+      wrapText(contacto.join(' | '), 95).forEach((linea) => lines.push(linea));
+    }
+  }
+
+  lines.push('');
+  lines.push(divider);
+  lines.push(`Monto aprobado: ${formatCurrencyCRC(prestamo.monto)}`);
+  lines.push(`Saldo pendiente: ${formatCurrencyCRC(prestamo.saldo)}`);
+  lines.push(`Tasa de interés anual: ${formatPercentage(prestamo.interes_porcentaje)}`);
+  lines.push(`Número de cuotas: ${prestamo.cuotas || '—'}`);
+  lines.push(`Cuota estimada: ${cuotaSugerida ? formatCurrencyCRC(cuotaSugerida) : '—'}`);
+  lines.push(`Estado actual: ${estadoLabel}`);
+  lines.push(`Fecha de solicitud: ${formatDateDisplay(prestamo.fecha_solicitud) || '—'}`);
+  lines.push(`Fecha del último pago: ${formatDateDisplay(prestamo.fecha_ultimo_pago) || '—'}`);
+  lines.push(`Última actualización: ${formatDateDisplay(prestamo.updated_at || prestamo.created_at) || '—'}`);
+  lines.push(divider);
+
+  lines.push('Declaración del colaborador:');
+  wrapText(
+    'Declaro haber solicitado y recibido el préstamo descrito en este documento, comprometiéndome a cancelar cada cuota en los plazos establecidos por la empresa.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  wrapText(
+    'Acepto que los pagos se realizarán mediante deducción automática de mi planilla o por los medios acordados con el departamento financiero.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  wrapText(
+    'En caso de incumplimiento, autorizo a la empresa a realizar los ajustes necesarios conforme a las políticas internas y la legislación vigente.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push(divider);
+
+  lines.push('Firma del colaborador: ________________________________');
+  lines.push('Cédula: ______________________________________________');
+  lines.push('Fecha de firma: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Firma de autorización (RRHH / Dirección): __________________');
+  lines.push('Fecha: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Observaciones:');
+  lines.push('______________________________________________________________');
+  lines.push('______________________________________________________________');
+
+  return lines;
+};
+
+const createPrestamoPdf = async (filePath, prestamo) => {
+  const lines = buildPrestamoPdfLines(prestamo);
+  const pages = chunkArray(lines, 40).map((pageLines) => buildPdfContentStream(pageLines));
+  const pdfBuffer = buildPdfBuffer(pages);
+  await fsPromises.writeFile(filePath, pdfBuffer);
+};
 
 // GET /api/prestamos
 // Admin -> todos los préstamos
@@ -10,17 +298,17 @@ const getPrestamos = async (req, res) => {
     if (!user) return res.status(401).json({ error: 'No autenticado' });
 
     if (user.id_rol === 1) {
-      // admin
       const rows = await Prestamos.getAll();
       return res.json(rows);
-    } else {
-      // empleado
-      const usuarioDB = await Usuario.getById(user.id_usuario);
-      if (!usuarioDB || !usuarioDB.id_empleado) return res.status(400).json({ error: 'Usuario no vinculado a empleado' });
-
-      const rows = await Prestamos.getByEmpleado(usuarioDB.id_empleado);
-      return res.json(rows);
     }
+
+    const usuarioDB = await Usuario.getById(user.id_usuario);
+    if (!usuarioDB || !usuarioDB.id_empleado) {
+      return res.status(400).json({ error: 'Usuario no vinculado a empleado' });
+    }
+
+    const rows = await Prestamos.getByEmpleado(usuarioDB.id_empleado);
+    return res.json(rows);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -30,21 +318,30 @@ const getPrestamos = async (req, res) => {
 const getPrestamoById = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
 
     const user = req.user;
-    const usuarioDB = await Usuario.getById(user.id_usuario);
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
 
-    const prestamos = user.id_rol === 1
-      ? await Prestamos.getAll()
-      : await Prestamos.getByEmpleado(usuarioDB.id_empleado);
+    const prestamo = await Prestamos.getById(id);
+    if (!prestamo) {
+      return res.status(404).json({ error: 'Préstamo no encontrado' });
+    }
 
-    const prestamo = prestamos.find(p => p.id_prestamo === id);
-    if (!prestamo) return res.status(404).json({ error: 'Préstamo no encontrado' });
+    if (user.id_rol !== 1) {
+      const usuarioDB = await Usuario.getById(user.id_usuario);
+      if (!usuarioDB || !usuarioDB.id_empleado || usuarioDB.id_empleado !== prestamo.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado para acceder a este préstamo' });
+      }
+    }
 
-    res.json(prestamo);
+    return res.json(prestamo);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
 
@@ -101,9 +398,9 @@ const createPrestamo = async (req, res) => {
       fecha_solicitud: fechaSolicitud,
     });
 
-    res.status(201).json({ message: 'Préstamo creado', id_prestamo: created.id_prestamo });
+    return res.status(201).json({ message: 'Préstamo creado', id_prestamo: created.id_prestamo });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
 
@@ -120,9 +417,9 @@ const pagarPrestamo = async (req, res) => {
     }
 
     await Prestamos.pagarCuota(id, montoPagoNumber);
-    res.json({ message: 'Pago registrado, saldo actualizado' });
+    return res.json({ message: 'Pago registrado, saldo actualizado' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
 
@@ -159,9 +456,53 @@ const updateEstadoPrestamo = async (req, res) => {
     }
 
     await Prestamos.updateEstado(id, id_estado);
-    res.json({ message: 'Estado del préstamo actualizado', id_estado });
+    return res.json({ message: 'Estado del préstamo actualizado', id_estado });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+const exportPrestamoPdf = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const id_prestamo = Number(req.params.id);
+    if (!Number.isInteger(id_prestamo) || id_prestamo <= 0) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const prestamo = await Prestamos.getById(id_prestamo);
+    if (!prestamo) {
+      return res.status(404).json({ error: 'Préstamo no encontrado' });
+    }
+
+    if (user.id_rol !== 1) {
+      const usuarioDB = await Usuario.getById(user.id_usuario);
+      if (!usuarioDB || !usuarioDB.id_empleado || usuarioDB.id_empleado !== prestamo.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado para acceder a este préstamo' });
+      }
+    }
+
+    if (Number(prestamo.id_estado) !== 2) {
+      return res.status(400).json({ error: 'El documento está disponible únicamente para préstamos aprobados' });
+    }
+
+    await ensureExportsDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `prestamo-${prestamo.id_prestamo}-${timestamp}.pdf`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    await createPrestamoPdf(filePath, prestamo);
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicUrl = `${baseUrl}/files/${filename}`;
+
+    return res.json({ url: publicUrl, filename, format: 'pdf' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 };
 
@@ -171,4 +512,5 @@ module.exports = {
   createPrestamo,
   pagarPrestamo,
   updateEstadoPrestamo,
+  exportPrestamoPdf,
 };
