@@ -62,54 +62,207 @@ class Aguinaldo {
     }
   }
 
-  static async calcularYGuardar({ id_empleado, anio }) {
+  static async calcularYGuardar({
+    id_empleado,
+    anio,
+    metodo = 'automatico',
+    incluirBonificaciones = true,
+    incluirHorasExtra = false,
+    salarioQuincenal = null,
+    fechaIngresoManual = null,
+    tipoPagoManual = null,
+  }) {
     try {
       const pool = await poolPromise;
 
       const inicioPeriodo = new Date(anio - 1, 11, 1);
       const finPeriodo = new Date(anio, 10, 30, 23, 59, 59, 997);
+      const metodoNormalizado = metodo === 'manual' ? 'manual' : 'automatico';
 
-      const planillaResult = await pool
-        .request()
-        .input('id_empleado', sql.Int, id_empleado)
-        .input('inicio_periodo', sql.Date, inicioPeriodo)
-        .input('fin_periodo', sql.Date, finPeriodo)
-        .query(`
-          SELECT pago_neto, periodo_inicio, periodo_fin
-          FROM Planilla
-          WHERE id_empleado = @id_empleado
-            AND (
-              (periodo_inicio BETWEEN @inicio_periodo AND @fin_periodo)
-              OR (periodo_fin BETWEEN @inicio_periodo AND @fin_periodo)
-            )
-        `);
+      let salarioPromedio;
+      let montoAguinaldo;
+      let detalleCalculo = null;
 
-      const registros = planillaResult.recordset;
+      if (metodoNormalizado === 'manual') {
+        const empleadoResult = await pool
+          .request()
+          .input('id_empleado', sql.Int, id_empleado)
+          .query(`
+            SELECT fecha_ingreso, salario_monto, tipo_pago
+            FROM Empleados
+            WHERE id_empleado = @id_empleado
+          `);
 
-      if (!Array.isArray(registros) || registros.length === 0) {
-        const error = new Error('No se encontraron planillas para calcular el aguinaldo en el periodo indicado');
-        error.statusCode = 404;
-        throw error;
+        const empleado = empleadoResult.recordset[0];
+        if (!empleado) {
+          const error = new Error('Empleado no encontrado');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        const parseDate = (value) => {
+          if (!value) return null;
+          const date = value instanceof Date ? value : new Date(value);
+          if (Number.isNaN(date.getTime())) return null;
+          return date;
+        };
+
+        const fechaIngresoBase = (() => {
+          const preferenciaManual = parseDate(fechaIngresoManual);
+          if (preferenciaManual) return preferenciaManual;
+          return parseDate(empleado.fecha_ingreso);
+        })();
+
+        if (!fechaIngresoBase) {
+          const error = new Error('No se pudo determinar la fecha de ingreso del colaborador');
+          error.statusCode = 400;
+          throw error;
+        }
+
+        const inicioCalculo = fechaIngresoBase > inicioPeriodo ? fechaIngresoBase : inicioPeriodo;
+
+        if (inicioCalculo > finPeriodo) {
+          const error = new Error('La fecha de ingreso se encuentra fuera del periodo de cálculo');
+          error.statusCode = 400;
+          throw error;
+        }
+
+        const MS_POR_DIA = 24 * 60 * 60 * 1000;
+        const diasPeriodo = Math.max(Math.floor((finPeriodo - inicioPeriodo) / MS_POR_DIA) + 1, 1);
+        const diasTrabajados = Math.max(Math.floor((finPeriodo - inicioCalculo) / MS_POR_DIA) + 1, 0);
+
+        const salarioBaseReferencia = (() => {
+          const manual = Number(salarioQuincenal);
+          if (Number.isFinite(manual) && manual > 0) return manual;
+          const registro = Number(empleado.salario_monto);
+          if (Number.isFinite(registro) && registro > 0) return registro;
+          return null;
+        })();
+
+        if (salarioBaseReferencia === null) {
+          const error = new Error('No se pudo determinar el salario base del colaborador');
+          error.statusCode = 400;
+          throw error;
+        }
+
+        const tipoPagoReferencia = (tipoPagoManual || empleado.tipo_pago || '').toString().toLowerCase();
+
+        let salarioMensualEstimado;
+        switch (tipoPagoReferencia) {
+          case 'mensual':
+            salarioMensualEstimado = salarioBaseReferencia;
+            break;
+          case 'diario':
+            salarioMensualEstimado = salarioBaseReferencia * 30;
+            break;
+          case 'semanal':
+            salarioMensualEstimado = salarioBaseReferencia * 4;
+            break;
+          default:
+            salarioMensualEstimado = salarioBaseReferencia * 2;
+            break;
+        }
+
+        salarioPromedio = Number(Number(salarioMensualEstimado).toFixed(2));
+        const montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
+        montoAguinaldo = Number(Number(montoCalculado).toFixed(2));
+
+        detalleCalculo = {
+          metodo: 'manual',
+          periodo: {
+            inicio: inicioPeriodo.toISOString(),
+            fin: finPeriodo.toISOString(),
+            fecha_ingreso_utilizada: inicioCalculo.toISOString(),
+            dias_trabajados: diasTrabajados,
+            dias_periodo: diasPeriodo,
+          },
+          salario_quincenal_utilizado: Number(Number(salarioBaseReferencia).toFixed(2)),
+          salario_mensual_estimado: Number(Number(salarioMensualEstimado).toFixed(2)),
+        };
+      } else {
+        const planillaResult = await pool
+          .request()
+          .input('id_empleado', sql.Int, id_empleado)
+          .input('inicio_periodo', sql.Date, inicioPeriodo)
+          .input('fin_periodo', sql.Date, finPeriodo)
+          .query(`
+            SELECT pago_neto, periodo_inicio, periodo_fin, salario_bruto, bonificaciones, horas_extras
+            FROM Planilla
+            WHERE id_empleado = @id_empleado
+              AND (
+                (periodo_inicio BETWEEN @inicio_periodo AND @fin_periodo)
+                OR (periodo_fin BETWEEN @inicio_periodo AND @fin_periodo)
+              )
+          `);
+
+        const registros = planillaResult.recordset;
+
+        if (!Array.isArray(registros) || registros.length === 0) {
+          const error = new Error('No se encontraron planillas para calcular el aguinaldo en el periodo indicado');
+          error.statusCode = 404;
+          throw error;
+        }
+
+        const toNumber = (value) => {
+          const numero = Number(value);
+          return Number.isFinite(numero) ? numero : 0;
+        };
+
+        const totales = registros.reduce(
+          (acumulado, registro) => {
+            const salarioBruto = toNumber(registro.salario_bruto);
+            const bonificaciones = toNumber(registro.bonificaciones);
+            const horasExtras = toNumber(registro.horas_extras);
+
+            const base = salarioBruto - bonificaciones - horasExtras;
+            const baseNormalizado = base > 0 ? base : 0;
+
+            return {
+              base: acumulado.base + baseNormalizado,
+              bonificaciones: acumulado.bonificaciones + bonificaciones,
+              horas_extras: acumulado.horas_extras + horasExtras,
+            };
+          },
+          { base: 0, bonificaciones: 0, horas_extras: 0 }
+        );
+
+        const totalConsiderado =
+          totales.base +
+          (incluirBonificaciones ? totales.bonificaciones : 0) +
+          (incluirHorasExtra ? totales.horas_extras : 0);
+
+        const mesesLaborados = registros.reduce((set, row) => {
+          const referencia = row.periodo_fin || row.periodo_inicio;
+          const ym = toYearMonth(referencia);
+          if (ym) set.add(ym);
+          return set;
+        }, new Set());
+
+        const mesesCount = mesesLaborados.size > 0 ? mesesLaborados.size : 12;
+
+        salarioPromedio = Number(
+          (mesesCount > 0 ? totalConsiderado / mesesCount : 0).toFixed(2)
+        );
+        montoAguinaldo = Number((totalConsiderado / 12).toFixed(2));
+
+        detalleCalculo = {
+          metodo: 'automatico',
+          opciones: {
+            incluir_bonificaciones: Boolean(incluirBonificaciones),
+            incluir_horas_extra: Boolean(incluirHorasExtra),
+          },
+          periodo: {
+            inicio: inicioPeriodo.toISOString(),
+            fin: finPeriodo.toISOString(),
+          },
+          totales: {
+            base: Number(totales.base.toFixed(2)),
+            bonificaciones: Number(totales.bonificaciones.toFixed(2)),
+            horas_extra: Number(totales.horas_extras.toFixed(2)),
+            considerado: Number(totalConsiderado.toFixed(2)),
+          },
+        };
       }
-
-      const totalPagos = registros.reduce((sum, row) => {
-        const valor = Number(row.pago_neto) || 0;
-        return sum + valor;
-      }, 0);
-
-      const mesesLaborados = registros.reduce((set, row) => {
-        const referencia = row.periodo_fin || row.periodo_inicio;
-        const ym = toYearMonth(referencia);
-        if (ym) set.add(ym);
-        return set;
-      }, new Set());
-
-      const mesesCount = mesesLaborados.size > 0 ? mesesLaborados.size : 12;
-
-      const salarioPromedio = Number(
-        (mesesCount > 0 ? totalPagos / mesesCount : 0).toFixed(2)
-      );
-      const montoAguinaldo = Number((totalPagos / 12).toFixed(2));
 
       const existenteResult = await pool
         .request()
@@ -172,10 +325,14 @@ class Aguinaldo {
           monto_aguinaldo: montoAguinaldo,
           fecha_calculo: new Date().toISOString(),
           pagado: pagadoActual,
+          detalle_calculo: detalleCalculo,
         };
       }
 
-      return aguinaldo;
+      return {
+        ...aguinaldo,
+        detalle_calculo: detalleCalculo,
+      };
     } catch (err) {
       throw err;
     }
