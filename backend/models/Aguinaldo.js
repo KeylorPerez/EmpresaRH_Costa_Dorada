@@ -329,7 +329,25 @@ class Aguinaldo {
         salarioPromedio = Number(
           (mesesCount > 0 ? totalConsiderado / mesesCount : 0).toFixed(2)
         );
-        montoAguinaldo = Number((totalConsiderado / 12).toFixed(2));
+
+        const mesesTrabajados = (() => {
+          const mesesPeriodo = diffMonthsInclusive(
+            fechaInicioParaGuardar,
+            fechaFinParaGuardar
+          );
+          if (mesesPeriodo) {
+            return Math.min(12, Math.max(1, mesesPeriodo));
+          }
+          if (mesesCount > 0) {
+            return Math.min(12, Math.max(1, mesesCount));
+          }
+          return 12;
+        })();
+
+        const aguinaldoCalculado =
+          mesesTrabajados > 0 ? (salarioPromedio / 12) * mesesTrabajados : 0;
+
+        montoAguinaldo = Number(aguinaldoCalculado.toFixed(2));
 
         detalleCalculo = {
           metodo: 'automatico',
