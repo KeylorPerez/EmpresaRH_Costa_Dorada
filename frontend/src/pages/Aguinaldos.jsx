@@ -64,6 +64,9 @@ const Aguinaldos = ({ mode }) => {
     isAdmin,
     setError,
     setSuccessMessage,
+    esCajeraSeleccionada,
+    montosQuincenales,
+    promedioQuincenalCalculado,
   } = useAguinaldos();
 
   const roleColor = isAdminView ? "blue" : "green";
@@ -310,6 +313,37 @@ const Aguinaldos = ({ mode }) => {
 
                 {formData.metodo === "manual" && (
                   <>
+                    {esCajeraSeleccionada && (
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <div className="flex flex-col">
+                          <label className="text-sm font-medium text-gray-700 mb-1">
+                            Montos quincenales registrados
+                          </label>
+                          <textarea
+                            name="salarios_quincenales"
+                            value={formData.salarios_quincenales}
+                            onChange={handleChange}
+                            rows={4}
+                            placeholder="Ejemplo: 350000, 362500, 348750"
+                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">
+                            Ingresa cada pago quincenal conocido separado por comas, punto y coma o saltos de línea.
+                            Calcularemos el promedio automáticamente para el salario quincenal.
+                          </p>
+                          {promedioQuincenalCalculado !== null && (
+                            <p className="mt-2 text-xs font-medium text-blue-700">
+                              Promedio utilizado: {formatearMontoCRC(promedioQuincenalCalculado)}
+                              {montosQuincenales.length > 0 &&
+                                ` (a partir de ${montosQuincenales.length} registro${
+                                  montosQuincenales.length === 1 ? "" : "s"
+                                })`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-700 mb-1">

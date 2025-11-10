@@ -6,6 +6,42 @@ import { useAuth } from "./useAuth";
 
 const currentYear = () => new Date().getFullYear().toString();
 
+const esPuestoCajera = (puestoNombre) =>
+  String(puestoNombre || "")
+    .toLowerCase()
+    .includes("cajer");
+
+const parseMontosQuincenales = (texto) => {
+  if (!texto || typeof texto !== "string") return [];
+
+  return texto
+    .split(/[\n;,]+/)
+    .map((item) =>
+      item
+        .replace(/₡/gi, "")
+        .replace(/\s+/g, "")
+        .replace(/[^0-9,.-]/g, "")
+        .trim()
+    )
+    .filter(Boolean)
+    .map((item) => {
+      const normalized = item.includes(",") && !item.includes(".")
+        ? item.replace(/,/g, ".")
+        : item.replace(/,/g, "");
+      const numero = Number(normalized);
+      return Number.isFinite(numero) ? numero : null;
+    })
+    .filter((numero) => numero !== null && numero > 0);
+};
+
+const calcularPromedio = (valores) => {
+  if (!Array.isArray(valores) || valores.length === 0) {
+    return null;
+  }
+  const suma = valores.reduce((acumulado, valor) => acumulado + valor, 0);
+  return Number((suma / valores.length).toFixed(2));
+};
+
 const createInitialForm = () => ({
   id_empleado: "",
   anio: currentYear(),
@@ -15,6 +51,8 @@ const createInitialForm = () => ({
   incluir_bonificaciones: true,
   incluir_horas_extra: false,
   tipo_pago_empleado: "",
+  puesto_nombre: "",
+  salarios_quincenales: "",
 });
 
 const formatDateInput = (value) => {
@@ -152,6 +190,8 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
               ? String(Number(selected.salario_monto) || "")
               : "",
           tipo_pago_empleado: selected?.tipo_pago || "",
+          puesto_nombre: selected?.puesto_nombre || "",
+          salarios_quincenales: "",
         };
       });
       return;
@@ -187,6 +227,22 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       return;
     }
 
+    if (name === "salarios_quincenales") {
+      setFormData((prev) => {
+        const valores = parseMontosQuincenales(value);
+        const promedio = calcularPromedio(valores);
+        return {
+          ...prev,
+          salarios_quincenales: value,
+          salario_quincenal:
+            promedio !== null && esPuestoCajera(prev.puesto_nombre)
+              ? String(promedio)
+              : prev.salario_quincenal,
+        };
+      });
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -200,6 +256,21 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       ...overrides,
     });
   };
+
+  const esCajeraSeleccionada = useMemo(
+    () => esPuestoCajera(formData.puesto_nombre),
+    [formData.puesto_nombre]
+  );
+
+  const montosQuincenales = useMemo(
+    () => parseMontosQuincenales(formData.salarios_quincenales),
+    [formData.salarios_quincenales]
+  );
+
+  const promedioQuincenalCalculado = useMemo(
+    () => calcularPromedio(montosQuincenales),
+    [montosQuincenales]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -335,5 +406,8 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     isAdmin,
     setError,
     setSuccessMessage,
+    esCajeraSeleccionada,
+    montosQuincenales,
+    promedioQuincenalCalculado,
   };
 };
