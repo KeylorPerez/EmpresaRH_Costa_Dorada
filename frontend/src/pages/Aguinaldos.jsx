@@ -46,10 +46,24 @@ const formatearFechaInput = (value) => {
 
 const parseDateOnly = (value) => {
   if (!value) return null;
-  const date = value instanceof Date ? new Date(value) : new Date(value);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed) {
+      const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [_, year, month, day] = match;
+        return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      }
+    }
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
+
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
 };
 
 const Aguinaldos = ({ mode }) => {
@@ -106,15 +120,8 @@ const Aguinaldos = ({ mode }) => {
     };
   }, [formData.anio, formData.fecha_inicio_periodo, formData.fecha_fin_periodo]);
 
-  const limitesFechaManual = useMemo(() => {
-    return {
-      min: formatearFechaInput(periodoCalculo.inicio),
-      max: formatearFechaInput(periodoCalculo.fin),
-      etiqueta: `${formatearFechaLarga(periodoCalculo.inicio)} al ${formatearFechaLarga(
-        periodoCalculo.fin
-      )}`,
-    };
-  }, [periodoCalculo]);
+  const fechaCalculoHoy = useMemo(() => formatearFechaInput(new Date()), []);
+  const fechaCalculoHoyTexto = useMemo(() => formatearFechaLarga(new Date()), []);
 
   const fechaIngresoAplicada = useMemo(() => {
     if (!formData.fecha_ingreso_manual) return null;
@@ -415,25 +422,20 @@ const Aguinaldos = ({ mode }) => {
                     <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-700 mb-1">
-                          Fecha de ingreso para el cálculo
+                          Fecha de cálculo
                         </label>
                         <input
                           type="date"
-                          name="fecha_ingreso_manual"
-                          value={formData.fecha_ingreso_manual}
-                          onChange={handleChange}
-                          min={limitesFechaManual.min}
-                          max={limitesFechaManual.max}
-                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
+                          value={fechaCalculoHoy}
+                          readOnly
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Selecciona una fecha dentro del periodo del cálculo ({limitesFechaManual.etiqueta}).
-                          Si el colaborador ingresó antes, se utilizará el inicio del periodo.
+                          Se registra automáticamente la fecha del cálculo ({fechaCalculoHoyTexto}).
                         </p>
                         {fechaIngresoAplicada && (
                           <p className="mt-2 text-xs font-medium text-blue-700">
-                            Fecha aplicada para el cálculo: {fechaIngresoAplicada}
+                            Fecha de ingreso del colaborador considerada: {fechaIngresoAplicada}
                           </p>
                         )}
                       </div>

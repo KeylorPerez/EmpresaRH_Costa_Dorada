@@ -96,10 +96,24 @@ const getPeriodoPorAnio = (anio) => {
 
 const parseDateOnly = (value) => {
   if (!value) return null;
-  const date = value instanceof Date ? new Date(value) : new Date(value);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed) {
+      const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [_, year, month, day] = match;
+        return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      }
+    }
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
+
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
 };
 
 const clampDateToPeriodo = (value, periodo) => {
@@ -486,7 +500,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         }
 
         if (!formData.fecha_ingreso_manual) {
-          setError("Ingresa o confirma la fecha de ingreso del colaborador");
+          setError("No se pudo determinar la fecha de ingreso del colaborador");
           setSubmitting(false);
           return;
         }
