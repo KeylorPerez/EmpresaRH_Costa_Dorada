@@ -373,6 +373,7 @@ const Planilla = () => {
       { path: "/admin/vacaciones", label: "Vacaciones" },
       { path: "/admin/prestamos", label: "Préstamos" },
       { path: "/admin/liquidaciones", label: "Liquidaciones" },
+      { path: "/admin/aguinaldos", label: "Aguinaldos" },
     ],
     []
   );

@@ -30,6 +30,7 @@ const DashboardEmpleado = () => {
     { path: "/empleado/vacaciones", label: "Vacaciones" },
     { path: "/empleado/prestamos", label: "Préstamos" },
     { path: "/empleado/liquidaciones", label: "Liquidaciones" },
+    { path: "/empleado/aguinaldos", label: "Aguinaldos" },
   ];
 
   return (
@@ -84,6 +85,13 @@ const DashboardEmpleado = () => {
                   size="md"
                 >
                   Liquidaciones
+                </Button>
+                <Button
+                  onClick={() => navigate("/empleado/aguinaldos")}
+                  variant="primary"
+                  size="md"
+                >
+                  Aguinaldos
                 </Button>
               </div>
             </div>

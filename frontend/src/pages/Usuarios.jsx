@@ -38,6 +38,7 @@ const Usuarios = () => {
     { path: "/admin/vacaciones", label: "Vacaciones" },
     { path: "/admin/prestamos", label: "Préstamos" },
     { path: "/admin/liquidaciones", label: "Liquidaciones" },
+    { path: "/admin/aguinaldos", label: "Aguinaldos" },
   ];
 
   if (!user) return <p>Cargando usuario...</p>;

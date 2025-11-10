@@ -47,6 +47,7 @@ const Liquidaciones = ({ mode }) => {
         { path: "/admin/vacaciones", label: "Vacaciones" },
         { path: "/admin/prestamos", label: "Préstamos" },
         { path: "/admin/liquidaciones", label: "Liquidaciones" },
+        { path: "/admin/aguinaldos", label: "Aguinaldos" },
       ];
     }
     return [
@@ -54,6 +55,7 @@ const Liquidaciones = ({ mode }) => {
       { path: "/empleado/vacaciones", label: "Vacaciones" },
       { path: "/empleado/prestamos", label: "Préstamos" },
       { path: "/empleado/liquidaciones", label: "Liquidaciones" },
+      { path: "/empleado/aguinaldos", label: "Aguinaldos" },
     ];
   }, [isAdmin]);
 
@@ -103,7 +105,7 @@ const Liquidaciones = ({ mode }) => {
           onClick={async () => {
             try {
               await approveLiquidacion(registro);
-            } catch (_) {
+            } catch {
               // El hook maneja el error
             }
           }}
@@ -117,7 +119,7 @@ const Liquidaciones = ({ mode }) => {
           onClick={async () => {
             try {
               await rejectLiquidacion(registro);
-            } catch (_) {
+            } catch {
               // El hook maneja el error
             }
           }}

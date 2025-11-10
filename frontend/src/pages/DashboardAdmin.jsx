@@ -35,6 +35,7 @@ const DashboardAdmin = () => {
     { path: "/admin/vacaciones", label: "Vacaciones" },
     { path: "/admin/prestamos", label: "Préstamos" },
     { path: "/admin/liquidaciones", label: "Liquidaciones" },
+    { path: "/admin/aguinaldos", label: "Aguinaldos" },
   ];
 
   return (
@@ -117,6 +118,13 @@ const DashboardAdmin = () => {
                   size="md"
                 >
                   Liquidaciones
+                </Button>
+                <Button
+                  onClick={() => navigate("/admin/aguinaldos")}
+                  variant="primary"
+                  size="md"
+                >
+                  Aguinaldos
                 </Button>
               </div>
             </div>

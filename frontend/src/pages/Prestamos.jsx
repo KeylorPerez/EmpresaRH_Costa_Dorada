@@ -62,6 +62,7 @@ const Prestamos = ({ mode }) => {
         { path: "/admin/vacaciones", label: "Vacaciones" },
         { path: "/admin/prestamos", label: "Préstamos" },
         { path: "/admin/liquidaciones", label: "Liquidaciones" },
+        { path: "/admin/aguinaldos", label: "Aguinaldos" },
       ];
     }
 
@@ -70,6 +71,7 @@ const Prestamos = ({ mode }) => {
       { path: "/empleado/vacaciones", label: "Vacaciones" },
       { path: "/empleado/prestamos", label: "Préstamos" },
       { path: "/empleado/liquidaciones", label: "Liquidaciones" },
+      { path: "/empleado/aguinaldos", label: "Aguinaldos" },
     ];
   }, [isAdmin]);
 

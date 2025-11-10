@@ -11,6 +11,7 @@ import PlanillaDetalle from "../pages/PlanillaDetalle";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
+import Aguinaldos from "../pages/Aguinaldos";
 import Asistencia from "../pages/Asistencia";
 import AuthForm from "../components/AuthForm"; // Login
 
@@ -130,6 +131,15 @@ const AppRouter = () => {
         }
       />
 
+      <Route
+        path="/admin/aguinaldos"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <Aguinaldos mode="admin" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Dashboard empleado */}
       <Route
         path="/empleado/*"
@@ -166,6 +176,15 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[2]}>
             <Liquidaciones mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/empleado/aguinaldos"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Aguinaldos mode="empleado" />
           </PrivateRoute>
         }
       />

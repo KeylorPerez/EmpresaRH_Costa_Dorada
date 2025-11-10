@@ -15,7 +15,7 @@ export const decodeJwtPayload = (token) => {
   try {
     const decoded = atob(padded);
     return JSON.parse(decoded);
-  } catch (error) {
+  } catch {
     throw new Error("No se pudo decodificar el token");
   }
 };
