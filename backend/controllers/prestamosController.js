@@ -118,60 +118,85 @@ const chunkArray = (items, size) => {
 
 const buildPdfContentStream = (lines) => {
   const safeLines = lines.length > 0 ? lines : [''];
-  const escapedLines = safeLines.map((line) => escapePdfText(line));
-  const content = escapedLines.join('\n');
-  const contentLength = Buffer.byteLength(content, 'utf8');
-
-  return `<< /Length ${contentLength} >>\nstream\n${content}\nendstream`;
+  const instructions = ['BT', '/F1 11 Tf', '50 780 Td'];
+  instructions.push(`(${escapePdfText(safeLines[0])}) Tj`);
+  for (let i = 1; i < safeLines.length; i += 1) {
+    instructions.push('0 -14 Td');
+    instructions.push(`(${escapePdfText(safeLines[i])}) Tj`);
+  }
+  instructions.push('ET');
+  return instructions.join('\n');
 };
 
 const buildPdfBuffer = (pagesContent) => {
-  const header = '%PDF-1.4';
+  const contentStreams = pagesContent.length > 0 ? pagesContent : ['BT\n/F1 11 Tf\n50 780 Td\n() Tj\nET'];
   const objects = [];
-  const xref = [];
 
-  const addObject = (objectContent) => {
-    const offset = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
-    xref.push(offset);
-    objects.push(objectContent);
-    return objects.length; // Número del objeto
+  const addObject = (value) => {
+    objects.push(value);
+    return objects.length;
   };
 
-  const pageObjects = [];
-  pagesContent.forEach((contentStream) => {
-    const contentsObjNum = addObject(`${objects.length + 1} 0 obj\n${contentStream}\nendobj`);
-    const pageObj = `${objects.length + 1} 0 obj\n<< /Type /Page /Parent 1 0 R /MediaBox [0 0 595 842] /Contents ${contentsObjNum} 0 R >>\nendobj`;
-    const pageObjNum = addObject(pageObj);
-    pageObjects.push(pageObjNum);
+  const catalogId = addObject(null);
+  const pagesId = addObject(null);
+  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+  const pageIds = contentStreams.map((streamContent) => {
+    const contentId = addObject({ stream: streamContent });
+    const pageIndex = addObject({ contentId });
+    return { pageIndex, contentId };
   });
 
-  const pagesKids = pageObjects.map((num) => `${num} 0 R`).join(' ');
-  const pagesObj = `1 0 obj\n<< /Type /Pages /Kids [${pagesKids}] /Count ${pageObjects.length} >>\nendobj`;
-  objects.unshift(pagesObj);
-  xref.unshift(Buffer.byteLength(header + '\n', 'utf8'));
+  const kids = pageIds.map(({ pageIndex }) => `${pageIndex} 0 R`).join(' ');
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${kids}] /Count ${pageIds.length} >>`;
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
 
-  const catalogObjNum = objects.length + 1;
-  const catalogObj = `${catalogObjNum} 0 obj\n<< /Type /Catalog /Pages 1 0 R >>\nendobj`;
-  const catalogOffset = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
-  xref.push(catalogOffset);
-  objects.push(catalogObj);
-
-  const xrefStart = Buffer.byteLength([header, ...objects].join('\n'), 'utf8');
-  const xrefEntries = ['xref', `0 ${objects.length + 1}`, '0000000000 65535 f '];
-  xref.forEach((offset) => {
-    xrefEntries.push(`${offset.toString().padStart(10, '0')} 00000 n `);
+  pageIds.forEach(({ pageIndex, contentId }) => {
+    objects[pageIndex - 1] = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
   });
 
-  const trailer = [
-    'trailer',
-    `<< /Size ${objects.length + 1} /Root ${catalogObjNum} 0 R >>`,
-    'startxref',
-    `${xrefStart}`,
-    '%%EOF',
-  ].join('\n');
+  const buffers = [];
+  const header = '%PDF-1.4\n';
+  buffers.push(Buffer.from(header, 'utf8'));
+  let offset = header.length;
+  const xrefPositions = [0];
 
-  const pdfContent = [header, ...objects, xrefEntries.join('\n'), trailer].join('\n');
-  return Buffer.from(pdfContent, 'utf8');
+  objects.forEach((obj, index) => {
+    xrefPositions.push(offset);
+    const objectId = index + 1;
+    const objectHeader = `${objectId} 0 obj\n`;
+    let bodyBuffer;
+    if (obj && typeof obj === 'object' && obj.stream !== undefined) {
+      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const normalizedStream = normalizePdfEncoding(streamString);
+      const streamBuffer = Buffer.from(normalizedStream, 'latin1');
+      const preamble = Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, 'ascii');
+      const postamble = Buffer.from('\nendstream\n', 'ascii');
+      bodyBuffer = Buffer.concat([preamble, streamBuffer, postamble]);
+    } else {
+      const body = `${obj || ''}\n`;
+      bodyBuffer = Buffer.from(body, 'utf8');
+    }
+    const footer = 'endobj\n';
+    const objectBuffer = Buffer.concat([Buffer.from(objectHeader, 'utf8'), bodyBuffer, Buffer.from(footer, 'utf8')]);
+    buffers.push(objectBuffer);
+    offset += objectBuffer.length;
+  });
+
+  const xrefStart = offset;
+  const xrefHeader = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  const xrefLines = [];
+  for (let i = 1; i <= objects.length; i += 1) {
+    xrefLines.push(`${xrefPositions[i].toString().padStart(10, '0')} 00000 n \n`);
+  }
+  const xrefBuffer = Buffer.from(xrefHeader + xrefLines.join(''), 'utf8');
+  buffers.push(xrefBuffer);
+  offset += xrefBuffer.length;
+
+  const trailer = `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  buffers.push(Buffer.from(trailer, 'utf8'));
+
+  return Buffer.concat(buffers);
 };
 
 const estadoPrestamoMap = {
@@ -278,6 +303,26 @@ const buildPrestamoPdfLines = (prestamo) => {
   lines.push('Observaciones:');
   lines.push('______________________________________________________________');
   lines.push('______________________________________________________________');
+  lines.push('');
+  lines.push(divider);
+  lines.push('Anexo - Autorización de vacaciones como respaldo del préstamo');
+  lines.push(divider);
+  lines.push('');
+  wrapText(
+    'Yo, colaborador solicitante, autorizo que en caso de incumplimiento de pago la empresa pueda aplicar los días de vacación acumulados como garantía para cubrir las sumas adeudadas.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  wrapText(
+    'Entiendo que cualquier deducción relacionada se realizará conforme a la legislación laboral vigente y a las políticas internas, procurando el debido aviso previo por parte de Recursos Humanos.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  lines.push('Firma de conformidad del colaborador: ___________________________');
+  lines.push('Fecha: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Firma de responsable de Recursos Humanos: ______________________');
+  lines.push('Fecha: ____ / ____ / ______');
 
   return lines;
 };
