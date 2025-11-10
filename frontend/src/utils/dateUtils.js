@@ -1,6 +1,13 @@
 const DEFAULT_LOCALE = "es-CR";
 const DEFAULT_OPTIONS = { year: "numeric", month: "short", day: "numeric" };
 
+export const getTodayInputValue = () => {
+  const now = new Date();
+  const offsetMinutes = now.getTimezoneOffset();
+  const localDate = new Date(now.getTime() - offsetMinutes * 60 * 1000);
+  return localDate.toISOString().split("T")[0];
+};
+
 export const parseDateValue = (value) => {
   if (!value) return null;
 
