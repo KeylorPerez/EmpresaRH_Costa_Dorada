@@ -101,20 +101,33 @@ class Aguinaldo {
 
       const parseFecha = (valor) => {
         if (!valor) return null;
-        const fecha = valor instanceof Date ? new Date(valor) : new Date(valor);
+
+        if (typeof valor === 'string') {
+          const match = valor.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (match) {
+            const [, year, month, day] = match;
+            const date = new Date(
+              Date.UTC(Number(year), Number(month) - 1, Number(day))
+            );
+            if (!Number.isNaN(date.getTime())) {
+              return date;
+            }
+          }
+        }
+
+        const fecha = valor instanceof Date ? new Date(valor.getTime()) : new Date(valor);
         if (Number.isNaN(fecha.getTime())) return null;
-        return fecha;
+
+        return new Date(
+          Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())
+        );
       };
 
-      const defaultInicio = new Date(anio - 1, 11, 1);
-      defaultInicio.setHours(0, 0, 0, 0);
-      const defaultFin = new Date(anio, 10, 30);
-      defaultFin.setHours(23, 59, 59, 997);
+      const defaultInicio = new Date(Date.UTC(anio - 1, 11, 1));
+      const defaultFin = new Date(Date.UTC(anio, 10, 30, 23, 59, 59, 997));
 
       const inicioPeriodo = parseFecha(fechaInicioPeriodo) || defaultInicio;
-      inicioPeriodo.setHours(0, 0, 0, 0);
       const finPeriodo = parseFecha(fechaFinPeriodo) || defaultFin;
-      finPeriodo.setHours(23, 59, 59, 997);
 
       if (finPeriodo < inicioPeriodo) {
         const error = new Error('La fecha fin del periodo no puede ser anterior a la fecha de inicio');
@@ -166,14 +179,14 @@ class Aguinaldo {
           throw error;
         }
 
-        fechaIngresoBase.setHours(0, 0, 0, 0);
+        fechaIngresoBase.setUTCHours(0, 0, 0, 0);
 
         const inicioCalculoMs = Math.max(
           fechaIngresoBase.getTime(),
           inicioPeriodo.getTime()
         );
         const inicioCalculo = new Date(inicioCalculoMs);
-        inicioCalculo.setHours(0, 0, 0, 0);
+        inicioCalculo.setUTCHours(0, 0, 0, 0);
 
         if (inicioCalculo > finPeriodo) {
           const error = new Error('La fecha de ingreso se encuentra fuera del periodo de cálculo');
