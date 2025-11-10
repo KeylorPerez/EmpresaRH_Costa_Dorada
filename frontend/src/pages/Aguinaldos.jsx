@@ -34,6 +34,16 @@ const formatearFechaLarga = (value) => {
   });
 };
 
+const formatearFechaInput = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const Aguinaldos = ({ mode }) => {
   const isAdminView = mode === "admin";
   const { user, logoutUser } = useAuth();
@@ -78,6 +88,23 @@ const Aguinaldos = ({ mode }) => {
       etiqueta: `${formatearFechaLarga(inicio)} al ${formatearFechaLarga(fin)}`,
     };
   }, [formData.anio]);
+
+  const limitesFechaManual = useMemo(() => {
+    return {
+      min: formatearFechaInput(periodoCalculo.inicio),
+      max: formatearFechaInput(periodoCalculo.fin),
+      etiqueta: `${formatearFechaLarga(periodoCalculo.inicio)} al ${formatearFechaLarga(
+        periodoCalculo.fin
+      )}`,
+    };
+  }, [periodoCalculo]);
+
+  const fechaIngresoAplicada = useMemo(() => {
+    if (!formData.fecha_ingreso_manual) return null;
+    const fecha = new Date(formData.fecha_ingreso_manual);
+    if (Number.isNaN(fecha.getTime())) return null;
+    return formatearFechaLarga(fecha);
+  }, [formData.fecha_ingreso_manual]);
 
   const sidebarLinks = useMemo(() => {
     if (isAdminView) {
@@ -293,12 +320,20 @@ const Aguinaldos = ({ mode }) => {
                           name="fecha_ingreso_manual"
                           value={formData.fecha_ingreso_manual}
                           onChange={handleChange}
+                          min={limitesFechaManual.min}
+                          max={limitesFechaManual.max}
                           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Ajusta la fecha si el colaborador ingresó después del inicio del periodo.
+                          Selecciona una fecha dentro del periodo del cálculo ({limitesFechaManual.etiqueta}).
+                          Si el colaborador ingresó antes, se utilizará el inicio del periodo.
                         </p>
+                        {fechaIngresoAplicada && (
+                          <p className="mt-2 text-xs font-medium text-blue-700">
+                            Fecha aplicada para el cálculo: {fechaIngresoAplicada}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex flex-col">
