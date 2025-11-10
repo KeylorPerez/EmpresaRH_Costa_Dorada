@@ -48,7 +48,8 @@ const calcularAguinaldo = async (req, res) => {
       return res.status(400).json({ error: 'Año inválido para el cálculo' });
     }
 
-    const metodoRaw = typeof req.body?.metodo === 'string' ? req.body.metodo.trim().toLowerCase() : 'automatico';
+    const metodoRaw =
+      typeof req.body?.metodo === 'string' ? req.body.metodo.trim().toLowerCase() : 'automatico';
     const metodo = metodoRaw === 'manual' ? 'manual' : 'automatico';
 
     const incluirBonificaciones =
@@ -59,6 +60,28 @@ const calcularAguinaldo = async (req, res) => {
       req.body?.incluir_horas_extra !== undefined
         ? Boolean(req.body.incluir_horas_extra)
         : false;
+
+    const parseFecha = (valor) => {
+      if (!valor) return null;
+      const fecha = valor instanceof Date ? new Date(valor) : new Date(valor);
+      if (Number.isNaN(fecha.getTime())) return null;
+      fecha.setHours(0, 0, 0, 0);
+      return fecha;
+    };
+
+    const fechaInicioPeriodo = parseFecha(req.body?.fecha_inicio_periodo);
+    const fechaFinPeriodo = parseFecha(req.body?.fecha_fin_periodo);
+
+    if (fechaInicioPeriodo && fechaFinPeriodo && fechaFinPeriodo < fechaInicioPeriodo) {
+      return res.status(400).json({ error: 'La fecha fin del periodo no puede ser anterior a la fecha de inicio' });
+    }
+
+    const observacionTexto = (() => {
+      if (typeof req.body?.observacion !== 'string') return null;
+      const trimmed = req.body.observacion.trim();
+      if (!trimmed) return null;
+      return trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed;
+    })();
 
     let salarioQuincenalManual = null;
     let fechaIngresoManual = null;
@@ -96,6 +119,9 @@ const calcularAguinaldo = async (req, res) => {
       salarioQuincenal: salarioQuincenalManual,
       fechaIngresoManual,
       tipoPagoManual,
+      fechaInicioPeriodo,
+      fechaFinPeriodo,
+      observacion: observacionTexto,
     });
 
     return res.status(201).json({
