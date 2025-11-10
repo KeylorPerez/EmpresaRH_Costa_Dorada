@@ -74,12 +74,15 @@ const formatDateInput = (value) => {
     }
   }
 
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
+  const offsetMinutes = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offsetMinutes * 60 * 1000);
+
+  const year = localDate.getUTCFullYear();
+  const month = String(localDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(localDate.getUTCDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
