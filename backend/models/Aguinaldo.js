@@ -92,6 +92,7 @@ class Aguinaldo {
     salarioQuincenal = null,
     fechaIngresoManual = null,
     tipoPagoManual = null,
+    promedioManual = null,
     fechaInicioPeriodo = null,
     fechaFinPeriodo = null,
     observacion = null,
@@ -278,6 +279,30 @@ class Aguinaldo {
           detalleCalculo.meses_equivalentes = Number(
             Number(mesesEquivalentes ?? 0).toFixed(4)
           );
+
+          if (promedioManual && typeof promedioManual === 'object') {
+            const diasPromedio = Number(promedioManual.dias);
+            const montoPromedio = Number(promedioManual.monto);
+            const periodoPromedio = (() => {
+              if (typeof promedioManual.periodo !== 'string') return 'quincena';
+              const texto = promedioManual.periodo.trim().toLowerCase();
+              return texto === 'mes' ? 'mes' : 'quincena';
+            })();
+
+            const resumenPromedio = { periodo: periodoPromedio };
+
+            if (Number.isFinite(montoPromedio) && montoPromedio > 0) {
+              resumenPromedio.monto = Number(montoPromedio.toFixed(2));
+            }
+
+            if (Number.isFinite(diasPromedio) && diasPromedio > 0) {
+              resumenPromedio.dias = Number(diasPromedio.toFixed(2));
+            }
+
+            if (Object.keys(resumenPromedio).length > 0) {
+              detalleCalculo.promedio_referencia_usuario = resumenPromedio;
+            }
+          }
         }
       } else {
         const planillaResult = await pool

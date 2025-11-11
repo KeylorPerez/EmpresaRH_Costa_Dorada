@@ -102,6 +102,7 @@ const calcularAguinaldo = async (req, res) => {
     let salarioQuincenalManual = null;
     let fechaIngresoManual = null;
     let tipoPagoManual = null;
+    let promedioManual = null;
 
     if (metodo === 'manual') {
       const salarioNumero = Number(req.body?.salario_quincenal);
@@ -124,6 +125,28 @@ const calcularAguinaldo = async (req, res) => {
       if (req.body?.tipo_pago) {
         tipoPagoManual = String(req.body.tipo_pago);
       }
+
+      const montoPromedioDiario = Number(req.body?.monto_promedio_diario);
+      const diasPromedioDiario = Number(req.body?.dias_promedio_diario);
+      if (
+        Number.isFinite(montoPromedioDiario) &&
+        montoPromedioDiario > 0 &&
+        Number.isFinite(diasPromedioDiario) &&
+        diasPromedioDiario > 0
+      ) {
+        const periodoPromedio = (() => {
+          const texto = String(req.body?.periodo_promedio_diario || "")
+            .trim()
+            .toLowerCase();
+          return texto === "mes" ? "mes" : "quincena";
+        })();
+
+        promedioManual = {
+          monto: Number(montoPromedioDiario.toFixed(2)),
+          dias: Number(diasPromedioDiario.toFixed(2)),
+          periodo: periodoPromedio,
+        };
+      }
     }
 
     const aguinaldo = await Aguinaldo.calcularYGuardar({
@@ -135,6 +158,7 @@ const calcularAguinaldo = async (req, res) => {
       salarioQuincenal: salarioQuincenalManual,
       fechaIngresoManual,
       tipoPagoManual,
+      promedioManual,
       fechaInicioPeriodo,
       fechaFinPeriodo,
       observacion: observacionTexto,
