@@ -295,11 +295,12 @@ const buildAguinaldoPdfLines = (registro) => {
   wrapText(observacion, 95).forEach((line) => lines.push(`  ${line}`));
   lines.push(divider);
 
-  lines.push(
-    'Mediante la presente constancia, el colaborador confirma que ha recibido la información del cálculo del aguinaldo '
-      + 'correspondiente al periodo indicado y reconoce el monto señalado.'
+  const acknowledgementText =
+    'Mediante la presente constancia, el colaborador confirma que ha recibido la información del cálculo del aguinaldo correspondiente al periodo indicado y reconoce el monto señalado.';
+  wrapText(acknowledgementText, 95).forEach((line) => lines.push(line));
+  wrapText('Se firma para los efectos legales correspondientes.', 95).forEach((line) =>
+    lines.push(line)
   );
-  lines.push('Se firma para los efectos legales correspondientes.');
   lines.push('');
   lines.push('Firma del colaborador: ________________________________');
   lines.push('Fecha de firma: ____ / ____ / ______');
