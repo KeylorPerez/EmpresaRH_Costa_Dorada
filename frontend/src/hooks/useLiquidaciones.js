@@ -6,15 +6,31 @@ import { useAuth } from "./useAuth";
 
 const normalizeDateForApi = (value) => {
   if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+
+    return null;
   }
-  const date = new Date(value);
+
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-  const timezoneNeutral = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return timezoneNeutral.toISOString().split("T")[0];
+
+  return date.toISOString().split("T")[0];
 };
 
 const createInitialForm = () => {
