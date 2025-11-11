@@ -514,11 +514,74 @@ class Aguinaldo {
           return Number.isFinite(numero) ? numero : 0;
         };
 
+        const periodoInicioMs = fechaInicioParaGuardar.getTime();
+        const periodoFinMs = fechaFinParaGuardar.getTime();
+
+        const obtenerFactorProporcional = (registro) => {
+          const inicioRegistro = parseFecha(registro.periodo_inicio);
+          const finRegistro = parseFecha(registro.periodo_fin);
+
+          if (inicioRegistro && finRegistro) {
+            const inicioMs = inicioRegistro.getTime();
+            const finMs = finRegistro.getTime();
+
+            if (finMs < periodoInicioMs || inicioMs > periodoFinMs) {
+              return 0;
+            }
+
+            const traslapeInicioMs = Math.max(inicioMs, periodoInicioMs);
+            const traslapeFinMs = Math.min(finMs, periodoFinMs);
+
+            if (traslapeFinMs < traslapeInicioMs) {
+              return 0;
+            }
+
+            const totalDias = Math.max(
+              1,
+              Math.floor((finMs - inicioMs) / MS_POR_DIA) + 1
+            );
+            const diasTraslape = Math.max(
+              1,
+              Math.floor((traslapeFinMs - traslapeInicioMs) / MS_POR_DIA) + 1
+            );
+
+            const factor = diasTraslape / totalDias;
+            const factorNormalizado = Math.min(
+              1,
+              Math.max(0, Number(factor.toFixed(8)))
+            );
+
+            return factorNormalizado;
+          }
+
+          const referencia =
+            inicioRegistro ||
+            finRegistro ||
+            parseFecha(registro.fecha_pago) ||
+            null;
+
+          if (!referencia) {
+            return 1;
+          }
+
+          const referenciaMs = referencia.getTime();
+          if (referenciaMs < periodoInicioMs || referenciaMs > periodoFinMs) {
+            return 0;
+          }
+
+          return 1;
+        };
+
         const totales = registros.reduce(
           (acumulado, registro) => {
-            const salarioBruto = toNumber(registro.salario_bruto);
-            const bonificaciones = toNumber(registro.bonificaciones);
-            const horasExtras = toNumber(registro.horas_extras);
+            const factor = obtenerFactorProporcional(registro);
+            if (factor <= 0) {
+              return acumulado;
+            }
+
+            const salarioBruto = toNumber(registro.salario_bruto) * factor;
+            const bonificaciones = toNumber(registro.bonificaciones) * factor;
+            const horasExtras = toNumber(registro.horas_extras) * factor;
 
             const base = salarioBruto - bonificaciones - horasExtras;
             const baseNormalizado = base > 0 ? base : 0;
