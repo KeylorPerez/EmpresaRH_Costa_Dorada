@@ -6,10 +6,14 @@ import { useAuth } from "./useAuth";
 
 const currentYear = () => new Date().getFullYear().toString();
 
-const esPuestoCajera = (puestoNombre) =>
-  String(puestoNombre || "")
-    .toLowerCase()
-    .includes("cajer");
+const normalizarTipoPago = (valor) =>
+  String(valor || "")
+    .trim()
+    .toLowerCase();
+
+const esPagoDiario = (valor) => normalizarTipoPago(valor) === "diario";
+
+const esPagoQuincenal = (valor) => normalizarTipoPago(valor) === "quincenal";
 
 const parseMontosQuincenales = (texto) => {
   if (!texto || typeof texto !== "string") return [];
@@ -288,16 +292,24 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
               fechaInicioNormalizada,
             periodoAjustado
           ) || fechaInicioNormalizada;
+        const salarioInicial = (() => {
+          const monto = Number(selected?.salario_monto);
+          if (esPagoDiario(selected?.tipo_pago)) {
+            return "0";
+          }
+          if (Number.isFinite(monto) && monto > 0) {
+            return String(monto);
+          }
+          return "";
+        })();
+
         return {
           ...prev,
           id_empleado: value,
           fecha_inicio_periodo: fechaInicioNormalizada,
           fecha_fin_periodo: fechaFinNormalizada,
           fecha_ingreso_manual: fechaIngresoNormalizada,
-          salario_quincenal:
-            selected?.salario_monto !== undefined && selected?.salario_monto !== null
-              ? String(Number(selected.salario_monto) || "")
-              : "",
+          salario_quincenal: salarioInicial,
           tipo_pago_empleado: selected?.tipo_pago || "",
           puesto_nombre: selected?.puesto_nombre || "",
           salarios_quincenales: "",
@@ -420,7 +432,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           ...prev,
           salarios_quincenales: value,
           salario_quincenal:
-            promedio !== null && esPuestoCajera(prev.puesto_nombre)
+            promedio !== null && esPagoQuincenal(prev.tipo_pago_empleado)
               ? String(promedio)
               : prev.salario_quincenal,
         };
@@ -441,11 +453,6 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       ...overrides,
     });
   };
-
-  const esCajeraSeleccionada = useMemo(
-    () => esPuestoCajera(formData.puesto_nombre),
-    [formData.puesto_nombre]
-  );
 
   const montosQuincenales = useMemo(
     () => parseMontosQuincenales(formData.salarios_quincenales),
@@ -507,7 +514,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       if (metodo === "manual") {
         const salarioQuincenalNumero = Number(formData.salario_quincenal);
         if (!Number.isFinite(salarioQuincenalNumero) || salarioQuincenalNumero <= 0) {
-          setError("Ingresa el salario quincenal fijo del colaborador");
+          setError("Ingresa el monto base para calcular el aguinaldo del colaborador");
           setSubmitting(false);
           return;
         }
@@ -642,7 +649,6 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     isAdmin,
     setError,
     setSuccessMessage,
-    esCajeraSeleccionada,
     montosQuincenales,
     promedioQuincenalCalculado,
   };

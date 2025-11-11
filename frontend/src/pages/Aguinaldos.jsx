@@ -91,7 +91,6 @@ const Aguinaldos = ({ mode }) => {
     isAdmin,
     setError,
     setSuccessMessage,
-    esCajeraSeleccionada,
     montosQuincenales,
     promedioQuincenalCalculado,
   } = useAguinaldos();
@@ -121,6 +120,40 @@ const Aguinaldos = ({ mode }) => {
     if (!Number.isInteger(id) || id <= 0) return null;
     return empleados.find((empleado) => Number(empleado.id_empleado) === id) || null;
   }, [empleados, formData.id_empleado]);
+
+  const tipoPagoSeleccionado = useMemo(
+    () => String(formData.tipo_pago_empleado || "").trim().toLowerCase(),
+    [formData.tipo_pago_empleado]
+  );
+
+  const mostrarMontosQuincenales = tipoPagoSeleccionado === "quincenal";
+  const esPagoDiarioSeleccionado = tipoPagoSeleccionado === "diario";
+
+  const etiquetaSalarioManual = useMemo(() => {
+    switch (tipoPagoSeleccionado) {
+      case "diario":
+        return "Monto base diario personalizado (CRC)";
+      case "mensual":
+        return "Salario mensual fijo (CRC)";
+      case "semanal":
+        return "Salario semanal fijo (CRC)";
+      default:
+        return "Salario quincenal fijo (CRC)";
+    }
+  }, [tipoPagoSeleccionado]);
+
+  const ayudaSalarioManual = useMemo(() => {
+    switch (tipoPagoSeleccionado) {
+      case "diario":
+        return "Ingresa el monto diario que se usará como referencia para estimar el aguinaldo.";
+      case "mensual":
+        return "Se usa como base mensual para proyectar el aguinaldo del periodo.";
+      case "semanal":
+        return "Se usa como base semanal para proyectar el aguinaldo del periodo.";
+      default:
+        return "Se usa como base quincenal para proyectar el aguinaldo del periodo.";
+    }
+  }, [tipoPagoSeleccionado]);
 
   const periodoCalculo = useMemo(() => {
     const anioNumero = Number(formData.anio);
@@ -523,7 +556,7 @@ const Aguinaldos = ({ mode }) => {
 
                 {formData.metodo === "manual" && (
                   <>
-                    {esCajeraSeleccionada && (
+                    {mostrarMontosQuincenales && (
                       <div className="md:col-span-2 flex flex-col gap-2">
                         <div className="flex flex-col">
                           <label className="text-sm font-medium text-gray-700 mb-1">
@@ -577,7 +610,7 @@ const Aguinaldos = ({ mode }) => {
 
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-700 mb-1">
-                          Salario quincenal fijo (CRC)
+                          {etiquetaSalarioManual}
                         </label>
                         <input
                           type="number"
@@ -589,9 +622,12 @@ const Aguinaldos = ({ mode }) => {
                           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
                         />
-                        <p className="mt-1 text-xs text-gray-500">
-                          Se usa como base para proyectar el aguinaldo del periodo.
-                        </p>
+                        <p className="mt-1 text-xs text-gray-500">{ayudaSalarioManual}</p>
+                        {esPagoDiarioSeleccionado && (
+                          <p className="mt-1 text-xs text-blue-600">
+                            Si el colaborador no tiene un monto fijo registrado, comienza en 0 para que ingreses el valor correspondiente.
+                          </p>
+                        )}
                       </div>
                     </div>
 
