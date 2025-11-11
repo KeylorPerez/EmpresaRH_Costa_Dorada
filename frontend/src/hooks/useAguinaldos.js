@@ -28,6 +28,9 @@ const createInitialForm = (anioValor = currentYear()) => {
     fecha_inicio_periodo: formatDateInput(periodo.inicio),
     fecha_fin_periodo: formatDateInput(periodo.fin),
     observacion: "",
+    periodo_promedio_diario: "quincena",
+    monto_promedio_diario: "",
+    dias_promedio_diario: "",
   };
 };
 
@@ -150,6 +153,41 @@ const determinarFechaIngresoParaCalculo = (periodo, fechaIngreso) => {
   return fechaBase;
 };
 
+const calcularSalarioDiarioDesdePromedio = (montoPromedio, diasPromedio) => {
+  const monto = Number(montoPromedio);
+  const dias = Number(diasPromedio);
+  if (!Number.isFinite(monto) || monto <= 0) return null;
+  if (!Number.isFinite(dias) || dias <= 0) return null;
+  const salario = monto / dias;
+  if (!Number.isFinite(salario) || salario <= 0) return null;
+  return salario;
+};
+
+const aplicarPromedioDiarioAEstado = (state) => {
+  if (normalizarTipoPago(state.tipo_pago_empleado) !== "diario") {
+    return state;
+  }
+
+  const salarioCalculado = calcularSalarioDiarioDesdePromedio(
+    state.monto_promedio_diario,
+    state.dias_promedio_diario
+  );
+
+  if (!salarioCalculado) {
+    return {
+      ...state,
+      salario_quincenal: state.salario_quincenal || "",
+    };
+  }
+
+  const salarioFormateado = salarioCalculado.toFixed(2);
+
+  return {
+    ...state,
+    salario_quincenal: salarioFormateado,
+  };
+};
+
 export const formatearMontoCRC = (value) => {
   if (value === undefined || value === null || value === "") {
     return "₡0.00";
@@ -269,7 +307,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           return "";
         })();
 
-        return {
+        const nextState = {
           ...prev,
           id_empleado: value,
           fecha_inicio_periodo: fechaInicioNormalizada,
@@ -278,7 +316,12 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           salario_quincenal: salarioInicial,
           tipo_pago_empleado: selected?.tipo_pago || "",
           puesto_nombre: selected?.puesto_nombre || "",
+          periodo_promedio_diario: "quincena",
+          monto_promedio_diario: "",
+          dias_promedio_diario: "",
         };
+
+        return aplicarPromedioDiarioAEstado(nextState);
       });
       return;
     }
@@ -314,6 +357,26 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           fecha_fin_periodo: fechaFinNormalizada,
         };
       });
+      return;
+    }
+
+    if (name === "periodo_promedio_diario") {
+      setFormData((prev) =>
+        aplicarPromedioDiarioAEstado({
+          ...prev,
+          periodo_promedio_diario: value,
+        })
+      );
+      return;
+    }
+
+    if (name === "monto_promedio_diario" || name === "dias_promedio_diario") {
+      setFormData((prev) =>
+        aplicarPromedioDiarioAEstado({
+          ...prev,
+          [name]: value,
+        })
+      );
       return;
     }
 
@@ -397,9 +460,12 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
 
   const resetForm = (anioValue, overrides = {}) => {
     const baseAnio = anioValue ?? currentYear();
-    setFormData({
-      ...createInitialForm(baseAnio),
-      ...overrides,
+    setFormData(() => {
+      const nextState = {
+        ...createInitialForm(baseAnio),
+        ...overrides,
+      };
+      return aplicarPromedioDiarioAEstado(nextState);
     });
   };
 
@@ -451,11 +517,55 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       };
 
       if (metodo === "manual") {
+        const tipoPagoNormalizado = normalizarTipoPago(formData.tipo_pago_empleado);
         const salarioQuincenalNumero = Number(formData.salario_quincenal);
-        if (!Number.isFinite(salarioQuincenalNumero) || salarioQuincenalNumero <= 0) {
-          setError("Ingresa el monto base para calcular el aguinaldo del colaborador");
-          setSubmitting(false);
-          return;
+        let salarioParaEnviar = salarioQuincenalNumero;
+
+        if (tipoPagoNormalizado === "diario") {
+          const montoPromedioNumero = Number(formData.monto_promedio_diario);
+          if (!Number.isFinite(montoPromedioNumero) || montoPromedioNumero <= 0) {
+            setError("Ingresa el monto promedio del periodo para el colaborador");
+            setSubmitting(false);
+            return;
+          }
+
+          const diasPromedioNumero = Number(formData.dias_promedio_diario);
+          if (!Number.isFinite(diasPromedioNumero) || diasPromedioNumero <= 0) {
+            setError("Ingresa los días laborados en el periodo de referencia");
+            setSubmitting(false);
+            return;
+          }
+
+          const salarioCalculado = calcularSalarioDiarioDesdePromedio(
+            montoPromedioNumero,
+            diasPromedioNumero
+          );
+
+          if (!salarioCalculado) {
+            setError(
+              "Verifica el monto promedio y los días laborados para calcular el salario diario"
+            );
+            setSubmitting(false);
+            return;
+          }
+
+          if (!Number.isFinite(salarioParaEnviar) || salarioParaEnviar <= 0) {
+            salarioParaEnviar = salarioCalculado;
+          }
+          const periodoPromedioNormalizado = (() => {
+            const texto = String(formData.periodo_promedio_diario || "").trim().toLowerCase();
+            return texto === "mes" ? "mes" : "quincena";
+          })();
+
+          payload.monto_promedio_diario = Number(montoPromedioNumero.toFixed(2));
+          payload.dias_promedio_diario = Number(diasPromedioNumero.toFixed(2));
+          payload.periodo_promedio_diario = periodoPromedioNormalizado;
+        } else {
+          if (!Number.isFinite(salarioQuincenalNumero) || salarioQuincenalNumero <= 0) {
+            setError("Ingresa el monto base para calcular el aguinaldo del colaborador");
+            setSubmitting(false);
+            return;
+          }
         }
 
         if (!formData.fecha_ingreso_manual) {
@@ -471,7 +581,18 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           return;
         }
 
-        payload.salario_quincenal = salarioQuincenalNumero;
+        const salarioValido =
+          Number.isFinite(salarioParaEnviar) && salarioParaEnviar > 0
+            ? Number(salarioParaEnviar.toFixed(2))
+            : null;
+
+        if (!salarioValido) {
+          setError("No se pudo calcular un salario diario válido para el colaborador");
+          setSubmitting(false);
+          return;
+        }
+
+        payload.salario_quincenal = salarioValido;
         payload.fecha_ingreso = formatDateInput(fechaIngreso);
         payload.tipo_pago = formData.tipo_pago_empleado || null;
       } else {
