@@ -350,15 +350,14 @@ class Aguinaldo {
 
             totalEstimado = salarioBaseReferencia * diasTrabajados;
             const mesesEquivalentesRaw =
-              diasPeriodo > 0 ? (diasTrabajados / diasPeriodo) * 12 : 0;
+              salarioMensualEstimado > 0
+                ? totalEstimado / salarioMensualEstimado
+                : 0;
             mesesEquivalentes =
               mesesEquivalentesRaw > 0
                 ? Math.min(12, mesesEquivalentesRaw)
                 : 0;
-            montoCalculado =
-              mesesEquivalentes > 0
-                ? (salarioMensualEstimado / 12) * mesesEquivalentes
-                : 0;
+            montoCalculado = totalEstimado > 0 ? totalEstimado / 12 : 0;
             break;
           }
           case 'semanal':
