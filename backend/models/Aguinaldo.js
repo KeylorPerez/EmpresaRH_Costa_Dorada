@@ -229,19 +229,44 @@ class Aguinaldo {
         let totalEstimado = null;
         let mesesEquivalentes = null;
 
+        const periodoPromedioUsuario =
+          promedioManual?.periodo === 'mes' ? 'mes' : 'quincena';
+        const diasPromedioUsuario = Number(promedioManual?.dias);
+        const montoPromedioUsuario = Number(promedioManual?.monto);
+        const tieneDiasPromedioUsuario =
+          Number.isFinite(diasPromedioUsuario) && diasPromedioUsuario > 0;
+        const tieneMontoPromedioUsuario =
+          Number.isFinite(montoPromedioUsuario) && montoPromedioUsuario > 0;
+
         switch (tipoPagoReferencia) {
           case 'mensual':
             salarioMensualEstimado = salarioBaseReferencia;
             montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
             break;
           case 'diario': {
-            salarioMensualEstimado = salarioBaseReferencia * 30;
+            if (tieneMontoPromedioUsuario) {
+              salarioMensualEstimado =
+                periodoPromedioUsuario === 'mes'
+                  ? montoPromedioUsuario
+                  : montoPromedioUsuario * 2;
+            } else if (tieneDiasPromedioUsuario) {
+              const factorPeriodo = periodoPromedioUsuario === 'mes' ? 1 : 2;
+              salarioMensualEstimado =
+                salarioBaseReferencia * diasPromedioUsuario * factorPeriodo;
+            } else {
+              salarioMensualEstimado = salarioBaseReferencia * 30;
+            }
+
             totalEstimado = salarioBaseReferencia * diasTrabajados;
-            mesesEquivalentes =
+            const mesesEquivalentesRaw =
               diasPeriodo > 0 ? (diasTrabajados / diasPeriodo) * 12 : 0;
+            mesesEquivalentes =
+              mesesEquivalentesRaw > 0
+                ? Math.min(12, mesesEquivalentesRaw)
+                : 0;
             montoCalculado =
-              diasPeriodo > 0
-                ? (salarioMensualEstimado * diasTrabajados) / diasPeriodo
+              mesesEquivalentes > 0
+                ? (salarioMensualEstimado / 12) * mesesEquivalentes
                 : 0;
             break;
           }
@@ -281,28 +306,25 @@ class Aguinaldo {
           );
 
           if (promedioManual && typeof promedioManual === 'object') {
-            const diasPromedio = Number(promedioManual.dias);
-            const montoPromedio = Number(promedioManual.monto);
-            const periodoPromedio = (() => {
-              if (typeof promedioManual.periodo !== 'string') return 'quincena';
-              const texto = promedioManual.periodo.trim().toLowerCase();
-              return texto === 'mes' ? 'mes' : 'quincena';
-            })();
+            const resumenPromedio = { periodo: periodoPromedioUsuario };
 
-            const resumenPromedio = { periodo: periodoPromedio };
-
-            if (Number.isFinite(montoPromedio) && montoPromedio > 0) {
-              resumenPromedio.monto = Number(montoPromedio.toFixed(2));
+            if (tieneMontoPromedioUsuario) {
+              resumenPromedio.monto = Number(
+                montoPromedioUsuario.toFixed(2)
+              );
             }
 
-            if (Number.isFinite(diasPromedio) && diasPromedio > 0) {
-              resumenPromedio.dias = Number(diasPromedio.toFixed(2));
+            if (tieneDiasPromedioUsuario) {
+              resumenPromedio.dias = Number(
+                diasPromedioUsuario.toFixed(2)
+              );
             }
 
             if (Object.keys(resumenPromedio).length > 0) {
               detalleCalculo.promedio_referencia_usuario = resumenPromedio;
             }
           }
+
         }
       } else {
         const planillaResult = await pool

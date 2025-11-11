@@ -128,22 +128,26 @@ const calcularAguinaldo = async (req, res) => {
 
       const montoPromedioDiario = Number(req.body?.monto_promedio_diario);
       const diasPromedioDiario = Number(req.body?.dias_promedio_diario);
-      if (
-        Number.isFinite(montoPromedioDiario) &&
-        montoPromedioDiario > 0 &&
-        Number.isFinite(diasPromedioDiario) &&
-        diasPromedioDiario > 0
-      ) {
-        const periodoPromedio = (() => {
-          const texto = String(req.body?.periodo_promedio_diario || "")
-            .trim()
-            .toLowerCase();
-          return texto === "mes" ? "mes" : "quincena";
-        })();
+      const periodoPromedio = (() => {
+        const texto = String(req.body?.periodo_promedio_diario || "")
+          .trim()
+          .toLowerCase();
+        return texto === "mes" ? "mes" : "quincena";
+      })();
 
+      const promedioManualData = {};
+
+      if (Number.isFinite(montoPromedioDiario) && montoPromedioDiario > 0) {
+        promedioManualData.monto = Number(montoPromedioDiario.toFixed(2));
+      }
+
+      if (Number.isFinite(diasPromedioDiario) && diasPromedioDiario > 0) {
+        promedioManualData.dias = Number(diasPromedioDiario.toFixed(2));
+      }
+
+      if (Object.keys(promedioManualData).length > 0) {
         promedioManual = {
-          monto: Number(montoPromedioDiario.toFixed(2)),
-          dias: Number(diasPromedioDiario.toFixed(2)),
+          ...promedioManualData,
           periodo: periodoPromedio,
         };
       }
