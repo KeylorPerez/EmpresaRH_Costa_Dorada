@@ -150,6 +150,134 @@ const calcularAguinaldo = async (req, res) => {
   }
 };
 
+const actualizarAguinaldo = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+    if (user.id_rol !== 1) {
+      return res.status(403).json({ error: 'Solo administradores pueden actualizar aguinaldos' });
+    }
+
+    const id_aguinaldo = Number(req.params.id);
+    if (!Number.isInteger(id_aguinaldo) || id_aguinaldo <= 0) {
+      return res.status(400).json({ error: 'Identificador de aguinaldo inválido' });
+    }
+
+    const existente = await Aguinaldo.getById(id_aguinaldo);
+    if (!existente) {
+      return res.status(404).json({ error: 'Aguinaldo no encontrado' });
+    }
+
+    const campos = {};
+    let hayCambios = false;
+
+    const tienePropiedad = (prop) => Object.prototype.hasOwnProperty.call(req.body, prop);
+
+    if (tienePropiedad('monto_aguinaldo')) {
+      const monto = Number(req.body.monto_aguinaldo);
+      if (!Number.isFinite(monto) || monto < 0) {
+        return res.status(400).json({ error: 'Monto de aguinaldo inválido' });
+      }
+      campos.monto_aguinaldo = Number(monto.toFixed(2));
+      hayCambios = true;
+    }
+
+    if (tienePropiedad('salario_promedio')) {
+      const salario = Number(req.body.salario_promedio);
+      if (!Number.isFinite(salario) || salario < 0) {
+        return res.status(400).json({ error: 'Salario promedio inválido' });
+      }
+      campos.salario_promedio = Number(salario.toFixed(2));
+      hayCambios = true;
+    }
+
+    const parseFecha = (valor) => {
+      if (valor === null || valor === undefined || valor === '') {
+        return null;
+      }
+
+      if (typeof valor === 'string') {
+        const match = valor.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (match) {
+          const [, year, month, day] = match;
+          const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+          if (!Number.isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+
+      const fecha = valor instanceof Date ? new Date(valor.getTime()) : new Date(valor);
+      if (Number.isNaN(fecha.getTime())) {
+        return null;
+      }
+
+      return new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate()));
+    };
+
+    const fechaInicioActual = parseFecha(existente.fecha_inicio_periodo);
+    const fechaFinActual = parseFecha(existente.fecha_fin_periodo);
+
+    let fechaInicioEvaluar = fechaInicioActual;
+    let fechaFinEvaluar = fechaFinActual;
+
+    if (tienePropiedad('fecha_inicio_periodo')) {
+      const fechaInicio = parseFecha(req.body.fecha_inicio_periodo);
+      if (!fechaInicio) {
+        return res.status(400).json({ error: 'Fecha de inicio del periodo inválida' });
+      }
+      campos.fecha_inicio_periodo = fechaInicio;
+      fechaInicioEvaluar = fechaInicio;
+      hayCambios = true;
+    }
+
+    if (tienePropiedad('fecha_fin_periodo')) {
+      const fechaFin = parseFecha(req.body.fecha_fin_periodo);
+      if (!fechaFin) {
+        return res.status(400).json({ error: 'Fecha de fin del periodo inválida' });
+      }
+      campos.fecha_fin_periodo = fechaFin;
+      fechaFinEvaluar = fechaFin;
+      hayCambios = true;
+    }
+
+    if (fechaInicioEvaluar && fechaFinEvaluar && fechaFinEvaluar < fechaInicioEvaluar) {
+      return res.status(400).json({
+        error: 'La fecha fin del periodo no puede ser anterior a la fecha de inicio',
+      });
+    }
+
+    if (tienePropiedad('observacion')) {
+      const valor = req.body.observacion;
+      if (valor === null || valor === undefined) {
+        campos.observacion = null;
+      } else if (typeof valor === 'string') {
+        const trimmed = valor.trim();
+        campos.observacion = trimmed ? (trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed) : null;
+      } else {
+        campos.observacion = null;
+      }
+      hayCambios = true;
+    }
+
+    if (!hayCambios) {
+      return res.status(400).json({ error: 'No se recibieron cambios para actualizar' });
+    }
+
+    const aguinaldoActualizado = await Aguinaldo.actualizar(id_aguinaldo, campos);
+    if (!aguinaldoActualizado) {
+      return res.status(404).json({ error: 'Aguinaldo no encontrado' });
+    }
+
+    return res.json({ message: 'Aguinaldo actualizado correctamente', aguinaldo: aguinaldoActualizado });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    return res.status(status).json({ error: err.message });
+  }
+};
+
 const actualizarPago = async (req, res) => {
   try {
     const user = req.user;
@@ -182,5 +310,6 @@ const actualizarPago = async (req, res) => {
 module.exports = {
   getAguinaldos,
   calcularAguinaldo,
+  actualizarAguinaldo,
   actualizarPago,
 };

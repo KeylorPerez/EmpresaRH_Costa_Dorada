@@ -475,6 +475,60 @@ class Aguinaldo {
     }
   }
 
+  static async actualizar(id_aguinaldo, campos = {}) {
+    try {
+      const pool = await poolPromise;
+      const request = pool.request().input('id_aguinaldo', sql.Int, id_aguinaldo);
+
+      const updates = [];
+
+      if (campos.salario_promedio !== undefined) {
+        request.input('salario_promedio', sql.Decimal(12, 2), campos.salario_promedio);
+        updates.push('salario_promedio = @salario_promedio');
+      }
+
+      if (campos.monto_aguinaldo !== undefined) {
+        request.input('monto_aguinaldo', sql.Decimal(12, 2), campos.monto_aguinaldo);
+        updates.push('monto_aguinaldo = @monto_aguinaldo');
+      }
+
+      if (campos.fecha_inicio_periodo !== undefined) {
+        request.input('fecha_inicio_periodo', sql.Date, campos.fecha_inicio_periodo);
+        updates.push('fecha_inicio_periodo = @fecha_inicio_periodo');
+      }
+
+      if (campos.fecha_fin_periodo !== undefined) {
+        request.input('fecha_fin_periodo', sql.Date, campos.fecha_fin_periodo);
+        updates.push('fecha_fin_periodo = @fecha_fin_periodo');
+      }
+
+      if (campos.observacion !== undefined) {
+        request.input('observacion', sql.VarChar(200), campos.observacion);
+        updates.push('observacion = @observacion');
+      }
+
+      if (!updates.length) {
+        return this.getById(id_aguinaldo);
+      }
+
+      updates.push('fecha_calculo = GETDATE()');
+
+      const result = await request.query(`
+        UPDATE Aguinaldos
+        SET ${updates.join(', ')}
+        WHERE id_aguinaldo = @id_aguinaldo;
+      `);
+
+      if (!result.rowsAffected || result.rowsAffected[0] === 0) {
+        return null;
+      }
+
+      return this.getById(id_aguinaldo);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   static async actualizarPago(id_aguinaldo, pagado) {
     try {
       const pool = await poolPromise;

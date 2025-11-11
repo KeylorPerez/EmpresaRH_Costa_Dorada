@@ -586,6 +586,29 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     [fetchAguinaldos]
   );
 
+  const updateAguinaldo = useCallback(
+    async (id, payload) => {
+      setActionLoading((prev) => ({ ...prev, [id]: true }));
+      setError("");
+      setSuccessMessage("");
+      try {
+        const response = await aguinaldoService.actualizar(id, payload);
+        const message = response?.message || "Aguinaldo actualizado correctamente";
+        setSuccessMessage(message);
+        await fetchAguinaldos();
+        return response?.aguinaldo;
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible actualizar el aguinaldo";
+        setError(message);
+        throw err;
+      } finally {
+        setActionLoading((prev) => ({ ...prev, [id]: false }));
+      }
+    },
+    [fetchAguinaldos]
+  );
+
   const sortedAguinaldos = useMemo(() => {
     return [...aguinaldos].sort((a, b) => {
       const anioA = Number(a.anio) || 0;
@@ -615,6 +638,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     handleSubmit,
     resetForm,
     markAsPaid,
+    updateAguinaldo,
     isAdmin,
     setError,
     setSuccessMessage,
