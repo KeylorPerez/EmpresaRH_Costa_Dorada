@@ -289,10 +289,8 @@ class Aguinaldo {
 
         fechaInicioParaGuardar = inicioCalculo;
 
-        const inicioReferenciaPeriodo =
-          inicioPeriodo < defaultInicio ? inicioPeriodo : defaultInicio;
         const diasPeriodo = Math.max(
-          Math.floor((finPeriodo - inicioReferenciaPeriodo) / MS_POR_DIA) + 1,
+          Math.floor((finPeriodo - inicioPeriodo) / MS_POR_DIA) + 1,
           1
         );
         const diasTrabajados = Math.max(Math.floor((finPeriodo - inicioCalculo) / MS_POR_DIA) + 1, 0);
@@ -348,15 +346,22 @@ class Aguinaldo {
               salarioMensualEstimado = salarioBaseReferencia * 30;
             }
 
-            totalEstimado = salarioBaseReferencia * diasTrabajados;
+            const mesesPeriodoBase =
+              diasPeriodo > 0 ? diasPeriodo / 30 : 0;
             const mesesEquivalentesRaw =
-              salarioMensualEstimado > 0
-                ? totalEstimado / salarioMensualEstimado
+              diasPeriodo > 0
+                ? (diasTrabajados / diasPeriodo) * mesesPeriodoBase
                 : 0;
             mesesEquivalentes =
               mesesEquivalentesRaw > 0
-                ? Math.min(12, mesesEquivalentesRaw)
+                ? Math.min(12, Number(mesesEquivalentesRaw.toFixed(6)))
                 : 0;
+
+            totalEstimado =
+              salarioMensualEstimado > 0
+                ? salarioMensualEstimado * mesesEquivalentes
+                : salarioBaseReferencia * diasTrabajados;
+
             montoCalculado = totalEstimado > 0 ? totalEstimado / 12 : 0;
             break;
           }
