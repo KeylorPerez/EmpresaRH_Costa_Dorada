@@ -23,27 +23,6 @@ const estadoBadge = (pagado) => {
   );
 };
 
-const formatearFechaLarga = (value) => {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("es-CR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-};
-
-const formatearFechaInput = (value) => {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 const parseDateOnly = (value) => {
   if (!value) return null;
 
@@ -64,6 +43,23 @@ const parseDateOnly = (value) => {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
   );
+};
+
+const formatearFechaLarga = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-CR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const formatearFechaInput = (value) => {
+  const date = parseDateOnly(value);
+  if (!date) return "";
+  return date.toISOString().slice(0, 10);
 };
 
 const initialEditFormState = {
