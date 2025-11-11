@@ -404,7 +404,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     });
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event, manualExtras = {}) => {
     event.preventDefault();
     setError("");
     setSuccessMessage("");
@@ -495,6 +495,25 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         payload.salario_quincenal = salarioValido;
         payload.fecha_ingreso = formatDateInput(fechaIngreso);
         payload.tipo_pago = formData.tipo_pago_empleado || null;
+
+        const tipoPagoNormalizado = String(formData.tipo_pago_empleado || "")
+          .trim()
+          .toLowerCase();
+
+        if (tipoPagoNormalizado === "diario") {
+          const diasQuincena = Number(manualExtras?.diasLaboradosQuincena);
+          const montoQuincena = Number(manualExtras?.montoEstimadoQuincena);
+
+          if (Number.isFinite(diasQuincena) && diasQuincena > 0) {
+            payload.dias_promedio_diario = Number(diasQuincena.toFixed(2));
+            payload.periodo_promedio_diario = "quincena";
+          }
+
+          if (Number.isFinite(montoQuincena) && montoQuincena > 0) {
+            payload.monto_promedio_diario = Number(montoQuincena.toFixed(2));
+            payload.periodo_promedio_diario = "quincena";
+          }
+        }
       } else {
         payload.incluir_bonificaciones = Boolean(formData.incluir_bonificaciones);
         payload.incluir_horas_extra = Boolean(formData.incluir_horas_extra);
