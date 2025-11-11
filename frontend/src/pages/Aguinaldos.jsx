@@ -86,6 +86,10 @@ const Aguinaldos = ({ mode }) => {
     handleChange,
     handleSubmit,
     resetForm,
+    previewData,
+    previewLoading,
+    previsualizarCalculo,
+    clearPreview,
     markAsPaid,
     updateAguinaldo,
     exportAguinaldo,
@@ -727,18 +731,103 @@ const Aguinaldos = ({ mode }) => {
                   </div>
                 )}
 
-                <div className="col-span-full flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => resetForm(formData.anio)}
-                    disabled={submitting}
-                  >
-                    Limpiar
-                  </Button>
-                  <Button type="submit" variant="primary" disabled={submitting}>
-                    {submitting ? "Calculando..." : "Calcular aguinaldo"}
-                  </Button>
+                {previewData && (
+                  <div className="col-span-full rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-blue-700">
+                            Previsualización del pago de aguinaldo
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            Generada el {formatearFechaLarga(previewData.generado_en) || formatearFechaCorta(previewData.generado_en)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearPreview}
+                          disabled={previewLoading || submitting}
+                          className={`text-blue-500 transition hover:text-blue-700 ${
+                            previewLoading || submitting ? "cursor-not-allowed opacity-50" : ""
+                          }`}
+                          aria-label="Cerrar previsualización"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-3 text-sm">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-blue-500">
+                            Monto estimado a pagar
+                          </p>
+                          <p className="text-lg font-bold">
+                            {formatearMontoCRC(previewData.monto_aguinaldo)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-blue-500">
+                            Salario promedio estimado
+                          </p>
+                          <p className="text-lg font-semibold">
+                            {formatearMontoCRC(previewData.salario_promedio)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-blue-500">
+                            Periodo evaluado
+                          </p>
+                          <p className="text-sm font-semibold">
+                            {previewData.fecha_inicio_periodo && previewData.fecha_fin_periodo
+                              ? `${formatearFechaCorta(previewData.fecha_inicio_periodo)} al ${formatearFechaCorta(
+                                  previewData.fecha_fin_periodo
+                                )}`
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      {previewData.observacion ? (
+                        <p className="text-xs text-blue-600">
+                          Nota registrada: {previewData.observacion}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+
+                <div className="col-span-full flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="text-xs text-blue-600">
+                    {previewLoading
+                      ? "Generando previsualización..."
+                      : previewData
+                      ? "El monto mostrado corresponde a la última previsualización generada."
+                      : "Puedes previsualizar el monto estimado antes de registrarlo."}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => resetForm(formData.anio)}
+                      disabled={submitting || previewLoading}
+                    >
+                      Limpiar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        previsualizarCalculo({
+                          diasLaboradosQuincena,
+                          montoEstimadoQuincena,
+                        })
+                      }
+                      disabled={submitting || previewLoading}
+                    >
+                      {previewLoading ? "Previsualizando..." : "Previsualizar pago"}
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={submitting}>
+                      {submitting ? "Calculando..." : "Calcular aguinaldo"}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </section>

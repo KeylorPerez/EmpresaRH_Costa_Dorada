@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAguinaldos,
   calcularAguinaldo,
+  previsualizarAguinaldo,
   actualizarAguinaldo,
   actualizarPago,
   exportAguinaldoPdf,
@@ -11,6 +12,12 @@ const { authenticateToken, authorizeRoles } = require('../middleware/authMiddlew
 
 router.get('/', authenticateToken, getAguinaldos);
 router.get('/:id/export', authenticateToken, exportAguinaldoPdf);
+router.post(
+  '/previsualizar',
+  authenticateToken,
+  authorizeRoles(1),
+  previsualizarAguinaldo
+);
 router.post('/calcular', authenticateToken, authorizeRoles(1), calcularAguinaldo);
 router.put('/:id', authenticateToken, authorizeRoles(1), actualizarAguinaldo);
 router.put('/:id/pago', authenticateToken, authorizeRoles(1), actualizarPago);

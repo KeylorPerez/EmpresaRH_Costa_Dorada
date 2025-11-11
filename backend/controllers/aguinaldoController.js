@@ -343,6 +343,144 @@ const getAguinaldos = async (req, res) => {
   }
 };
 
+const construirParametrosCalculo = (req) => {
+  const { id_empleado, anio } = req.body;
+  const empleadoId = Number(id_empleado);
+  const anioNumero = Number(anio);
+
+  if (!Number.isInteger(empleadoId) || empleadoId <= 0) {
+    const error = new Error('id_empleado inválido');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!Number.isInteger(anioNumero) || anioNumero < 2000) {
+    const error = new Error('Año inválido para el cálculo');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const metodoRaw =
+    typeof req.body?.metodo === 'string' ? req.body.metodo.trim().toLowerCase() : 'automatico';
+  const metodo = metodoRaw === 'manual' ? 'manual' : 'automatico';
+
+  const incluirBonificaciones =
+    req.body?.incluir_bonificaciones !== undefined
+      ? Boolean(req.body.incluir_bonificaciones)
+      : true;
+  const incluirHorasExtra =
+    req.body?.incluir_horas_extra !== undefined
+      ? Boolean(req.body.incluir_horas_extra)
+      : false;
+
+  const parseFecha = (valor) => {
+    if (!valor) return null;
+
+    if (typeof valor === 'string') {
+      const match = valor.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const [, year, month, day] = match;
+        const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+        if (!Number.isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+
+    const fecha = valor instanceof Date ? new Date(valor.getTime()) : new Date(valor);
+    if (Number.isNaN(fecha.getTime())) return null;
+
+    return new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate()));
+  };
+
+  const fechaInicioPeriodo = parseFecha(req.body?.fecha_inicio_periodo);
+  const fechaFinPeriodo = parseFecha(req.body?.fecha_fin_periodo);
+
+  if (fechaInicioPeriodo && fechaFinPeriodo && fechaFinPeriodo < fechaInicioPeriodo) {
+    const error = new Error('La fecha fin del periodo no puede ser anterior a la fecha de inicio');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const observacionTexto = (() => {
+    if (typeof req.body?.observacion !== 'string') return null;
+    const trimmed = req.body.observacion.trim();
+    if (!trimmed) return null;
+    return trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed;
+  })();
+
+  let salarioQuincenalManual = null;
+  let fechaIngresoManual = null;
+  let tipoPagoManual = null;
+  let promedioManual = null;
+
+  if (metodo === 'manual') {
+    const salarioNumero = Number(req.body?.salario_quincenal);
+    if (!Number.isFinite(salarioNumero) || salarioNumero <= 0) {
+      const error = new Error('Salario quincenal inválido para el cálculo manual');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    salarioQuincenalManual = salarioNumero;
+
+    if (req.body?.fecha_ingreso) {
+      const fechaIngreso = new Date(req.body.fecha_ingreso);
+      if (Number.isNaN(fechaIngreso.getTime())) {
+        const error = new Error('Fecha de ingreso inválida');
+        error.statusCode = 400;
+        throw error;
+      }
+      fechaIngresoManual = fechaIngreso.toISOString();
+    }
+
+    if (req.body?.tipo_pago) {
+      tipoPagoManual = String(req.body.tipo_pago);
+    }
+
+    const montoPromedioDiario = Number(req.body?.monto_promedio_diario);
+    const diasPromedioDiario = Number(req.body?.dias_promedio_diario);
+    const periodoPromedio = (() => {
+      const texto = String(req.body?.periodo_promedio_diario || '')
+        .trim()
+        .toLowerCase();
+      return texto === 'mes' ? 'mes' : 'quincena';
+    })();
+
+    const promedioManualData = {};
+
+    if (Number.isFinite(montoPromedioDiario) && montoPromedioDiario > 0) {
+      promedioManualData.monto = Number(montoPromedioDiario.toFixed(2));
+    }
+
+    if (Number.isFinite(diasPromedioDiario) && diasPromedioDiario > 0) {
+      promedioManualData.dias = Number(diasPromedioDiario.toFixed(2));
+    }
+
+    if (Object.keys(promedioManualData).length > 0) {
+      promedioManual = {
+        ...promedioManualData,
+        periodo: periodoPromedio,
+      };
+    }
+  }
+
+  return {
+    empleadoId,
+    anioNumero,
+    metodo,
+    incluirBonificaciones,
+    incluirHorasExtra,
+    salarioQuincenalManual,
+    fechaIngresoManual,
+    tipoPagoManual,
+    promedioManual,
+    fechaInicioPeriodo,
+    fechaFinPeriodo,
+    observacionTexto,
+  };
+};
+
 const calcularAguinaldo = async (req, res) => {
   try {
     const user = req.user;
@@ -353,141 +491,63 @@ const calcularAguinaldo = async (req, res) => {
       return res.status(403).json({ error: 'Solo administradores pueden calcular aguinaldos' });
     }
 
-    const { id_empleado, anio } = req.body;
-    const empleadoId = Number(id_empleado);
-    const anioNumero = Number(anio);
-
-    if (!Number.isInteger(empleadoId) || empleadoId <= 0) {
-      return res.status(400).json({ error: 'id_empleado inválido' });
-    }
-
-    if (!Number.isInteger(anioNumero) || anioNumero < 2000) {
-      return res.status(400).json({ error: 'Año inválido para el cálculo' });
-    }
-
-    const metodoRaw =
-      typeof req.body?.metodo === 'string' ? req.body.metodo.trim().toLowerCase() : 'automatico';
-    const metodo = metodoRaw === 'manual' ? 'manual' : 'automatico';
-
-    const incluirBonificaciones =
-      req.body?.incluir_bonificaciones !== undefined
-        ? Boolean(req.body.incluir_bonificaciones)
-        : true;
-    const incluirHorasExtra =
-      req.body?.incluir_horas_extra !== undefined
-        ? Boolean(req.body.incluir_horas_extra)
-        : false;
-
-    const parseFecha = (valor) => {
-      if (!valor) return null;
-
-      if (typeof valor === 'string') {
-        const match = valor.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (match) {
-          const [, year, month, day] = match;
-          const date = new Date(
-            Date.UTC(Number(year), Number(month) - 1, Number(day))
-          );
-          if (!Number.isNaN(date.getTime())) {
-            return date;
-          }
-        }
-      }
-
-      const fecha = valor instanceof Date ? new Date(valor.getTime()) : new Date(valor);
-      if (Number.isNaN(fecha.getTime())) return null;
-
-      return new Date(
-        Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())
-      );
-    };
-
-    const fechaInicioPeriodo = parseFecha(req.body?.fecha_inicio_periodo);
-    const fechaFinPeriodo = parseFecha(req.body?.fecha_fin_periodo);
-
-    if (fechaInicioPeriodo && fechaFinPeriodo && fechaFinPeriodo < fechaInicioPeriodo) {
-      return res.status(400).json({ error: 'La fecha fin del periodo no puede ser anterior a la fecha de inicio' });
-    }
-
-    const observacionTexto = (() => {
-      if (typeof req.body?.observacion !== 'string') return null;
-      const trimmed = req.body.observacion.trim();
-      if (!trimmed) return null;
-      return trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed;
-    })();
-
-    let salarioQuincenalManual = null;
-    let fechaIngresoManual = null;
-    let tipoPagoManual = null;
-    let promedioManual = null;
-
-    if (metodo === 'manual') {
-      const salarioNumero = Number(req.body?.salario_quincenal);
-      if (!Number.isFinite(salarioNumero) || salarioNumero <= 0) {
-        return res
-          .status(400)
-          .json({ error: 'Salario quincenal inválido para el cálculo manual' });
-      }
-
-      salarioQuincenalManual = salarioNumero;
-
-      if (req.body?.fecha_ingreso) {
-        const fechaIngreso = new Date(req.body.fecha_ingreso);
-        if (Number.isNaN(fechaIngreso.getTime())) {
-          return res.status(400).json({ error: 'Fecha de ingreso inválida' });
-        }
-        fechaIngresoManual = fechaIngreso.toISOString();
-      }
-
-      if (req.body?.tipo_pago) {
-        tipoPagoManual = String(req.body.tipo_pago);
-      }
-
-      const montoPromedioDiario = Number(req.body?.monto_promedio_diario);
-      const diasPromedioDiario = Number(req.body?.dias_promedio_diario);
-      const periodoPromedio = (() => {
-        const texto = String(req.body?.periodo_promedio_diario || "")
-          .trim()
-          .toLowerCase();
-        return texto === "mes" ? "mes" : "quincena";
-      })();
-
-      const promedioManualData = {};
-
-      if (Number.isFinite(montoPromedioDiario) && montoPromedioDiario > 0) {
-        promedioManualData.monto = Number(montoPromedioDiario.toFixed(2));
-      }
-
-      if (Number.isFinite(diasPromedioDiario) && diasPromedioDiario > 0) {
-        promedioManualData.dias = Number(diasPromedioDiario.toFixed(2));
-      }
-
-      if (Object.keys(promedioManualData).length > 0) {
-        promedioManual = {
-          ...promedioManualData,
-          periodo: periodoPromedio,
-        };
-      }
-    }
+    const parametros = construirParametrosCalculo(req);
 
     const aguinaldo = await Aguinaldo.calcularYGuardar({
-      id_empleado: empleadoId,
-      anio: anioNumero,
-      metodo,
-      incluirBonificaciones,
-      incluirHorasExtra,
-      salarioQuincenal: salarioQuincenalManual,
-      fechaIngresoManual,
-      tipoPagoManual,
-      promedioManual,
-      fechaInicioPeriodo,
-      fechaFinPeriodo,
-      observacion: observacionTexto,
+      id_empleado: parametros.empleadoId,
+      anio: parametros.anioNumero,
+      metodo: parametros.metodo,
+      incluirBonificaciones: parametros.incluirBonificaciones,
+      incluirHorasExtra: parametros.incluirHorasExtra,
+      salarioQuincenal: parametros.salarioQuincenalManual,
+      fechaIngresoManual: parametros.fechaIngresoManual,
+      tipoPagoManual: parametros.tipoPagoManual,
+      promedioManual: parametros.promedioManual,
+      fechaInicioPeriodo: parametros.fechaInicioPeriodo,
+      fechaFinPeriodo: parametros.fechaFinPeriodo,
+      observacion: parametros.observacionTexto,
     });
 
     return res.status(201).json({
       message: 'Aguinaldo calculado correctamente',
       aguinaldo,
+    });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    return res.status(status).json({ error: err.message });
+  }
+};
+
+const previsualizarAguinaldo = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+    if (user.id_rol !== 1) {
+      return res.status(403).json({ error: 'Solo administradores pueden calcular aguinaldos' });
+    }
+
+    const parametros = construirParametrosCalculo(req);
+
+    const preview = await Aguinaldo.previsualizar({
+      id_empleado: parametros.empleadoId,
+      anio: parametros.anioNumero,
+      metodo: parametros.metodo,
+      incluirBonificaciones: parametros.incluirBonificaciones,
+      incluirHorasExtra: parametros.incluirHorasExtra,
+      salarioQuincenal: parametros.salarioQuincenalManual,
+      fechaIngresoManual: parametros.fechaIngresoManual,
+      tipoPagoManual: parametros.tipoPagoManual,
+      promedioManual: parametros.promedioManual,
+      fechaInicioPeriodo: parametros.fechaInicioPeriodo,
+      fechaFinPeriodo: parametros.fechaFinPeriodo,
+      observacion: parametros.observacionTexto,
+    });
+
+    return res.json({
+      message: 'Previsualización generada correctamente',
+      preview,
     });
   } catch (err) {
     const status = err.statusCode || 500;
@@ -696,6 +756,7 @@ const exportAguinaldoPdf = async (req, res) => {
 module.exports = {
   getAguinaldos,
   calcularAguinaldo,
+  previsualizarAguinaldo,
   actualizarAguinaldo,
   actualizarPago,
   exportAguinaldoPdf,
