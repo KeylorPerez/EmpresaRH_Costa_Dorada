@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -126,25 +126,28 @@ const Aguinaldos = ({ mode }) => {
 
   const esPagoDiarioSeleccionado = tipoPagoSeleccionado === "diario";
 
-  const periodoPromedioSeleccionado = useMemo(() => {
-    const texto = String(formData.periodo_promedio_diario || "")
-      .trim()
-      .toLowerCase();
-    return texto === "mes" ? "mes" : "quincena";
-  }, [formData.periodo_promedio_diario]);
-
-  const salarioDiarioSugerido = useMemo(() => {
+  const salarioDiarioEmpleado = useMemo(() => {
     if (!esPagoDiarioSeleccionado) return null;
-    const monto = Number(formData.monto_promedio_diario);
-    const dias = Number(formData.dias_promedio_diario);
+    const monto = Number(empleadoSeleccionado?.salario_monto);
     if (!Number.isFinite(monto) || monto <= 0) return null;
-    if (!Number.isFinite(dias) || dias <= 0) return null;
-    const salario = monto / dias;
-    if (!Number.isFinite(salario) || salario <= 0) return null;
-    return Number(salario.toFixed(2));
-  }, [esPagoDiarioSeleccionado, formData.dias_promedio_diario, formData.monto_promedio_diario]);
+    return Number(monto.toFixed(2));
+  }, [empleadoSeleccionado, esPagoDiarioSeleccionado]);
 
-  const requierePromedioDiario = formData.metodo === "manual" && esPagoDiarioSeleccionado;
+  const [diasLaboradosQuincena, setDiasLaboradosQuincena] = useState("");
+
+  useEffect(() => {
+    setDiasLaboradosQuincena("");
+  }, [esPagoDiarioSeleccionado, formData.id_empleado]);
+
+  const montoEstimadoQuincena = useMemo(() => {
+    if (!esPagoDiarioSeleccionado) return null;
+    const dias = Number(diasLaboradosQuincena);
+    if (!Number.isFinite(dias) || dias <= 0) return null;
+    if (!salarioDiarioEmpleado) return null;
+    const monto = salarioDiarioEmpleado * dias;
+    if (!Number.isFinite(monto) || monto <= 0) return null;
+    return Number(monto.toFixed(2));
+  }, [diasLaboradosQuincena, esPagoDiarioSeleccionado, salarioDiarioEmpleado]);
 
   const etiquetaSalarioManual = useMemo(() => {
     switch (tipoPagoSeleccionado) {
@@ -595,62 +598,43 @@ const Aguinaldos = ({ mode }) => {
                       </div>
 
                       <div className="flex flex-col gap-4">
-                        {esPagoDiarioSeleccionado && (
+                        {esPagoDiarioSeleccionado && formData.metodo === "manual" && (
                           <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
                             <p className="text-xs font-semibold text-blue-700">
-                              Calcula el salario diario promedio
+                              Referencia para pagos diarios
+                            </p>
+                            <p className="text-sm font-medium text-blue-700">
+                              Salario diario registrado:
+                              <span className="ml-1">
+                                {salarioDiarioEmpleado
+                                  ? formatearMontoCRC(salarioDiarioEmpleado)
+                                  : "Sin registro disponible"}
+                              </span>
+                            </p>
+                            <p className="text-xs text-blue-600">
+                              El sistema llena automáticamente el salario diario con el monto registrado para el colaborador.
+                              Si necesitas un valor diferente, ajústalo directamente en el campo de salario base.
                             </p>
                             <div className="flex flex-col">
                               <label className="mb-1 text-xs font-medium text-blue-700">
-                                Periodo de referencia
-                              </label>
-                              <select
-                                name="periodo_promedio_diario"
-                                value={formData.periodo_promedio_diario || "quincena"}
-                                onChange={handleChange}
-                                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="quincena">Quincena</option>
-                                <option value="mes">Mes</option>
-                              </select>
-                            </div>
-                            <div className="flex flex-col">
-                              <label className="mb-1 text-xs font-medium text-blue-700">
-                                Monto promedio por {periodoPromedioSeleccionado === "mes" ? "mes" : "quincena"} (CRC)
+                                Días laborados en la quincena (opcional)
                               </label>
                               <input
                                 type="number"
-                                name="monto_promedio_diario"
-                                value={formData.monto_promedio_diario || ""}
-                                onChange={handleChange}
-                                min="0"
-                                step="0.01"
-                                required={requierePromedioDiario}
-                                className="rounded-lg border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="flex flex-col">
-                              <label className="mb-1 text-xs font-medium text-blue-700">
-                                Días laborados en la {periodoPromedioSeleccionado === "mes" ? "mes" : "quincena"}
-                              </label>
-                              <input
-                                type="number"
-                                name="dias_promedio_diario"
-                                value={formData.dias_promedio_diario || ""}
-                                onChange={handleChange}
                                 min="0"
                                 step="0.1"
-                                required={requierePromedioDiario}
+                                value={diasLaboradosQuincena}
+                                onChange={(event) => setDiasLaboradosQuincena(event.target.value)}
                                 className="rounded-lg border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
-                            </div>
-                            <p className="text-xs text-blue-600">
-                              Usaremos estos datos para estimar automáticamente el salario diario del colaborador.
-                            </p>
-                            {salarioDiarioSugerido && (
-                              <p className="text-xs font-semibold text-blue-700">
-                                Salario diario estimado: {formatearMontoCRC(salarioDiarioSugerido)}
+                              <p className="mt-1 text-xs text-blue-600">
+                                Usa este dato para estimar cuánto devengó el colaborador en la quincena y validar el monto ingresado.
                               </p>
+                            </div>
+                            {montoEstimadoQuincena && (
+                              <div className="rounded-md bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-700">
+                                Monto estimado para la quincena: {formatearMontoCRC(montoEstimadoQuincena)}
+                              </div>
                             )}
                           </div>
                         )}
@@ -672,7 +656,7 @@ const Aguinaldos = ({ mode }) => {
                           <p className="mt-1 text-xs text-gray-500">{ayudaSalarioManual}</p>
                           {esPagoDiarioSeleccionado ? (
                             <p className="mt-1 text-xs text-blue-600">
-                              Este valor se actualiza con el promedio calculado, pero puedes ajustarlo manualmente si es necesario.
+                              Por defecto tomamos el salario diario registrado del colaborador. Ajusta este monto si aplica un valor distinto.
                             </p>
                           ) : null}
                         </div>
