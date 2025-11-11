@@ -387,11 +387,29 @@ class Aguinaldo {
         }
 
         if (totalEstimado === null) {
-          const totalCalculado =
-            Number.isFinite(montoCalculado) && montoCalculado > 0
-              ? montoCalculado * 12
-              : 0;
+          let totalCalculado = 0;
+          let actualizarMontoDesdeTotal = false;
+
+          if (
+            Number.isFinite(salarioMensualEstimado) &&
+            salarioMensualEstimado > 0 &&
+            Number.isFinite(mesesEquivalentes) &&
+            mesesEquivalentes > 0
+          ) {
+            totalCalculado = salarioMensualEstimado * mesesEquivalentes;
+            actualizarMontoDesdeTotal = true;
+          } else if (
+            Number.isFinite(montoCalculado) &&
+            montoCalculado > 0
+          ) {
+            totalCalculado = montoCalculado * 12;
+          }
+
           totalEstimado = Number(totalCalculado);
+
+          if (actualizarMontoDesdeTotal) {
+            montoCalculado = totalCalculado / 12;
+          }
         }
 
         const salarioMensualEstimadoRedondeado = Number(
