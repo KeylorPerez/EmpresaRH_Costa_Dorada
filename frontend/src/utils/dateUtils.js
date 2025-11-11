@@ -21,10 +21,30 @@ export const parseDateValue = (value) => {
       return null;
     }
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      const [year, month, day] = trimmed.split("-").map(Number);
-      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+    const parseDateOnly = (dateText) => {
+      const [year, month, day] = dateText.split("-").map(Number);
+      if (
+        Number.isFinite(year) &&
+        Number.isFinite(month) &&
+        Number.isFinite(day)
+      ) {
         return new Date(year, month - 1, day);
+      }
+      return null;
+    };
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const parsed = parseDateOnly(trimmed);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      const [datePart] = trimmed.split("T");
+      const parsed = parseDateOnly(datePart);
+      if (parsed) {
+        return parsed;
       }
     }
 
