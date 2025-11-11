@@ -1,5 +1,7 @@
 const { poolPromise, sql } = require('../db/db');
 
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
 const toYearMonth = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -28,6 +30,70 @@ const diffMonthsInclusive = (start, end) => {
   }
 
   return totalMonths;
+};
+
+const normalizarFechaUTC = (fecha) => {
+  if (!(fecha instanceof Date)) return null;
+  return new Date(
+    Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate())
+  );
+};
+
+const agregarMesesPreservandoDia = (fecha, meses) => {
+  if (!(fecha instanceof Date)) return null;
+
+  const year = fecha.getUTCFullYear();
+  const month = fecha.getUTCMonth();
+  const day = fecha.getUTCDate();
+
+  const base = new Date(Date.UTC(year, month + meses, 1));
+  const ultimoDiaMes = new Date(
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+
+  base.setUTCDate(Math.min(day, ultimoDiaMes));
+  return base;
+};
+
+const calcularMesesYDiasTrabajados = (inicio, fin) => {
+  if (!inicio || !fin) return null;
+
+  const fechaInicio = normalizarFechaUTC(inicio);
+  const fechaFin = normalizarFechaUTC(fin);
+
+  if (!fechaInicio || !fechaFin || fechaFin < fechaInicio) {
+    return null;
+  }
+
+  let mesesCompletos = 0;
+  while (true) {
+    const siguiente = agregarMesesPreservandoDia(fechaInicio, mesesCompletos + 1);
+    if (!siguiente || siguiente > fechaFin) break;
+    mesesCompletos += 1;
+  }
+
+  const referencia = agregarMesesPreservandoDia(fechaInicio, mesesCompletos);
+  let diasExtra = 0;
+
+  if (referencia && referencia <= fechaFin) {
+    diasExtra = Math.max(0, Math.floor((fechaFin - referencia) / MS_POR_DIA));
+
+    const inicioEsPrimerDia = fechaInicio.getUTCDate() === 1;
+    const referenciaEsPrimerDia = referencia.getUTCDate() === 1;
+    const ultimoDiaMesFin = new Date(
+      Date.UTC(fechaFin.getUTCFullYear(), fechaFin.getUTCMonth() + 1, 0)
+    ).getUTCDate();
+    const finEsUltimoDia = fechaFin.getUTCDate() === ultimoDiaMesFin;
+
+    if (inicioEsPrimerDia && referenciaEsPrimerDia && finEsUltimoDia) {
+      diasExtra += 1;
+    }
+  }
+
+  return {
+    mesesCompletos,
+    diasExtra,
+  };
 };
 
 class Aguinaldo {
@@ -197,7 +263,6 @@ class Aguinaldo {
 
         fechaInicioParaGuardar = inicioCalculo;
 
-        const MS_POR_DIA = 24 * 60 * 60 * 1000;
         const inicioReferenciaPeriodo =
           inicioPeriodo < defaultInicio ? inicioPeriodo : defaultInicio;
         const diasPeriodo = Math.max(
@@ -378,6 +443,11 @@ class Aguinaldo {
           (incluirBonificaciones ? totales.bonificaciones : 0) +
           (incluirHorasExtra ? totales.horas_extras : 0);
 
+        const calculoMesesPeriodo = calcularMesesYDiasTrabajados(
+          fechaInicioParaGuardar,
+          fechaFinParaGuardar
+        );
+
         const mesesLaborados = registros.reduce((set, row) => {
           const referencia = row.periodo_fin || row.periodo_inicio || row.fecha_pago;
           const ym = toYearMonth(referencia);
@@ -421,19 +491,39 @@ class Aguinaldo {
           (mesesCount > 0 ? totalConsiderado / mesesCount : 0).toFixed(2)
         );
 
-        const mesesTrabajados = (() => {
+        const mesesTrabajadosInfo = (() => {
+          if (calculoMesesPeriodo) {
+            const { mesesCompletos, diasExtra } = calculoMesesPeriodo;
+            const fraccionDias = diasExtra > 0 ? Math.min(1, diasExtra / 30) : 0;
+            const total = mesesCompletos + fraccionDias;
+            const totalNormalizado =
+              total > 0 ? Math.min(12, Number(total.toFixed(4))) : 0;
+
+            return {
+              total: totalNormalizado,
+              detalle: {
+                meses_completos: mesesCompletos,
+                dias_adicionales: diasExtra,
+              },
+            };
+          }
+
           const mesesPeriodo = diffMonthsInclusive(
             fechaInicioParaGuardar,
             fechaFinParaGuardar
           );
           if (mesesPeriodo) {
-            return Math.min(12, Math.max(1, mesesPeriodo));
+            const total = Math.min(12, Math.max(1, mesesPeriodo));
+            return { total, detalle: null };
           }
           if (mesesCount > 0) {
-            return Math.min(12, Math.max(1, mesesCount));
+            const total = Math.min(12, Math.max(1, mesesCount));
+            return { total, detalle: null };
           }
-          return 12;
+          return { total: 12, detalle: null };
         })();
+
+        const mesesTrabajados = mesesTrabajadosInfo.total;
 
         const aguinaldoCalculado =
           mesesTrabajados > 0 ? (salarioPromedio / 12) * mesesTrabajados : 0;
@@ -457,6 +547,17 @@ class Aguinaldo {
             considerado: Number(totalConsiderado.toFixed(2)),
           },
         };
+
+        detalleCalculo.meses_trabajados = {
+          equivalentes: Number(mesesTrabajados.toFixed(4)),
+        };
+
+        if (mesesTrabajadosInfo.detalle) {
+          detalleCalculo.meses_trabajados.meses_completos =
+            mesesTrabajadosInfo.detalle.meses_completos;
+          detalleCalculo.meses_trabajados.dias_adicionales =
+            mesesTrabajadosInfo.detalle.dias_adicionales;
+        }
       }
 
       const existenteResult = await pool
