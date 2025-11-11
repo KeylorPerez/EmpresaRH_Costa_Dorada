@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import aguinaldoService from "../services/aguinaldoService";
 import empleadoService from "../services/empleadoService";
 import { formatDateValue } from "../utils/dateUtils";
@@ -174,6 +174,9 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState(() => createInitialForm());
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequestIdRef = useRef(0);
 
   const empleadoSeleccionado = useMemo(() => {
     const id = Number(formData.id_empleado);
@@ -188,6 +191,10 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       parseDateOnly(overrides.fecha_inicio_periodo ?? state.fecha_inicio_periodo) || base.inicio;
     const fin = parseDateOnly(overrides.fecha_fin_periodo ?? state.fecha_fin_periodo) || base.fin;
     return { inicio, fin };
+  }, []);
+
+  const clearPreview = useCallback(() => {
+    setPreviewData(null);
   }, []);
 
   const fetchAguinaldos = useCallback(async () => {
@@ -234,6 +241,14 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
+
+    if (previewData) {
+      clearPreview();
+    }
+    if (previewLoading) {
+      setPreviewLoading(false);
+    }
+    previewRequestIdRef.current += 1;
 
     if (name === "id_empleado") {
       setFormData((prev) => {
@@ -395,6 +410,9 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
 
   const resetForm = (anioValue, overrides = {}) => {
     const baseAnio = anioValue ?? currentYear();
+    clearPreview();
+    setPreviewLoading(false);
+    previewRequestIdRef.current += 1;
     setFormData(() => {
       const nextState = {
         ...createInitialForm(baseAnio),
@@ -404,25 +422,18 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     });
   };
 
-  const handleSubmit = async (event, manualExtras = {}) => {
-    event.preventDefault();
-    setError("");
-    setSuccessMessage("");
+  const construirPayload = useCallback(
+    (manualExtras = {}) => {
+      const empleadoId = Number(formData.id_empleado);
+      if (!Number.isInteger(empleadoId) || empleadoId <= 0) {
+        return { error: "Selecciona el colaborador" };
+      }
 
-    const empleadoId = Number(formData.id_empleado);
-    if (!Number.isInteger(empleadoId) || empleadoId <= 0) {
-      setError("Selecciona el colaborador");
-      return;
-    }
+      const anioNumero = Number(formData.anio);
+      if (!Number.isInteger(anioNumero) || anioNumero < 2000) {
+        return { error: "Ingresa un año válido" };
+      }
 
-    const anioNumero = Number(formData.anio);
-    if (!Number.isInteger(anioNumero) || anioNumero < 2000) {
-      setError("Ingresa un año válido");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
       const metodo = formData.metodo === "manual" ? "manual" : "automatico";
 
       const periodoSeleccionado = obtenerPeriodo(formData);
@@ -432,15 +443,13 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         parseDateOnly(formData.fecha_fin_periodo) || periodoSeleccionado.fin;
 
       if (!inicioPeriodoSeleccionado || !finPeriodoSeleccionado) {
-        setError("Selecciona un periodo de cálculo válido");
-        setSubmitting(false);
-        return;
+        return { error: "Selecciona un periodo de cálculo válido" };
       }
 
       if (finPeriodoSeleccionado < inicioPeriodoSeleccionado) {
-        setError("La fecha fin del periodo no puede ser anterior a la fecha de inicio");
-        setSubmitting(false);
-        return;
+        return {
+          error: "La fecha fin del periodo no puede ser anterior a la fecha de inicio",
+        };
       }
 
       const payload = {
@@ -463,33 +472,25 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         }
 
         if (!Number.isFinite(salarioParaEnviar) || salarioParaEnviar <= 0) {
-          setError("Ingresa el monto base para calcular el aguinaldo del colaborador");
-          setSubmitting(false);
-          return;
+          return {
+            error: "Ingresa el monto base para calcular el aguinaldo del colaborador",
+          };
         }
 
         if (!formData.fecha_ingreso_manual) {
-          setError("No se pudo determinar la fecha de ingreso del colaborador");
-          setSubmitting(false);
-          return;
+          return { error: "No se pudo determinar la fecha de ingreso del colaborador" };
         }
 
         const fechaIngreso = new Date(formData.fecha_ingreso_manual);
         if (Number.isNaN(fechaIngreso.getTime())) {
-          setError("La fecha de ingreso no es válida");
-          setSubmitting(false);
-          return;
+          return { error: "La fecha de ingreso no es válida" };
         }
 
-        const salarioValido =
-          Number.isFinite(salarioParaEnviar) && salarioParaEnviar > 0
-            ? Number(salarioParaEnviar.toFixed(2))
-            : null;
-
-        if (!salarioValido) {
-          setError("No se pudo calcular un salario diario válido para el colaborador");
-          setSubmitting(false);
-          return;
+        const salarioValido = Number(salarioParaEnviar.toFixed(2));
+        if (!Number.isFinite(salarioValido) || salarioValido <= 0) {
+          return {
+            error: "No se pudo calcular un salario diario válido para el colaborador",
+          };
         }
 
         payload.salario_quincenal = salarioValido;
@@ -526,11 +527,30 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         }
       }
 
+      return { payload, metodo };
+    },
+    [formData, empleadoSeleccionado, obtenerPeriodo]
+  );
+
+  const handleSubmit = async (event, manualExtras = {}) => {
+    event.preventDefault();
+    setError("");
+    setSuccessMessage("");
+
+    const resultado = construirPayload(manualExtras);
+    if (!resultado || resultado.error) {
+      setError(resultado?.error || "Selecciona el colaborador");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const { payload, metodo } = resultado;
       const response = await aguinaldoService.calcular(payload);
       const message = response?.message || "Aguinaldo calculado correctamente";
       setSuccessMessage(message);
-      const anioPersistir = formData.anio;
-      const metodoPersistir = formData.metodo;
+      const anioPersistir = payload.anio ?? formData.anio;
+      const metodoPersistir = metodo || formData.metodo;
       const overrides =
         metodoPersistir === "automatico"
           ? {
@@ -549,6 +569,57 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       setSubmitting(false);
     }
   };
+
+  const previsualizarCalculo = useCallback(
+    async (manualExtras = {}) => {
+      setError("");
+      setSuccessMessage("");
+
+      const resultado = construirPayload(manualExtras);
+      if (!resultado || resultado.error) {
+        setPreviewData(null);
+        setError(resultado?.error || "Selecciona el colaborador");
+        return null;
+      }
+
+      try {
+        const requestId = previewRequestIdRef.current + 1;
+        previewRequestIdRef.current = requestId;
+        setPreviewLoading(true);
+        const response = await aguinaldoService.previsualizar(resultado.payload);
+        const data = response?.preview || response?.aguinaldo || null;
+        if (!data) {
+          if (previewRequestIdRef.current === requestId) {
+            setPreviewData(null);
+            setError("No se recibió información de la previsualización");
+          }
+          return null;
+        }
+
+        const enriched = {
+          ...data,
+          generado_en: new Date().toISOString(),
+        };
+        if (previewRequestIdRef.current === requestId) {
+          setPreviewData(enriched);
+        }
+        return enriched;
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible generar la previsualización";
+        if (previewRequestIdRef.current === requestId) {
+          setError(message);
+          setPreviewData(null);
+        }
+        return null;
+      } finally {
+        if (previewRequestIdRef.current === requestId) {
+          setPreviewLoading(false);
+        }
+      }
+    },
+    [construirPayload]
+  );
 
   const markAsPaid = useCallback(
     async (id, pagado) => {
@@ -638,6 +709,10 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     handleChange,
     handleSubmit,
     resetForm,
+    previewData,
+    previewLoading,
+    previsualizarCalculo,
+    clearPreview,
     markAsPaid,
     updateAguinaldo,
     exportAguinaldo,

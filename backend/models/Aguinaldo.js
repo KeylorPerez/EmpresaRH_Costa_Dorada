@@ -167,20 +167,23 @@ class Aguinaldo {
     }
   }
 
-  static async calcularYGuardar({
-    id_empleado,
-    anio,
-    metodo = 'automatico',
-    incluirBonificaciones = true,
-    incluirHorasExtra = false,
-    salarioQuincenal = null,
-    fechaIngresoManual = null,
-    tipoPagoManual = null,
-    promedioManual = null,
-    fechaInicioPeriodo = null,
-    fechaFinPeriodo = null,
-    observacion = null,
-  }) {
+  static async calcularInterno(
+    {
+      id_empleado,
+      anio,
+      metodo = 'automatico',
+      incluirBonificaciones = true,
+      incluirHorasExtra = false,
+      salarioQuincenal = null,
+      fechaIngresoManual = null,
+      tipoPagoManual = null,
+      promedioManual = null,
+      fechaInicioPeriodo = null,
+      fechaFinPeriodo = null,
+      observacion = null,
+    },
+    { guardar = true } = {}
+  ) {
     try {
       const pool = await poolPromise;
 
@@ -705,6 +708,23 @@ class Aguinaldo {
         }
       }
 
+      if (!guardar) {
+        return {
+          id_aguinaldo: null,
+          id_empleado,
+          anio,
+          salario_promedio: salarioPromedio,
+          monto_aguinaldo: montoAguinaldo,
+          fecha_calculo: new Date().toISOString(),
+          pagado: false,
+          fecha_inicio_periodo: fechaInicioParaGuardar?.toISOString?.() || fechaInicioParaGuardar,
+          fecha_fin_periodo: fechaFinParaGuardar?.toISOString?.() || fechaFinParaGuardar,
+          observacion: observacionNormalizada,
+          detalle_calculo: detalleCalculo,
+          metodo: metodoNormalizado,
+        };
+      }
+
       const existenteResult = await pool
         .request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -792,6 +812,14 @@ class Aguinaldo {
     } catch (err) {
       throw err;
     }
+  }
+
+  static async calcularYGuardar(params) {
+    return this.calcularInterno(params, { guardar: true });
+  }
+
+  static async previsualizar(params) {
+    return this.calcularInterno(params, { guardar: false });
   }
 
   static async actualizar(id_aguinaldo, campos = {}) {

@@ -5,6 +5,10 @@ const aguinaldoService = {
     const response = await api.get("/aguinaldos");
     return response.data;
   },
+  previsualizar: async (payload) => {
+    const response = await api.post("/aguinaldos/previsualizar", payload);
+    return response.data;
+  },
   calcular: async (payload) => {
     const response = await api.post("/aguinaldos/calcular", payload);
     return response.data;
