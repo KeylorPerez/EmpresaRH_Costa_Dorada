@@ -236,8 +236,12 @@ class Aguinaldo {
           case 'diario': {
             salarioMensualEstimado = salarioBaseReferencia * 30;
             totalEstimado = salarioBaseReferencia * diasTrabajados;
-            mesesEquivalentes = (diasTrabajados / diasPeriodo) * 12;
-            montoCalculado = totalEstimado / 12;
+            mesesEquivalentes =
+              diasPeriodo > 0 ? (diasTrabajados / diasPeriodo) * 12 : 0;
+            montoCalculado =
+              diasPeriodo > 0
+                ? (salarioMensualEstimado * diasTrabajados) / diasPeriodo
+                : 0;
             break;
           }
           case 'semanal':
