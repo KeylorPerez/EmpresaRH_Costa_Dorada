@@ -10,8 +10,10 @@ const createInitialForm = () => ({
   vacaciones_no_gozadas: "",
   cesantia: "",
   preaviso: "",
-  antiguedad: "",
   fecha_liquidacion: "",
+  fecha_inicio_periodo: "",
+  fecha_fin_periodo: "",
+  motivo_liquidacion: "",
   id_estado: "1",
 });
 
@@ -70,8 +72,7 @@ export const calcularTotalLiquidacion = (registro) => {
     toNumber(registro.salario_acumulado) +
     toNumber(registro.vacaciones_no_gozadas) +
     toNumber(registro.cesantia) +
-    toNumber(registro.preaviso) +
-    toNumber(registro.antiguedad)
+    toNumber(registro.preaviso)
   );
 };
 
@@ -83,10 +84,15 @@ const buildUpdatePayload = (registro = {}, overrides = {}) => {
     vacaciones_no_gozadas: toNumber(merged.vacaciones_no_gozadas),
     cesantia: toNumber(merged.cesantia),
     preaviso: toNumber(merged.preaviso),
-    antiguedad: toNumber(merged.antiguedad),
     id_estado: Number(merged.id_estado) || 1,
     aprobado_por: toOptionalNumber(merged.aprobado_por),
     fecha_liquidacion: normalizeDateForApi(merged.fecha_liquidacion),
+    fecha_inicio_periodo: normalizeDateForApi(merged.fecha_inicio_periodo),
+    fecha_fin_periodo: normalizeDateForApi(merged.fecha_fin_periodo),
+    motivo_liquidacion:
+      typeof merged.motivo_liquidacion === "string"
+        ? merged.motivo_liquidacion.trim() || null
+        : merged.motivo_liquidacion || null,
   };
 
   payload.total_pagar =
@@ -185,9 +191,14 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
       vacaciones_no_gozadas: toNumber(formData.vacaciones_no_gozadas),
       cesantia: toNumber(formData.cesantia),
       preaviso: toNumber(formData.preaviso),
-      antiguedad: toNumber(formData.antiguedad),
       id_estado: Number(formData.id_estado) || 1,
       fecha_liquidacion: normalizeDateForApi(formData.fecha_liquidacion),
+      fecha_inicio_periodo: normalizeDateForApi(formData.fecha_inicio_periodo),
+      fecha_fin_periodo: normalizeDateForApi(formData.fecha_fin_periodo),
+      motivo_liquidacion:
+        typeof formData.motivo_liquidacion === "string"
+          ? formData.motivo_liquidacion.trim() || null
+          : null,
     };
 
     if (payload.id_estado === 2 && user?.id_usuario) {
