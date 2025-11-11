@@ -313,6 +313,14 @@ class Aguinaldo {
           .toString()
           .toLowerCase();
 
+        const proporcionPeriodo =
+          diasPeriodo > 0 ? diasTrabajados / diasPeriodo : 0;
+        const mesesPeriodoBase = diasPeriodo > 0 ? diasPeriodo / 30 : 0;
+        const mesesEquivalentesCalculados =
+          proporcionPeriodo > 0
+            ? proporcionPeriodo * mesesPeriodoBase
+            : 0;
+
         let salarioMensualEstimado;
         let montoCalculado;
         let totalEstimado = null;
@@ -330,7 +338,7 @@ class Aguinaldo {
         switch (tipoPagoReferencia) {
           case 'mensual':
             salarioMensualEstimado = salarioBaseReferencia;
-            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
+            montoCalculado = salarioMensualEstimado * proporcionPeriodo;
             break;
           case 'diario': {
             if (tieneMontoPromedioUsuario) {
@@ -346,12 +354,7 @@ class Aguinaldo {
               salarioMensualEstimado = salarioBaseReferencia * 30;
             }
 
-            const mesesPeriodoBase =
-              diasPeriodo > 0 ? diasPeriodo / 30 : 0;
-            const mesesEquivalentesRaw =
-              diasPeriodo > 0
-                ? (diasTrabajados / diasPeriodo) * mesesPeriodoBase
-                : 0;
+            const mesesEquivalentesRaw = mesesEquivalentesCalculados;
             mesesEquivalentes =
               mesesEquivalentesRaw > 0
                 ? Math.min(12, Number(mesesEquivalentesRaw.toFixed(6)))
@@ -367,16 +370,45 @@ class Aguinaldo {
           }
           case 'semanal':
             salarioMensualEstimado = salarioBaseReferencia * 4;
-            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
+            montoCalculado = salarioMensualEstimado * proporcionPeriodo;
             break;
           default:
             salarioMensualEstimado = salarioBaseReferencia * 2;
-            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
+            montoCalculado = salarioMensualEstimado * proporcionPeriodo;
             break;
         }
 
-        salarioPromedio = Number(Number(salarioMensualEstimado).toFixed(2));
-        montoAguinaldo = Number(Number(montoCalculado).toFixed(2));
+        if (mesesEquivalentes === null) {
+          const mesesEquivalentesRaw = mesesEquivalentesCalculados;
+          mesesEquivalentes =
+            mesesEquivalentesRaw > 0
+              ? Math.min(12, Number(mesesEquivalentesRaw.toFixed(6)))
+              : 0;
+        }
+
+        if (totalEstimado === null) {
+          const totalCalculado =
+            Number.isFinite(montoCalculado) && montoCalculado > 0
+              ? montoCalculado * 12
+              : 0;
+          totalEstimado = Number(totalCalculado);
+        }
+
+        const salarioMensualEstimadoRedondeado = Number(
+          Number(salarioMensualEstimado ?? 0).toFixed(2)
+        );
+        const montoCalculadoRedondeado = Number(
+          Number(montoCalculado ?? 0).toFixed(2)
+        );
+        const totalEstimadoRedondeado = Number(
+          Number(totalEstimado ?? 0).toFixed(2)
+        );
+        const mesesEquivalentesRedondeados = Number(
+          Number(mesesEquivalentes ?? 0).toFixed(4)
+        );
+
+        salarioPromedio = salarioMensualEstimadoRedondeado;
+        montoAguinaldo = montoCalculadoRedondeado;
 
         detalleCalculo = {
           metodo: 'manual',
@@ -389,17 +421,22 @@ class Aguinaldo {
           },
           salario_base_utilizado: Number(Number(salarioBaseReferencia).toFixed(2)),
           tipo_pago_referencia: tipoPagoReferencia || 'desconocido',
-          salario_mensual_estimado: Number(Number(salarioMensualEstimado).toFixed(2)),
+          salario_mensual_estimado: salarioMensualEstimadoRedondeado,
         };
 
-        if (tipoPagoReferencia === 'diario') {
-          detalleCalculo.total_estimado_periodo = Number(
-            Number(totalEstimado ?? 0).toFixed(2)
-          );
-          detalleCalculo.meses_equivalentes = Number(
-            Number(mesesEquivalentes ?? 0).toFixed(4)
-          );
+        const mostrarDetallePeriodo = ['diario', 'quincena', 'quincenal'].includes(
+          tipoPagoReferencia
+        );
 
+        if (mostrarDetallePeriodo && totalEstimadoRedondeado > 0) {
+          detalleCalculo.total_estimado_periodo = totalEstimadoRedondeado;
+        }
+
+        if (mostrarDetallePeriodo && mesesEquivalentesRedondeados > 0) {
+          detalleCalculo.meses_equivalentes = mesesEquivalentesRedondeados;
+        }
+
+        if (tipoPagoReferencia === 'diario') {
           if (promedioManual && typeof promedioManual === 'object') {
             const resumenPromedio = { periodo: periodoPromedioUsuario };
 

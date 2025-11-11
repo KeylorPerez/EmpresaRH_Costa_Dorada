@@ -126,6 +126,14 @@ const Aguinaldos = ({ mode }) => {
     return limpio.charAt(0).toUpperCase() + limpio.slice(1);
   };
 
+  const normalizarTipoPago = (valor) => {
+    const texto = String(valor || "").trim().toLowerCase();
+    if (!texto) return "";
+    if (texto === "quincena" || texto === "quincenal") return "quincenal";
+    if (["diario", "mensual", "semanal"].includes(texto)) return texto;
+    return texto;
+  };
+
   const toNumberOrNull = (value, decimals = null) => {
     const numero = Number(value);
     if (!Number.isFinite(numero)) return null;
@@ -1013,7 +1021,9 @@ const Aguinaldos = ({ mode }) => {
                                     <span>
                                       {" "}(
                                       {capitalizarTexto(
-                                        detalleCalculoPreview.tipoPagoReferencia
+                                        normalizarTipoPago(
+                                          detalleCalculoPreview.tipoPagoReferencia
+                                        )
                                       )}
                                       )
                                     </span>
