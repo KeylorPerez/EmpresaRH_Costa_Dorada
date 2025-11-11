@@ -39,10 +39,12 @@ const generarLiquidacion = async (req, res) => {
       vacaciones_no_gozadas = 0,
       cesantia = 0,
       preaviso = 0,
-      antiguedad = 0,
       id_estado,
       aprobado_por = null,
-      fecha_liquidacion = null
+      fecha_liquidacion = null,
+      fecha_inicio_periodo = null,
+      fecha_fin_periodo = null,
+      motivo_liquidacion = null
     } = req.body;
 
     if (!id_empleado || salario_acumulado == null || !id_estado) {
@@ -55,10 +57,12 @@ const generarLiquidacion = async (req, res) => {
       vacaciones_no_gozadas,
       cesantia,
       preaviso,
-      antiguedad,
       id_estado,
       aprobado_por,
-      fecha_liquidacion
+      fecha_liquidacion,
+      fecha_inicio_periodo,
+      fecha_fin_periodo,
+      motivo_liquidacion
     });
 
     return res.status(201).json({
@@ -85,10 +89,12 @@ const updateLiquidacion = async (req, res) => {
       vacaciones_no_gozadas,
       cesantia,
       preaviso,
-      antiguedad,
       id_estado,
       aprobado_por,
-      fecha_liquidacion
+      fecha_liquidacion,
+      fecha_inicio_periodo,
+      fecha_fin_periodo,
+      motivo_liquidacion
     } = req.body;
 
     const result = await Liquidacion.update(id_liquidacion, {
@@ -96,10 +102,12 @@ const updateLiquidacion = async (req, res) => {
       vacaciones_no_gozadas,
       cesantia,
       preaviso,
-      antiguedad,
       id_estado,
       aprobado_por,
-      fecha_liquidacion
+      fecha_liquidacion,
+      fecha_inicio_periodo,
+      fecha_fin_periodo,
+      motivo_liquidacion
     });
 
     return res.json(result);

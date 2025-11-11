@@ -73,6 +73,13 @@ const Liquidaciones = ({ mode }) => {
 
   const totalCalculado = formatearMontoCRC(calcularTotalLiquidacion(formData));
 
+  const formatearPeriodo = (inicio, fin) => {
+    if (!inicio && !fin) return "No especificado";
+    const inicioTexto = inicio ? formatearFechaCorta(inicio) : "N/A";
+    const finTexto = fin ? formatearFechaCorta(fin) : "N/A";
+    return `${inicioTexto} — ${finTexto}`;
+  };
+
   const renderEstado = (registro) => {
     const estado = estadosLiquidacion[registro.id_estado] || {
       label: "Desconocido",
@@ -226,6 +233,32 @@ const Liquidaciones = ({ mode }) => {
 
                 <div className="flex flex-col">
                   <label className="text-sm font-medium text-gray-700 mb-1">
+                    Inicio del periodo
+                  </label>
+                  <input
+                    type="date"
+                    name="fecha_inicio_periodo"
+                    value={formData.fecha_inicio_periodo}
+                    onChange={handleChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1">
+                    Fin del periodo
+                  </label>
+                  <input
+                    type="date"
+                    name="fecha_fin_periodo"
+                    value={formData.fecha_fin_periodo}
+                    onChange={handleChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1">
                     Salario acumulado
                   </label>
                   <input
@@ -285,19 +318,22 @@ const Liquidaciones = ({ mode }) => {
                   />
                 </div>
 
-                <div className="flex flex-col">
+                <div className="md:col-span-2 flex flex-col">
                   <label className="text-sm font-medium text-gray-700 mb-1">
-                    Antigüedad
+                    Motivo de la liquidación
                   </label>
-                  <input
-                    type="number"
-                    name="antiguedad"
-                    value={formData.antiguedad}
+                  <textarea
+                    name="motivo_liquidacion"
+                    value={formData.motivo_liquidacion}
                     onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    maxLength={300}
+                    placeholder="Detalle brevemente el motivo de la liquidación"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
+                  <span className="mt-1 text-xs text-gray-400">
+                    Máximo 300 caracteres.
+                  </span>
                 </div>
 
                 <div className="flex flex-col">
@@ -365,7 +401,8 @@ const Liquidaciones = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Vacaciones</th>
                       <th className="px-4 py-3 text-left">Cesantía</th>
                       <th className="px-4 py-3 text-left">Preaviso</th>
-                      <th className="px-4 py-3 text-left">Antigüedad</th>
+                      <th className="px-4 py-3 text-left">Periodo</th>
+                      <th className="px-4 py-3 text-left">Motivo</th>
                       <th className="px-4 py-3 text-left">Total a pagar</th>
                       <th className="px-4 py-3 text-left">Estado</th>
                       <th className="px-4 py-3 text-left">Actualización</th>
@@ -407,7 +444,16 @@ const Liquidaciones = ({ mode }) => {
                             {formatearMontoCRC(registro.preaviso)}
                           </td>
                           <td className="px-4 py-3 text-gray-800">
-                            {formatearMontoCRC(registro.antiguedad)}
+                            {formatearPeriodo(registro.fecha_inicio_periodo, registro.fecha_fin_periodo)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-800 max-w-xs">
+                            {registro.motivo_liquidacion ? (
+                              <span className="block whitespace-pre-line">
+                                {registro.motivo_liquidacion}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">Sin especificar</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             {formatearMontoCRC(total)}
