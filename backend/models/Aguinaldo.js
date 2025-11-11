@@ -219,26 +219,38 @@ class Aguinaldo {
           throw error;
         }
 
-        const tipoPagoReferencia = (tipoPagoManual || empleado.tipo_pago || '').toString().toLowerCase();
+        const tipoPagoReferencia = (tipoPagoManual || empleado.tipo_pago || '')
+          .toString()
+          .toLowerCase();
 
         let salarioMensualEstimado;
+        let montoCalculado;
+        let totalEstimado = null;
+        let mesesEquivalentes = null;
+
         switch (tipoPagoReferencia) {
           case 'mensual':
             salarioMensualEstimado = salarioBaseReferencia;
+            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
             break;
-          case 'diario':
+          case 'diario': {
             salarioMensualEstimado = salarioBaseReferencia * 30;
+            totalEstimado = salarioBaseReferencia * diasTrabajados;
+            mesesEquivalentes = (diasTrabajados / diasPeriodo) * 12;
+            montoCalculado = totalEstimado / 12;
             break;
+          }
           case 'semanal':
             salarioMensualEstimado = salarioBaseReferencia * 4;
+            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
             break;
           default:
             salarioMensualEstimado = salarioBaseReferencia * 2;
+            montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
             break;
         }
 
         salarioPromedio = Number(Number(salarioMensualEstimado).toFixed(2));
-        const montoCalculado = (salarioMensualEstimado * diasTrabajados) / diasPeriodo;
         montoAguinaldo = Number(Number(montoCalculado).toFixed(2));
 
         detalleCalculo = {
@@ -250,9 +262,19 @@ class Aguinaldo {
             dias_trabajados: diasTrabajados,
             dias_periodo: diasPeriodo,
           },
-          salario_quincenal_utilizado: Number(Number(salarioBaseReferencia).toFixed(2)),
+          salario_base_utilizado: Number(Number(salarioBaseReferencia).toFixed(2)),
+          tipo_pago_referencia: tipoPagoReferencia || 'desconocido',
           salario_mensual_estimado: Number(Number(salarioMensualEstimado).toFixed(2)),
         };
+
+        if (tipoPagoReferencia === 'diario') {
+          detalleCalculo.total_estimado_periodo = Number(
+            Number(totalEstimado ?? 0).toFixed(2)
+          );
+          detalleCalculo.meses_equivalentes = Number(
+            Number(mesesEquivalentes ?? 0).toFixed(4)
+          );
+        }
       } else {
         const planillaResult = await pool
           .request()

@@ -13,39 +13,6 @@ const normalizarTipoPago = (valor) =>
 
 const esPagoDiario = (valor) => normalizarTipoPago(valor) === "diario";
 
-const esPagoQuincenal = (valor) => normalizarTipoPago(valor) === "quincenal";
-
-const parseMontosQuincenales = (texto) => {
-  if (!texto || typeof texto !== "string") return [];
-
-  return texto
-    .split(/[\n;,]+/)
-    .map((item) =>
-      item
-        .replace(/₡/gi, "")
-        .replace(/\s+/g, "")
-        .replace(/[^0-9,.-]/g, "")
-        .trim()
-    )
-    .filter(Boolean)
-    .map((item) => {
-      const normalized = item.includes(",") && !item.includes(".")
-        ? item.replace(/,/g, ".")
-        : item.replace(/,/g, "");
-      const numero = Number(normalized);
-      return Number.isFinite(numero) ? numero : null;
-    })
-    .filter((numero) => numero !== null && numero > 0);
-};
-
-const calcularPromedio = (valores) => {
-  if (!Array.isArray(valores) || valores.length === 0) {
-    return null;
-  }
-  const suma = valores.reduce((acumulado, valor) => acumulado + valor, 0);
-  return Number((suma / valores.length).toFixed(2));
-};
-
 const createInitialForm = (anioValor = currentYear()) => {
   const periodo = getPeriodoPorAnio(anioValor);
   return {
@@ -58,7 +25,6 @@ const createInitialForm = (anioValor = currentYear()) => {
     incluir_horas_extra: false,
     tipo_pago_empleado: "",
     puesto_nombre: "",
-    salarios_quincenales: "",
     fecha_inicio_periodo: formatDateInput(periodo.inicio),
     fecha_fin_periodo: formatDateInput(periodo.fin),
     observacion: "",
@@ -312,7 +278,6 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
           salario_quincenal: salarioInicial,
           tipo_pago_empleado: selected?.tipo_pago || "",
           puesto_nombre: selected?.puesto_nombre || "",
-          salarios_quincenales: "",
         };
       });
       return;
@@ -424,22 +389,6 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       return;
     }
 
-    if (name === "salarios_quincenales") {
-      setFormData((prev) => {
-        const valores = parseMontosQuincenales(value);
-        const promedio = calcularPromedio(valores);
-        return {
-          ...prev,
-          salarios_quincenales: value,
-          salario_quincenal:
-            promedio !== null && esPagoQuincenal(prev.tipo_pago_empleado)
-              ? String(promedio)
-              : prev.salario_quincenal,
-        };
-      });
-      return;
-    }
-
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -453,16 +402,6 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
       ...overrides,
     });
   };
-
-  const montosQuincenales = useMemo(
-    () => parseMontosQuincenales(formData.salarios_quincenales),
-    [formData.salarios_quincenales]
-  );
-
-  const promedioQuincenalCalculado = useMemo(
-    () => calcularPromedio(montosQuincenales),
-    [montosQuincenales]
-  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -649,7 +588,5 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     isAdmin,
     setError,
     setSuccessMessage,
-    montosQuincenales,
-    promedioQuincenalCalculado,
   };
 };
