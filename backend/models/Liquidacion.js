@@ -55,11 +55,29 @@ class Liquidacion {
       const pool = await poolPromise;
       const total_pagar = salario_acumulado + vacaciones_no_gozadas + cesantia + preaviso;
       const fechaFinal = fecha_liquidacion || new Date();
-      const fechaInicio = fecha_inicio_periodo || null;
-      const fechaFin = fecha_fin_periodo || null;
+      let fechaInicio = fecha_inicio_periodo || null;
+      let fechaFin = fecha_fin_periodo || new Date();
       const motivo = motivo_liquidacion || null;
 
-      const result = await pool.request()
+      if (!fechaInicio) {
+        const empleadoInfo = await pool
+          .request()
+          .input('id_empleado', sql.Int, id_empleado)
+          .query(`
+            SELECT fecha_inicio_periodo, fecha_ingreso
+            FROM Empleados
+            WHERE id_empleado = @id_empleado
+          `);
+
+        if (empleadoInfo.recordset.length > 0) {
+          const { fecha_inicio_periodo: inicioPeriodo, fecha_ingreso: fechaIngreso } =
+            empleadoInfo.recordset[0];
+          fechaInicio = inicioPeriodo || fechaIngreso || null;
+        }
+      }
+
+      const result = await pool
+        .request()
         .input('id_empleado', sql.Int, id_empleado)
         .input('salario_acumulado', sql.Decimal(12,2), salario_acumulado)
         .input('vacaciones_no_gozadas', sql.Decimal(12,2), vacaciones_no_gozadas)

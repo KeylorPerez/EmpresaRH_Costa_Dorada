@@ -1,21 +1,37 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import liquidacionesService from "../services/liquidacionesService";
 import empleadoService from "../services/empleadoService";
-import { formatDateValue } from "../utils/dateUtils";
+import { formatDateValue, getTodayInputValue } from "../utils/dateUtils";
 import { useAuth } from "./useAuth";
 
-const createInitialForm = () => ({
-  id_empleado: "",
-  salario_acumulado: "",
-  vacaciones_no_gozadas: "",
-  cesantia: "",
-  preaviso: "",
-  fecha_liquidacion: "",
-  fecha_inicio_periodo: "",
-  fecha_fin_periodo: "",
-  motivo_liquidacion: "",
-  id_estado: "1",
-});
+const normalizeDateForApi = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const timezoneNeutral = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return timezoneNeutral.toISOString().split("T")[0];
+};
+
+const createInitialForm = () => {
+  const today = getTodayInputValue();
+  return {
+    id_empleado: "",
+    salario_acumulado: "",
+    vacaciones_no_gozadas: "",
+    cesantia: "",
+    preaviso: "",
+    fecha_liquidacion: today,
+    fecha_inicio_periodo: "",
+    fecha_fin_periodo: today,
+    motivo_liquidacion: "",
+    id_estado: "1",
+  };
+};
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -29,17 +45,30 @@ const toOptionalNumber = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-const normalizeDateForApi = (value) => {
-  if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
+const obtenerFechaInicioPeriodoEmpleado = (empleado) => {
+  if (!empleado) return "";
+
+  const posiblesClaves = [
+    "fecha_inicio_periodo",
+    "fechaInicioPeriodo",
+    "inicio_periodo",
+    "inicioPeriodo",
+    "fecha_inicio",
+    "fechaInicio",
+    "fecha_ingreso",
+    "fechaIngreso",
+  ];
+
+  for (const clave of posiblesClaves) {
+    if (empleado[clave]) {
+      const normalizada = normalizeDateForApi(empleado[clave]);
+      if (normalizada) {
+        return normalizada;
+      }
+    }
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  const timezoneNeutral = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return timezoneNeutral.toISOString().split("T")[0];
+
+  return "";
 };
 
 export const estadosLiquidacion = {
@@ -161,6 +190,22 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === "id_empleado") {
+      const empleadoSeleccionado = empleados.find(
+        (empleado) => String(empleado.id_empleado) === value
+      );
+
+      const fechaInicio = obtenerFechaInicioPeriodoEmpleado(empleadoSeleccionado);
+
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        fecha_inicio_periodo: fechaInicio || prev.fecha_inicio_periodo || "",
+      }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
