@@ -119,6 +119,30 @@ const Aguinaldos = ({ mode }) => {
     return numero.toFixed(2);
   };
 
+  const capitalizarTexto = (texto) => {
+    if (typeof texto !== "string") return "";
+    const limpio = texto.trim();
+    if (!limpio) return "";
+    return limpio.charAt(0).toUpperCase() + limpio.slice(1);
+  };
+
+  const toNumberOrNull = (value, decimals = null) => {
+    const numero = Number(value);
+    if (!Number.isFinite(numero)) return null;
+    if (typeof decimals === "number") {
+      return Number(numero.toFixed(decimals));
+    }
+    return numero;
+  };
+
+  const formatearNumero = (valor, { minDecimals = 0, maxDecimals = 2 } = {}) => {
+    if (!Number.isFinite(valor)) return "";
+    return new Intl.NumberFormat("es-CR", {
+      minimumFractionDigits: minDecimals,
+      maximumFractionDigits: maxDecimals,
+    }).format(valor);
+  };
+
   const empleadoSeleccionado = useMemo(() => {
     const id = Number(formData.id_empleado);
     if (!Number.isInteger(id) || id <= 0) return null;
@@ -198,6 +222,118 @@ const Aguinaldos = ({ mode }) => {
       etiqueta: `${inicioTexto} al ${finTexto}`,
     };
   }, [formData.anio, formData.fecha_inicio_periodo, formData.fecha_fin_periodo]);
+
+  const detalleCalculoPreview = useMemo(() => {
+    if (!previewData || typeof previewData !== "object") return null;
+    const detalle = previewData.detalle_calculo;
+    if (!detalle || typeof detalle !== "object") return null;
+
+    const periodo = detalle.periodo || {};
+
+    const diasTrabajados = toNumberOrNull(periodo.dias_trabajados);
+    const diasPeriodo = toNumberOrNull(periodo.dias_periodo);
+
+    const mesesEquivalentesManual =
+      detalle.metodo === "manual"
+        ? toNumberOrNull(detalle.meses_equivalentes, 4)
+        : null;
+
+    const mesesEquivalentesAutomatico = toNumberOrNull(
+      detalle.meses_trabajados?.equivalentes,
+      4
+    );
+
+    const mesesCompletos = toNumberOrNull(
+      detalle.meses_trabajados?.meses_completos
+    );
+    const diasAdicionales = toNumberOrNull(
+      detalle.meses_trabajados?.dias_adicionales
+    );
+    const fraccionMesParcial = toNumberOrNull(
+      detalle.meses_trabajados?.fraccion_mes_parcial,
+      4
+    );
+
+    const salarioBaseUtilizado = toNumberOrNull(
+      detalle.salario_base_utilizado,
+      2
+    );
+    const salarioMensualEstimado = toNumberOrNull(
+      detalle.salario_mensual_estimado,
+      2
+    );
+
+    const totalPeriodoManual = toNumberOrNull(
+      detalle.total_estimado_periodo,
+      2
+    );
+
+    const totalesAutomatico = detalle.totales || {};
+    const totalPeriodoAutomatico = toNumberOrNull(
+      totalesAutomatico.considerado,
+      2
+    );
+    const totalBaseAutomatico = toNumberOrNull(totalesAutomatico.base, 2);
+    const totalBonificacionesAutomatico = toNumberOrNull(
+      totalesAutomatico.bonificaciones,
+      2
+    );
+    const totalHorasExtraAutomatico = toNumberOrNull(
+      totalesAutomatico.horas_extra,
+      2
+    );
+    const divisorPromedioMensual = toNumberOrNull(
+      totalesAutomatico.divisor_promedio_mensual,
+      4
+    );
+
+    const promedioReferenciaUsuario =
+      detalle.promedio_referencia_usuario &&
+      typeof detalle.promedio_referencia_usuario === "object"
+        ? {
+            periodo:
+              typeof detalle.promedio_referencia_usuario.periodo === "string"
+                ? detalle.promedio_referencia_usuario.periodo
+                : null,
+            monto: toNumberOrNull(
+              detalle.promedio_referencia_usuario.monto,
+              2
+            ),
+            dias: toNumberOrNull(
+              detalle.promedio_referencia_usuario.dias,
+              2
+            ),
+          }
+        : null;
+
+    return {
+      metodo: detalle.metodo === "manual" ? "manual" : "automatico",
+      tipoPagoReferencia:
+        typeof detalle.tipo_pago_referencia === "string"
+          ? detalle.tipo_pago_referencia
+          : null,
+      diasTrabajados,
+      diasPeriodo,
+      mesesEquivalentes:
+        mesesEquivalentesManual !== null
+          ? mesesEquivalentesManual
+          : mesesEquivalentesAutomatico,
+      mesesCompletos,
+      diasAdicionales,
+      fraccionMesParcial,
+      salarioBaseUtilizado,
+      salarioMensualEstimado,
+      totalPeriodo:
+        totalPeriodoManual !== null
+          ? totalPeriodoManual
+          : totalPeriodoAutomatico,
+      totalBaseAutomatico,
+      totalBonificacionesAutomatico,
+      totalHorasExtraAutomatico,
+      divisorPromedioMensual,
+      promedioReferenciaUsuario,
+    };
+  }, [previewData]);
 
   const fechaCalculoHoy = useMemo(() => formatearFechaInput(new Date()), []);
   const fechaCalculoHoyTexto = useMemo(() => formatearFechaLarga(new Date()), []);
@@ -785,6 +921,219 @@ const Aguinaldos = ({ mode }) => {
                           </p>
                         </div>
                       </div>
+                      {detalleCalculoPreview && (
+                        <div className="grid gap-3 rounded-md border border-blue-100 bg-white/70 p-3 text-xs text-blue-700">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
+                            Detalle del cálculo
+                          </p>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <p>
+                                • Método utilizado: {" "}
+                                <span className="font-semibold capitalize">
+                                  {capitalizarTexto(detalleCalculoPreview.metodo)}
+                                </span>
+                              </p>
+                              {detalleCalculoPreview.diasTrabajados !== null && (
+                                <p>
+                                  • Días considerados: {" "}
+                                  <span className="font-semibold">
+                                    {formatearNumero(detalleCalculoPreview.diasTrabajados, {
+                                      maxDecimals: 0,
+                                    })}
+                                  </span>
+                                  {detalleCalculoPreview.diasPeriodo !== null && (
+                                    <span>
+                                      {" "}
+                                      de {" "}
+                                      <span className="font-semibold">
+                                        {formatearNumero(detalleCalculoPreview.diasPeriodo, {
+                                          maxDecimals: 0,
+                                        })}
+                                      </span>{" "}
+                                      días del periodo evaluado
+                                    </span>
+                                  )}
+                                  .
+                                </p>
+                              )}
+                              {detalleCalculoPreview.mesesEquivalentes !== null && (
+                                <p>
+                                  • Meses equivalentes calculados: {" "}
+                                  <span className="font-semibold">
+                                    {formatearNumero(
+                                      detalleCalculoPreview.mesesEquivalentes,
+                                      { minDecimals: 2, maxDecimals: 4 }
+                                    )}
+                                  </span>
+                                  .
+                                </p>
+                              )}
+                              {detalleCalculoPreview.mesesCompletos !== null && (
+                                <p className="text-[11px] text-blue-600">
+                                  Incluye {" "}
+                                  <span className="font-semibold">
+                                    {formatearNumero(detalleCalculoPreview.mesesCompletos, {
+                                      maxDecimals: 0,
+                                    })}
+                                  </span>{" "}
+                                  meses completos
+                                  {detalleCalculoPreview.diasAdicionales !== null && (
+                                    <span>
+                                      {" "}y {" "}
+                                      <span className="font-semibold">
+                                        {formatearNumero(
+                                          detalleCalculoPreview.diasAdicionales,
+                                          { maxDecimals: 0 }
+                                        )}
+                                      </span>{" "}
+                                      días adicionales
+                                    </span>
+                                  )}
+                                  {detalleCalculoPreview.fraccionMesParcial !== null && (
+                                    <span>
+                                      {" "}(fracción parcial de {" "}
+                                      <span className="font-semibold">
+                                        {formatearNumero(
+                                          detalleCalculoPreview.fraccionMesParcial,
+                                          { minDecimals: 2, maxDecimals: 4 }
+                                        )}
+                                      </span>{" "}meses)
+                                    </span>
+                                  )}
+                                  .
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              {detalleCalculoPreview.salarioBaseUtilizado !== null && (
+                                <p>
+                                  • Salario base utilizado
+                                  {detalleCalculoPreview.tipoPagoReferencia && (
+                                    <span>
+                                      {" "}(
+                                      {capitalizarTexto(
+                                        detalleCalculoPreview.tipoPagoReferencia
+                                      )}
+                                      )
+                                    </span>
+                                  )}
+                                  : {" "}
+                                  <span className="font-semibold">
+                                    {formatearMontoCRC(
+                                      detalleCalculoPreview.salarioBaseUtilizado
+                                    )}
+                                  </span>
+                                  .
+                                </p>
+                              )}
+                              {detalleCalculoPreview.salarioMensualEstimado !== null && (
+                                <p>
+                                  • Salario mensual estimado de referencia: {" "}
+                                  <span className="font-semibold">
+                                    {formatearMontoCRC(
+                                      detalleCalculoPreview.salarioMensualEstimado
+                                    )}
+                                  </span>
+                                  .
+                                </p>
+                              )}
+                              {detalleCalculoPreview.totalPeriodo !== null && (
+                                <p>
+                                  • Total considerado del periodo: {" "}
+                                  <span className="font-semibold">
+                                    {formatearMontoCRC(detalleCalculoPreview.totalPeriodo)}
+                                  </span>
+                                  .
+                                </p>
+                              )}
+                              {detalleCalculoPreview.divisorPromedioMensual !== null && (
+                                <p>
+                                  • Promedio mensual calculado con divisor de {" "}
+                                  <span className="font-semibold">
+                                    {formatearNumero(
+                                      detalleCalculoPreview.divisorPromedioMensual,
+                                      { minDecimals: 2, maxDecimals: 4 }
+                                    )}
+                                  </span>{" "}
+                                  meses.
+                                </p>
+                              )}
+                              {detalleCalculoPreview.metodo === "manual" && (
+                                <p className="text-[11px] text-blue-600">
+                                  El aguinaldo estimado se obtiene dividiendo el total considerado entre 12 meses.
+                                </p>
+                              )}
+                              {detalleCalculoPreview.metodo === "automatico" && (
+                                <>
+                                  {detalleCalculoPreview.totalBaseAutomatico !== null && (
+                                    <p className="text-[11px] text-blue-600">
+                                      Base salarial tomada: {" "}
+                                      {formatearMontoCRC(
+                                        detalleCalculoPreview.totalBaseAutomatico
+                                      )}
+                                    </p>
+                                  )}
+                                  {detalleCalculoPreview.totalBonificacionesAutomatico !== null && (
+                                    <p className="text-[11px] text-blue-600">
+                                      Bonificaciones consideradas: {" "}
+                                      {formatearMontoCRC(
+                                        detalleCalculoPreview.totalBonificacionesAutomatico
+                                      )}
+                                    </p>
+                                  )}
+                                  {detalleCalculoPreview.totalHorasExtraAutomatico !== null && (
+                                    <p className="text-[11px] text-blue-600">
+                                      Horas extra consideradas: {" "}
+                                      {formatearMontoCRC(
+                                        detalleCalculoPreview.totalHorasExtraAutomatico
+                                      )}
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                              {detalleCalculoPreview.promedioReferenciaUsuario && (
+                                <p className="text-[11px] text-blue-600">
+                                  Promedio manual ingresado
+                                  {detalleCalculoPreview.promedioReferenciaUsuario.periodo && (
+                                    <span>
+                                      {" "}(
+                                      {detalleCalculoPreview.promedioReferenciaUsuario.periodo === "mes"
+                                        ? "mensual"
+                                        : detalleCalculoPreview.promedioReferenciaUsuario.periodo ===
+                                          "quincena"
+                                        ? "quincenal"
+                                        : capitalizarTexto(
+                                            detalleCalculoPreview.promedioReferenciaUsuario.periodo
+                                          )}
+                                      )
+                                    </span>
+                                  )}
+                                  :
+                                  {" "}
+                                  {detalleCalculoPreview.promedioReferenciaUsuario.monto !== null && (
+                                    <span>
+                                      {formatearMontoCRC(
+                                        detalleCalculoPreview.promedioReferenciaUsuario.monto
+                                      )}
+                                    </span>
+                                  )}
+                                  {detalleCalculoPreview.promedioReferenciaUsuario.dias !== null && (
+                                    <span>
+                                      {" "}· {" "}
+                                      {formatearNumero(
+                                        detalleCalculoPreview.promedioReferenciaUsuario.dias,
+                                        { minDecimals: 0, maxDecimals: 2 }
+                                      )}{" "}días
+                                    </span>
+                                  )}
+                                  .
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {previewData.observacion ? (
                         <p className="text-xs text-blue-600">
                           Nota registrada: {previewData.observacion}
