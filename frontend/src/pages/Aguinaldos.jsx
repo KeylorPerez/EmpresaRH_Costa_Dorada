@@ -66,6 +66,14 @@ const parseDateOnly = (value) => {
   );
 };
 
+const initialEditFormState = {
+  salario_promedio: "",
+  monto_aguinaldo: "",
+  fecha_inicio_periodo: "",
+  fecha_fin_periodo: "",
+  observacion: "",
+};
+
 const Aguinaldos = ({ mode }) => {
   const isAdminView = mode === "admin";
   const { user, logoutUser } = useAuth();
@@ -83,6 +91,7 @@ const Aguinaldos = ({ mode }) => {
     handleSubmit,
     resetForm,
     markAsPaid,
+    updateAguinaldo,
     isAdmin,
     setError,
     setSuccessMessage,
@@ -95,6 +104,21 @@ const Aguinaldos = ({ mode }) => {
   const tituloPagina = isAdminView ? "Gestión de Aguinaldos" : "Mis Aguinaldos";
 
   const [anioFiltro, setAnioFiltro] = useState("todos");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [registroEditando, setRegistroEditando] = useState(null);
+  const [editFormData, setEditFormData] = useState(() => ({
+    ...initialEditFormState,
+  }));
+  const [editFormError, setEditFormError] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const numeroAInput = (valor) => {
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) {
+      return "";
+    }
+    return numero.toFixed(2);
+  };
 
   const empleadoSeleccionado = useMemo(() => {
     const id = Number(formData.id_empleado);
@@ -159,6 +183,113 @@ const Aguinaldos = ({ mode }) => {
     if (successMessage) setSuccessMessage("");
   };
 
+  const abrirModalEdicion = (registro) => {
+    if (!registro) return;
+    limpiarMensajes();
+    setEditFormError("");
+    setRegistroEditando(registro);
+    setEditFormData({
+      salario_promedio: numeroAInput(registro.salario_promedio),
+      monto_aguinaldo: numeroAInput(registro.monto_aguinaldo),
+      fecha_inicio_periodo: formatearFechaInput(registro.fecha_inicio_periodo),
+      fecha_fin_periodo: formatearFechaInput(registro.fecha_fin_periodo),
+      observacion: registro.observacion || "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const cerrarModalEdicion = () => {
+    if (editSubmitting) return;
+    setEditModalOpen(false);
+    setRegistroEditando(null);
+    setEditFormError("");
+    setEditFormData({ ...initialEditFormState });
+  };
+
+  const handleEditFieldChange = (event) => {
+    const { name, value } = event.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const manejarEnvioEdicion = async (event) => {
+    event.preventDefault();
+    if (!registroEditando || !registroEditando.id_aguinaldo) {
+      setEditFormError("No se encontró el registro a actualizar");
+      return;
+    }
+
+    limpiarMensajes();
+    setEditFormError("");
+
+    const montoNumero = Number(editFormData.monto_aguinaldo);
+    if (!Number.isFinite(montoNumero) || montoNumero < 0) {
+      setEditFormError("Ingresa un monto de aguinaldo válido (mayor o igual a 0)");
+      return;
+    }
+
+    const salarioNumero = Number(editFormData.salario_promedio);
+    if (!Number.isFinite(salarioNumero) || salarioNumero < 0) {
+      setEditFormError("Ingresa un salario promedio válido (mayor o igual a 0)");
+      return;
+    }
+
+    if (!editFormData.fecha_inicio_periodo) {
+      setEditFormError("La fecha de inicio del periodo es obligatoria");
+      return;
+    }
+
+    if (!editFormData.fecha_fin_periodo) {
+      setEditFormError("La fecha fin del periodo es obligatoria");
+      return;
+    }
+
+    const fechaInicio = new Date(editFormData.fecha_inicio_periodo);
+    const fechaFin = new Date(editFormData.fecha_fin_periodo);
+
+    if (Number.isNaN(fechaInicio.getTime())) {
+      setEditFormError("La fecha de inicio del periodo no es válida");
+      return;
+    }
+
+    if (Number.isNaN(fechaFin.getTime())) {
+      setEditFormError("La fecha fin del periodo no es válida");
+      return;
+    }
+
+    if (fechaFin < fechaInicio) {
+      setEditFormError("La fecha fin no puede ser anterior a la fecha de inicio");
+      return;
+    }
+
+    const payload = {
+      monto_aguinaldo: Number(montoNumero.toFixed(2)),
+      salario_promedio: Number(salarioNumero.toFixed(2)),
+      fecha_inicio_periodo: editFormData.fecha_inicio_periodo,
+      fecha_fin_periodo: editFormData.fecha_fin_periodo,
+    };
+
+    if (typeof editFormData.observacion === "string") {
+      const trimmed = editFormData.observacion.trim();
+      payload.observacion = trimmed ? trimmed.slice(0, 200) : null;
+    } else {
+      payload.observacion = null;
+    }
+
+    setEditSubmitting(true);
+    try {
+      await updateAguinaldo(registroEditando.id_aguinaldo, payload);
+      setEditModalOpen(false);
+      setRegistroEditando(null);
+      setEditFormData({ ...initialEditFormState });
+      setEditFormError("");
+    } catch (err) {
+      const message = err?.response?.data?.error || "No fue posible actualizar el aguinaldo";
+      setEditFormError(message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   const listaAnios = useMemo(() => {
     const setYears = new Set();
     aguinaldos.forEach((item) => {
@@ -185,6 +316,14 @@ const Aguinaldos = ({ mode }) => {
 
     return (
       <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={isProcessing}
+          onClick={() => abrirModalEdicion(registro)}
+        >
+          Editar
+        </Button>
         <Button
           size="sm"
           variant={pagado ? "secondary" : "success"}
@@ -614,6 +753,144 @@ const Aguinaldos = ({ mode }) => {
         <footer className="text-center py-4 text-gray-500 text-sm">
           © 2025 EmpresaRH - Todos los derechos reservados
         </footer>
+
+        {editModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 px-4 py-6">
+            <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800">Editar aguinaldo</h2>
+                  {registroEditando && (
+                    <p className="text-sm text-gray-500">
+                      {`${registroEditando.nombre || "Empleado"} ${
+                        registroEditando.apellido || ""
+                      } • Año ${registroEditando.anio || "—"}`}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Cerrar"
+                  onClick={cerrarModalEdicion}
+                  disabled={editSubmitting}
+                  className={`text-gray-400 transition hover:text-gray-600 ${
+                    editSubmitting ? 'cursor-not-allowed opacity-50' : ''
+                  }`}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={manejarEnvioEdicion} className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Salario promedio (CRC)
+                    </label>
+                    <input
+                      type="number"
+                      name="salario_promedio"
+                      value={editFormData.salario_promedio}
+                      onChange={handleEditFieldChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      disabled={editSubmitting}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Monto de aguinaldo (CRC)
+                    </label>
+                    <input
+                      type="number"
+                      name="monto_aguinaldo"
+                      value={editFormData.monto_aguinaldo}
+                      onChange={handleEditFieldChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      disabled={editSubmitting}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Inicio del periodo
+                    </label>
+                    <input
+                      type="date"
+                      name="fecha_inicio_periodo"
+                      value={editFormData.fecha_inicio_periodo}
+                      onChange={handleEditFieldChange}
+                      max={editFormData.fecha_fin_periodo || undefined}
+                      required
+                      disabled={editSubmitting}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      Fin del periodo
+                    </label>
+                    <input
+                      type="date"
+                      name="fecha_fin_periodo"
+                      value={editFormData.fecha_fin_periodo}
+                      onChange={handleEditFieldChange}
+                      min={editFormData.fecha_inicio_periodo || undefined}
+                      required
+                      disabled={editSubmitting}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1">
+                    Observación
+                  </label>
+                  <textarea
+                    name="observacion"
+                    value={editFormData.observacion}
+                    onChange={handleEditFieldChange}
+                    rows={3}
+                    maxLength={200}
+                    placeholder="Notas adicionales sobre el cálculo (opcional)"
+                    disabled={editSubmitting}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Máximo 200 caracteres.</p>
+                </div>
+
+                {editFormError && (
+                  <p className="text-sm font-medium text-red-600">{editFormError}</p>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={cerrarModalEdicion}
+                    disabled={editSubmitting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="primary" size="sm" disabled={editSubmitting}>
+                    {editSubmitting ? "Guardando..." : "Guardar cambios"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

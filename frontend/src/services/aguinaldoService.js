@@ -9,6 +9,10 @@ const aguinaldoService = {
     const response = await api.post("/aguinaldos/calcular", payload);
     return response.data;
   },
+  actualizar: async (id, payload) => {
+    const response = await api.put(`/aguinaldos/${id}`, payload);
+    return response.data;
+  },
   actualizarPago: async (id, pagado) => {
     const response = await api.put(`/aguinaldos/${id}/pago`, { pagado });
     return response.data;
