@@ -595,6 +595,21 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     [fetchAguinaldos]
   );
 
+  const exportAguinaldo = useCallback(async (id) => {
+    setError("");
+    setSuccessMessage("");
+    try {
+      const data = await aguinaldoService.exportPdf(id);
+      setSuccessMessage("Documento de aguinaldo generado correctamente");
+      return data;
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.error || "No fue posible generar el documento";
+      setError(message);
+      throw err;
+    }
+  }, []);
+
   const sortedAguinaldos = useMemo(() => {
     return [...aguinaldos].sort((a, b) => {
       const anioA = Number(a.anio) || 0;
@@ -625,6 +640,7 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
     resetForm,
     markAsPaid,
     updateAguinaldo,
+    exportAguinaldo,
     isAdmin,
     setError,
     setSuccessMessage,

@@ -17,6 +17,10 @@ const aguinaldoService = {
     const response = await api.put(`/aguinaldos/${id}/pago`, { pagado });
     return response.data;
   },
+  exportPdf: async (id) => {
+    const response = await api.get(`/aguinaldos/${id}/export`);
+    return response.data;
+  },
 };
 
 export default aguinaldoService;

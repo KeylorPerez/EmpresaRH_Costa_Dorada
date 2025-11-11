@@ -88,6 +88,7 @@ const Aguinaldos = ({ mode }) => {
     resetForm,
     markAsPaid,
     updateAguinaldo,
+    exportAguinaldo,
     isAdmin,
     setError,
     setSuccessMessage,
@@ -104,6 +105,7 @@ const Aguinaldos = ({ mode }) => {
   }));
   const [editFormError, setEditFormError] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const numeroAInput = (valor) => {
     const numero = Number(valor);
@@ -389,6 +391,25 @@ const Aguinaldos = ({ mode }) => {
         </Button>
       </div>
     );
+  };
+
+  const handleDescargarDocumento = async (registro) => {
+    const id = Number(registro?.id_aguinaldo);
+    if (!Number.isInteger(id) || id <= 0) {
+      return;
+    }
+
+    try {
+      setDownloadingId(id);
+      const data = await exportAguinaldo(id);
+      if (data?.url && typeof window !== "undefined") {
+        window.open(data.url, "_blank", "noopener");
+      }
+    } catch {
+      // El hook gestiona los mensajes de error
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (!user) {
@@ -770,6 +791,7 @@ const Aguinaldos = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Fecha cálculo</th>
                       <th className="px-4 py-3 text-left">Observación</th>
                       <th className="px-4 py-3 text-left">Estado</th>
+                      <th className="px-4 py-3 text-left">Documento</th>
                       {isAdminView && <th className="px-4 py-3 text-left">Acciones</th>}
                     </tr>
                   </thead>
@@ -812,6 +834,18 @@ const Aguinaldos = ({ mode }) => {
                           )}
                         </td>
                         <td className="px-4 py-3">{estadoBadge(registro.pagado)}</td>
+                        <td className="px-4 py-3">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleDescargarDocumento(registro)}
+                            disabled={downloadingId === Number(registro.id_aguinaldo)}
+                          >
+                            {downloadingId === Number(registro.id_aguinaldo)
+                              ? 'Generando...'
+                              : 'Descargar PDF'}
+                          </Button>
+                        </td>
                         {isAdminView && <td className="px-4 py-3">{renderAcciones(registro)}</td>}
                       </tr>
                     ))}

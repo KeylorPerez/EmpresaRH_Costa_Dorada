@@ -1,5 +1,321 @@
+const fs = require('fs');
+const path = require('path');
 const Aguinaldo = require('../models/Aguinaldo');
 const Usuario = require('../models/Usuario');
+
+const { promises: fsPromises } = fs;
+const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+
+const COMPANY_NAME = 'Distribuidora Astua Pirie';
+const EMPLOYER_NAME = 'Inversiones Daring Del Cedral';
+
+const ensureExportsDir = async () => {
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    await fsPromises.mkdir(EXPORTS_DIR, { recursive: true });
+  }
+};
+
+const formatDateValue = (value) => {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(value.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  const iso = formatDateValue(value);
+  if (!iso) return '';
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const sanitizePdfText = (text = '') =>
+  String(text)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\s+/g, ' ');
+
+const stripDiacritics = (text = '') => {
+  if (!text) return '';
+  if (typeof text.normalize !== 'function') return String(text);
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const PDF_SPECIAL_CHAR_MAP = {
+  '₡': 'CRC ',
+  '€': 'EUR ',
+  '£': 'GBP ',
+  '¥': 'JPY ',
+  '₩': 'KRW ',
+  '₦': 'NGN ',
+  '₱': 'PHP ',
+  '₭': 'LAK ',
+  '₮': 'MNT ',
+  '₨': 'INR ',
+  '₹': 'INR ',
+  '₴': 'UAH ',
+  '₲': 'PYG ',
+  '₵': 'GHS ',
+  '₽': 'RUB ',
+  '฿': 'THB ',
+  '₸': 'KZT ',
+  '–': '-',
+  '—': '-',
+  '‒': '-',
+  '―': '-',
+  '…': '...',
+  '•': '*',
+  '“': '"',
+  '”': '"',
+  '„': '"',
+  '’': "'",
+  '‘': "'",
+  '‚': "'",
+  '‹': "'",
+  '›': "'",
+};
+
+const encodeCharForPdf = (char) => {
+  if (Object.prototype.hasOwnProperty.call(PDF_SPECIAL_CHAR_MAP, char)) {
+    return PDF_SPECIAL_CHAR_MAP[char];
+  }
+
+  const code = char.codePointAt(0);
+  if (code !== undefined && code <= 0xff) {
+    return String.fromCharCode(code);
+  }
+
+  const stripped = stripDiacritics(char);
+  if (stripped && stripped !== char) {
+    return Array.from(stripped)
+      .map((nestedChar) => encodeCharForPdf(nestedChar))
+      .join('');
+  }
+
+  return '?';
+};
+
+const normalizePdfEncoding = (text = '') =>
+  Array.from(String(text || ''))
+    .map((char) => encodeCharForPdf(char))
+    .join('');
+
+const escapePdfText = (text = '') =>
+  normalizePdfEncoding(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const wrapText = (text, maxLength = 95) => {
+  if (!text) return [''];
+  const words = sanitizePdfText(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const tentative = currentLine ? `${currentLine} ${word}` : word;
+    if (tentative.length > maxLength) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      if (word.length > maxLength) {
+        let remaining = word;
+        while (remaining.length > maxLength) {
+          lines.push(remaining.slice(0, maxLength));
+          remaining = remaining.slice(maxLength);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    } else {
+      currentLine = tentative;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+};
+
+const chunkArray = (items, size) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [[]];
+  }
+
+  const result = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+};
+
+const buildPdfContentStream = (lines) => {
+  const safeLines = lines.length > 0 ? lines : [''];
+  const instructions = ['BT', '/F1 11 Tf', '50 780 Td'];
+  instructions.push(`(${escapePdfText(safeLines[0])}) Tj`);
+  for (let i = 1; i < safeLines.length; i += 1) {
+    instructions.push('0 -14 Td');
+    instructions.push(`(${escapePdfText(safeLines[i])}) Tj`);
+  }
+  instructions.push('ET');
+  return instructions.join('\n');
+};
+
+const buildPdfBuffer = (pagesContent) => {
+  const contentStreams = pagesContent.length > 0 ? pagesContent : ['BT\n/F1 11 Tf\n50 780 Td\n() Tj\nET'];
+  const objects = [];
+
+  const addObject = (value) => {
+    objects.push(value);
+    return objects.length;
+  };
+
+  const catalogId = addObject(null);
+  const pagesId = addObject(null);
+  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+
+  const pageIds = contentStreams.map((streamContent) => {
+    const contentId = addObject({ stream: streamContent });
+    const pageIndex = addObject({ contentId });
+    return { pageIndex, contentId };
+  });
+
+  const kids = pageIds.map(({ pageIndex }) => `${pageIndex} 0 R`).join(' ');
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${kids}] /Count ${pageIds.length} >>`;
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+
+  pageIds.forEach(({ pageIndex, contentId }) => {
+    objects[pageIndex - 1] = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+  });
+
+  const buffers = [];
+  const header = '%PDF-1.4\n';
+  buffers.push(Buffer.from(header, 'utf8'));
+  let offset = header.length;
+  const xrefPositions = [0];
+
+  objects.forEach((obj, index) => {
+    xrefPositions.push(offset);
+    const objectId = index + 1;
+    const objectHeader = `${objectId} 0 obj\n`;
+    let bodyBuffer;
+    if (obj && typeof obj === 'object' && obj.stream !== undefined) {
+      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const normalizedStream = normalizePdfEncoding(streamString);
+      const streamBuffer = Buffer.from(normalizedStream, 'latin1');
+      const preamble = Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, 'ascii');
+      const postamble = Buffer.from('\nendstream\nendobj\n', 'ascii');
+      bodyBuffer = Buffer.concat([preamble, streamBuffer, postamble]);
+    } else {
+      const objectBody = obj === null ? 'null' : obj;
+      bodyBuffer = Buffer.from(`${objectBody}\nendobj\n`, 'ascii');
+    }
+    const objectBuffer = Buffer.concat([Buffer.from(objectHeader, 'ascii'), bodyBuffer]);
+    buffers.push(objectBuffer);
+    offset += objectBuffer.length;
+  });
+
+  const xrefStart = offset;
+  const xrefHeader = `xref\n0 ${objects.length + 1}\n`;
+  buffers.push(Buffer.from(xrefHeader, 'ascii'));
+  let xrefBody = '0000000000 65535 f \n';
+  for (let i = 1; i <= objects.length; i += 1) {
+    const position = xrefPositions[i];
+    xrefBody += `${String(position).padStart(10, '0')} 00000 n \n`;
+  }
+  buffers.push(Buffer.from(xrefBody, 'ascii'));
+  const trailer = `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  buffers.push(Buffer.from(trailer, 'ascii'));
+
+  return Buffer.concat(buffers);
+};
+
+const formatCurrencyCRC = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '₡0.00';
+  return `₡${number.toFixed(2)}`;
+};
+
+const buildAguinaldoPdfLines = (registro) => {
+  const lines = [];
+  const divider = ''.padEnd(95, '-');
+
+  const nombreEmpleado = sanitizePdfText(
+    `${registro.nombre || ''} ${registro.apellido || ''}`.trim() || 'Empleado'
+  );
+
+  lines.push('CONSTANCIA DE PAGO DE AGUINALDO');
+  lines.push(divider);
+  lines.push(`Empresa: ${sanitizePdfText(COMPANY_NAME)}`);
+  lines.push(`Patrono: ${sanitizePdfText(EMPLOYER_NAME)}`);
+  lines.push(divider);
+
+  lines.push(`Colaborador: ${nombreEmpleado} (ID ${registro.id_empleado})`);
+  if (registro.cedula) {
+    lines.push(`Cédula: ${sanitizePdfText(registro.cedula)}`);
+  }
+  if (registro.email) {
+    lines.push(`Correo: ${sanitizePdfText(registro.email)}`);
+  }
+  lines.push(`Año de cálculo: ${registro.anio}`);
+
+  const periodoInicio = formatDateDisplay(registro.fecha_inicio_periodo) || '—';
+  const periodoFin = formatDateDisplay(registro.fecha_fin_periodo) || '—';
+  lines.push(`Periodo evaluado: ${periodoInicio} al ${periodoFin}`);
+
+  const fechaCalculo = formatDateDisplay(registro.fecha_calculo) || '—';
+  lines.push(`Fecha de cálculo: ${fechaCalculo}`);
+  lines.push(`Salario promedio reconocido: ${formatCurrencyCRC(registro.salario_promedio)}`);
+  lines.push(`Monto de aguinaldo calculado: ${formatCurrencyCRC(registro.monto_aguinaldo)}`);
+  lines.push(`Estado de pago: ${registro.pagado ? 'Pagado' : 'Pendiente'}`);
+  lines.push(divider);
+
+  const observacion = sanitizePdfText(registro.observacion || 'Sin observaciones adicionales.');
+  lines.push('Observaciones:');
+  wrapText(observacion, 95).forEach((line) => lines.push(`  ${line}`));
+  lines.push(divider);
+
+  lines.push(
+    'Mediante la presente constancia, el colaborador confirma que ha recibido la información del cálculo del aguinaldo '
+      + 'correspondiente al periodo indicado y reconoce el monto señalado.'
+  );
+  lines.push('Se firma para los efectos legales correspondientes.');
+  lines.push('');
+  lines.push('Firma del colaborador: ________________________________');
+  lines.push('Fecha de firma: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Firma de la empresa: __________________________________');
+  lines.push('Fecha: ____ / ____ / ______');
+
+  return lines;
+};
+
+const createAguinaldoPdf = async (filePath, registro) => {
+  const lines = buildAguinaldoPdfLines(registro);
+  const pages = chunkArray(lines, 40).map((pageLines) => buildPdfContentStream(pageLines));
+  const pdfBuffer = buildPdfBuffer(pages);
+  await fsPromises.writeFile(filePath, pdfBuffer);
+};
 
 const getAguinaldos = async (req, res) => {
   try {
@@ -335,9 +651,51 @@ const actualizarPago = async (req, res) => {
   }
 };
 
+const exportAguinaldoPdf = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const id_aguinaldo = Number(req.params.id);
+    if (!Number.isInteger(id_aguinaldo) || id_aguinaldo <= 0) {
+      return res.status(400).json({ error: 'Identificador de aguinaldo inválido' });
+    }
+
+    const aguinaldo = await Aguinaldo.getById(id_aguinaldo);
+    if (!aguinaldo) {
+      return res.status(404).json({ error: 'Aguinaldo no encontrado' });
+    }
+
+    if (user.id_rol !== 1) {
+      const usuarioDb = await Usuario.getById(user.id_usuario);
+      if (!usuarioDb || !usuarioDb.id_empleado || usuarioDb.id_empleado !== aguinaldo.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado para acceder a este documento' });
+      }
+    }
+
+    await ensureExportsDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `aguinaldo-${aguinaldo.id_aguinaldo}-${timestamp}.pdf`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    await createAguinaldoPdf(filePath, aguinaldo);
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicUrl = `${baseUrl}/files/${filename}`;
+
+    return res.json({ url: publicUrl, filename, format: 'pdf' });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    return res.status(status).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getAguinaldos,
   calcularAguinaldo,
   actualizarAguinaldo,
   actualizarPago,
+  exportAguinaldoPdf,
 };
