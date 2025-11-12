@@ -44,6 +44,7 @@ class Liquidacion {
     vacaciones_no_gozadas = 0,
     cesantia = 0,
     preaviso = 0,
+    aguinaldo = 0,
     id_estado,
     aprobado_por = null,
     fecha_liquidacion = null,
@@ -53,7 +54,8 @@ class Liquidacion {
   }) {
     try {
       const pool = await poolPromise;
-      const total_pagar = salario_acumulado + vacaciones_no_gozadas + cesantia + preaviso;
+      const total_pagar =
+        salario_acumulado + vacaciones_no_gozadas + cesantia + preaviso + aguinaldo;
       const fechaFinal = fecha_liquidacion || new Date();
       let fechaInicio = fecha_inicio_periodo || null;
       let fechaFin = fecha_fin_periodo || new Date();
@@ -83,6 +85,7 @@ class Liquidacion {
         .input('vacaciones_no_gozadas', sql.Decimal(12,2), vacaciones_no_gozadas)
         .input('cesantia', sql.Decimal(12,2), cesantia)
         .input('preaviso', sql.Decimal(12,2), preaviso)
+        .input('aguinaldo', sql.Decimal(12,2), aguinaldo)
         .input('total_pagar', sql.Decimal(12,2), total_pagar)
         .input('id_estado', sql.Int, id_estado)
         .input('aprobado_por', sql.Int, aprobado_por)
@@ -92,9 +95,9 @@ class Liquidacion {
         .input('motivo_liquidacion', sql.VarChar(300), motivo)
         .query(`
           INSERT INTO Liquidaciones
-          (id_empleado, salario_acumulado, vacaciones_no_gozadas, cesantia, preaviso, total_pagar, id_estado, aprobado_por, fecha_liquidacion, created_at, updated_at, fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion)
+          (id_empleado, salario_acumulado, vacaciones_no_gozadas, cesantia, preaviso, aguinaldo, total_pagar, id_estado, aprobado_por, fecha_liquidacion, created_at, updated_at, fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion)
           VALUES
-          (@id_empleado, @salario_acumulado, @vacaciones_no_gozadas, @cesantia, @preaviso, @total_pagar, @id_estado, @aprobado_por, @fecha_liquidacion, GETDATE(), GETDATE(), @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion);
+          (@id_empleado, @salario_acumulado, @vacaciones_no_gozadas, @cesantia, @preaviso, @aguinaldo, @total_pagar, @id_estado, @aprobado_por, @fecha_liquidacion, GETDATE(), GETDATE(), @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion);
           SELECT SCOPE_IDENTITY() AS id_liquidacion;
         `);
 
@@ -110,6 +113,7 @@ class Liquidacion {
     vacaciones_no_gozadas,
     cesantia,
     preaviso,
+    aguinaldo = 0,
     total_pagar,
     id_estado,
     aprobado_por,
@@ -121,7 +125,9 @@ class Liquidacion {
     try {
       const pool = await poolPromise;
 
-      const total = total_pagar || salario_acumulado + vacaciones_no_gozadas + cesantia + preaviso;
+      const total =
+        total_pagar ||
+        salario_acumulado + vacaciones_no_gozadas + cesantia + preaviso + aguinaldo;
       const fechaInicio = fecha_inicio_periodo || null;
       const fechaFin = fecha_fin_periodo || null;
       const motivo = motivo_liquidacion || null;
@@ -132,6 +138,7 @@ class Liquidacion {
         .input('vacaciones_no_gozadas', sql.Decimal(12,2), vacaciones_no_gozadas)
         .input('cesantia', sql.Decimal(12,2), cesantia)
         .input('preaviso', sql.Decimal(12,2), preaviso)
+        .input('aguinaldo', sql.Decimal(12,2), aguinaldo)
         .input('total_pagar', sql.Decimal(12,2), total)
         .input('id_estado', sql.Int, id_estado)
         .input('aprobado_por', sql.Int, aprobado_por)
@@ -145,6 +152,7 @@ class Liquidacion {
               vacaciones_no_gozadas = @vacaciones_no_gozadas,
               cesantia = @cesantia,
               preaviso = @preaviso,
+              aguinaldo = @aguinaldo,
               total_pagar = @total_pagar,
               id_estado = @id_estado,
               aprobado_por = @aprobado_por,

@@ -318,6 +318,21 @@ const Liquidaciones = ({ mode }) => {
                   />
                 </div>
 
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1">
+                    Aguinaldo incluido
+                  </label>
+                  <input
+                    type="number"
+                    name="aguinaldo"
+                    value={formData.aguinaldo}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.01"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
                 <div className="md:col-span-2 flex flex-col">
                   <label className="text-sm font-medium text-gray-700 mb-1">
                     Motivo de la liquidación
@@ -401,6 +416,7 @@ const Liquidaciones = ({ mode }) => {
                       <th className="px-4 py-3 text-left">Vacaciones</th>
                       <th className="px-4 py-3 text-left">Cesantía</th>
                       <th className="px-4 py-3 text-left">Preaviso</th>
+                      <th className="px-4 py-3 text-left">Aguinaldo</th>
                       <th className="px-4 py-3 text-left">Periodo</th>
                       <th className="px-4 py-3 text-left">Motivo</th>
                       <th className="px-4 py-3 text-left">Total a pagar</th>
@@ -442,6 +458,9 @@ const Liquidaciones = ({ mode }) => {
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             {formatearMontoCRC(registro.preaviso)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-800">
+                            {formatearMontoCRC(registro.aguinaldo)}
                           </td>
                           <td className="px-4 py-3 text-gray-800">
                             {formatearPeriodo(registro.fecha_inicio_periodo, registro.fecha_fin_periodo)}
