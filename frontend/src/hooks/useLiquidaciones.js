@@ -4,94 +4,59 @@ import empleadoService from "../services/empleadoService";
 import { formatDateValue, getTodayInputValue } from "../utils/dateUtils";
 import { useAuth } from "./useAuth";
 
+const sanitizeOptionalNumber = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return null;
+  return parsed;
+};
+
 const normalizeDateForApi = (value) => {
   if (!value) return null;
 
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return trimmed;
-    }
-
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
     const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().split("T")[0];
-    }
-
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
     return null;
   }
 
   const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
+  if (Number.isNaN(date.getTime())) return null;
   return date.toISOString().split("T")[0];
 };
 
-const createInitialForm = () => {
-  const today = getTodayInputValue();
-  return {
-    id_empleado: "",
-    salario_acumulado: "",
-    vacaciones_no_gozadas: "",
-    cesantia: "",
-    preaviso: "",
-    aguinaldo: "",
-    fecha_liquidacion: today,
-    fecha_inicio_periodo: "",
-    fecha_fin_periodo: today,
-    motivo_liquidacion: "",
-    id_estado: "1",
-  };
-};
+const calculateTotalsFromDetails = (detalles = []) => {
+  return detalles.reduce(
+    (acc, detalle) => {
+      const montoBase =
+        detalle.monto_final !== null && detalle.monto_final !== undefined
+          ? Number(detalle.monto_final)
+          : Number(detalle.monto_calculado);
 
-const toNumber = (value) => {
-  if (value === null || value === undefined || value === "") return 0;
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const toOptionalNumber = (value) => {
-  if (value === null || value === undefined || value === "") return null;
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? null : parsed;
-};
-
-const obtenerFechaInicioPeriodoEmpleado = (empleado) => {
-  if (!empleado) return "";
-
-  const posiblesClaves = [
-    "fecha_inicio_periodo",
-    "fechaInicioPeriodo",
-    "inicio_periodo",
-    "inicioPeriodo",
-    "fecha_inicio",
-    "fechaInicio",
-    "fecha_ingreso",
-    "fechaIngreso",
-  ];
-
-  for (const clave of posiblesClaves) {
-    if (empleado[clave]) {
-      const normalizada = normalizeDateForApi(empleado[clave]);
-      if (normalizada) {
-        return normalizada;
+      if (Number.isNaN(montoBase)) {
+        return acc;
       }
-    }
-  }
 
-  return "";
+      if (detalle.tipo === "DESCUENTO") {
+        acc.totalDescuentos += montoBase;
+      } else {
+        acc.totalIngresos += montoBase;
+      }
+
+      acc.total_pagar = acc.totalIngresos - acc.totalDescuentos;
+      return acc;
+    },
+    { totalIngresos: 0, totalDescuentos: 0, total_pagar: 0 }
+  );
 };
 
 export const estadosLiquidacion = {
-  1: { label: "Pendiente", badgeClass: "bg-yellow-100 text-yellow-800" },
-  2: { label: "Aprobada", badgeClass: "bg-green-100 text-green-800" },
-  3: { label: "Rechazada", badgeClass: "bg-red-100 text-red-800" },
+  1: { label: "Borrador", badgeClass: "bg-slate-200 text-slate-800" },
+  2: { label: "Confirmada", badgeClass: "bg-green-200 text-green-800" },
+  3: { label: "Rechazada", badgeClass: "bg-red-200 text-red-800" },
 };
 
 export const formatearMontoCRC = (value) => {
@@ -112,64 +77,50 @@ export const formatearMontoCRC = (value) => {
 
 export const formatearFechaCorta = (value) => formatDateValue(value);
 
-export const calcularTotalLiquidacion = (registro) => {
-  if (!registro) return 0;
-  return (
-    toNumber(registro.salario_acumulado) +
-    toNumber(registro.vacaciones_no_gozadas) +
-    toNumber(registro.cesantia) +
-    toNumber(registro.preaviso) +
-    toNumber(registro.aguinaldo)
-  );
-};
-
-const buildUpdatePayload = (registro = {}, overrides = {}) => {
-  const merged = { ...registro, ...overrides };
-
-  const payload = {
-    salario_acumulado: toNumber(merged.salario_acumulado),
-    vacaciones_no_gozadas: toNumber(merged.vacaciones_no_gozadas),
-    cesantia: toNumber(merged.cesantia),
-    preaviso: toNumber(merged.preaviso),
-    aguinaldo: toNumber(merged.aguinaldo),
-    id_estado: Number(merged.id_estado) || 1,
-    aprobado_por: toOptionalNumber(merged.aprobado_por),
-    fecha_liquidacion: normalizeDateForApi(merged.fecha_liquidacion),
-    fecha_inicio_periodo: normalizeDateForApi(merged.fecha_inicio_periodo),
-    fecha_fin_periodo: normalizeDateForApi(merged.fecha_fin_periodo),
-    motivo_liquidacion:
-      typeof merged.motivo_liquidacion === "string"
-        ? merged.motivo_liquidacion.trim() || null
-        : merged.motivo_liquidacion || null,
-  };
-
-  payload.total_pagar =
-    overrides.total_pagar !== undefined
-      ? toNumber(overrides.total_pagar)
-      : toNumber(merged.total_pagar) || calcularTotalLiquidacion(payload);
-
-  return payload;
-};
+const createInitialDraft = () => ({
+  id_empleado: "",
+  fecha_inicio_periodo: "",
+  fecha_fin_periodo: "",
+  fecha_liquidacion: getTodayInputValue(),
+  motivo_liquidacion: "",
+  observaciones: "",
+});
 
 export const useLiquidaciones = ({ autoFetch = true } = {}) => {
   const { user } = useAuth();
   const isAdmin = user?.id_rol === 1;
 
   const [liquidaciones, setLiquidaciones] = useState([]);
-  const [empleados, setEmpleados] = useState([]);
-  const [empleadosLoading, setEmpleadosLoading] = useState(false);
   const [loading, setLoading] = useState(autoFetch);
-  const [submitting, setSubmitting] = useState(false);
-  const [actionLoading, setActionLoading] = useState({});
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [formData, setFormData] = useState(() => createInitialForm());
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState({});
+  const [empleados, setEmpleados] = useState([]);
+  const [empleadosLoading, setEmpleadosLoading] = useState(false);
+
+  const [draftForm, setDraftForm] = useState(() => createInitialDraft());
+  const [draftDetalles, setDraftDetalles] = useState([]);
+  const [draftTotales, setDraftTotales] = useState({
+    totalIngresos: 0,
+    totalDescuentos: 0,
+    total_pagar: 0,
+  });
+  const [previewData, setPreviewData] = useState(null);
+  const [detalleSeleccionado, setDetalleSeleccionado] = useState(null);
+  const [detalleLoading, setDetalleLoading] = useState(false);
 
   const fetchLiquidaciones = useCallback(async () => {
     try {
       setLoading(true);
       const data = await liquidacionesService.getAll();
-      setLiquidaciones(Array.isArray(data) ? data : []);
+      const registros = Array.isArray(data) ? data : [];
+      const ordenados = registros.sort((a, b) => {
+        const fechaA = new Date(a.fecha_liquidacion || a.created_at || 0);
+        const fechaB = new Date(b.fecha_liquidacion || b.created_at || 0);
+        return fechaB - fechaA;
+      });
+      setLiquidaciones(ordenados);
       setError("");
     } catch (err) {
       console.error(err);
@@ -207,173 +158,220 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     }
   }, [isAdmin, fetchEmpleados]);
 
-  const handleChange = (event) => {
+  const handleDraftChange = (event) => {
     const { name, value } = event.target;
-
-    if (name === "id_empleado") {
-      const empleadoSeleccionado = empleados.find(
-        (empleado) => String(empleado.id_empleado) === value
-      );
-
-      const fechaInicio = obtenerFechaInicioPeriodoEmpleado(empleadoSeleccionado);
-
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        fecha_inicio_periodo: fechaInicio || prev.fecha_inicio_periodo || "",
-      }));
-      return;
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setDraftForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const resetForm = () => {
-    setFormData(createInitialForm());
-  };
+  const resetDraft = useCallback(() => {
+    setDraftForm(createInitialDraft());
+    setDraftDetalles([]);
+    setDraftTotales({ totalIngresos: 0, totalDescuentos: 0, total_pagar: 0 });
+    setPreviewData(null);
+  }, []);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setSuccessMessage("");
+  const actualizarTotales = useCallback((detallesActualizados) => {
+    const totalesCalculados = calculateTotalsFromDetails(detallesActualizados);
+    setDraftTotales({
+      totalIngresos: Number(totalesCalculados.totalIngresos.toFixed(2)),
+      totalDescuentos: Number(totalesCalculados.totalDescuentos.toFixed(2)),
+      total_pagar: Number(totalesCalculados.total_pagar.toFixed(2)),
+    });
+  }, []);
 
-    const empleadoId = Number(formData.id_empleado);
-    if (!Number.isInteger(empleadoId) || empleadoId <= 0) {
-      setError("Selecciona el colaborador a liquidar");
-      return;
-    }
-
-    const salarioAcumulado = Number(formData.salario_acumulado);
-    if (Number.isNaN(salarioAcumulado) || salarioAcumulado <= 0) {
-      setError("Ingresa el salario acumulado a liquidar");
-      return;
-    }
-
-    const payload = {
-      id_empleado: empleadoId,
-      salario_acumulado: salarioAcumulado,
-      vacaciones_no_gozadas: toNumber(formData.vacaciones_no_gozadas),
-      cesantia: toNumber(formData.cesantia),
-      preaviso: toNumber(formData.preaviso),
-      aguinaldo: toNumber(formData.aguinaldo),
-      id_estado: Number(formData.id_estado) || 1,
-      fecha_liquidacion: normalizeDateForApi(formData.fecha_liquidacion),
-      fecha_inicio_periodo: normalizeDateForApi(formData.fecha_inicio_periodo),
-      fecha_fin_periodo: normalizeDateForApi(formData.fecha_fin_periodo),
-      motivo_liquidacion:
-        typeof formData.motivo_liquidacion === "string"
-          ? formData.motivo_liquidacion.trim() || null
-          : null,
-    };
-
-    if (payload.id_estado === 2 && user?.id_usuario) {
-      payload.aprobado_por = user.id_usuario;
-      if (!payload.fecha_liquidacion) {
-        payload.fecha_liquidacion = normalizeDateForApi(new Date().toISOString());
-      }
-    }
-
+  const generarPreview = useCallback(async () => {
     try {
       setSubmitting(true);
-      await liquidacionesService.create(payload);
-      setSuccessMessage("Liquidación registrada correctamente");
-      resetForm();
-      await fetchLiquidaciones();
+      setSuccessMessage("");
+      setError("");
+
+      const payload = {
+        id_empleado: draftForm.id_empleado,
+        fecha_inicio_periodo: normalizeDateForApi(draftForm.fecha_inicio_periodo),
+        fecha_fin_periodo: normalizeDateForApi(draftForm.fecha_fin_periodo),
+        fecha_liquidacion: normalizeDateForApi(draftForm.fecha_liquidacion),
+        motivo_liquidacion: draftForm.motivo_liquidacion,
+        observaciones: draftForm.observaciones,
+        detalles: draftDetalles,
+      };
+
+      const data = await liquidacionesService.preview(payload);
+      setPreviewData(data);
+      setDraftDetalles(data.detalles || []);
+      actualizarTotales(data.detalles || []);
+      setSuccessMessage("Borrador generado correctamente");
     } catch (err) {
       console.error(err);
-      const message = err.response?.data?.error || "No fue posible registrar la liquidación";
+      const message = err.response?.data?.error || "No fue posible generar la previsualización";
       setError(message);
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [draftForm, draftDetalles, actualizarTotales]);
 
-  const updateLiquidacion = useCallback(
-    async (registro, overrides = {}) => {
-      if (!registro?.id_liquidacion) return false;
-      setActionLoading((prev) => ({ ...prev, [registro.id_liquidacion]: true }));
-      setError("");
-      setSuccessMessage("");
+  const actualizarDetalle = useCallback((index, campo, valor) => {
+    setDraftDetalles((prev) => {
+      const copia = [...prev];
+      if (!copia[index]) return prev;
+
+      const detalleActual = copia[index];
+      if (campo === "monto_final") {
+        const monto = sanitizeOptionalNumber(valor);
+        copia[index] = { ...detalleActual, monto_final: monto };
+      } else if (campo === "comentario") {
+        copia[index] = { ...detalleActual, comentario: valor };
+      } else if (campo === "tipo") {
+        copia[index] = { ...detalleActual, tipo: valor === "DESCUENTO" ? "DESCUENTO" : "INGRESO" };
+      } else if (campo === "concepto") {
+        copia[index] = { ...detalleActual, concepto: valor };
+      }
+
+      return copia;
+    });
+  }, []);
+
+  useEffect(() => {
+    actualizarTotales(draftDetalles);
+  }, [draftDetalles, actualizarTotales]);
+
+  const agregarDetalleManual = useCallback(() => {
+    setDraftDetalles((prev) => [
+      ...prev,
+      {
+        concepto: "Nuevo concepto",
+        tipo: "INGRESO",
+        monto_calculado: 0,
+        monto_final: 0,
+        editable: 1,
+        formula_usada: null,
+        comentario: "",
+      },
+    ]);
+  }, []);
+
+  const eliminarDetalle = useCallback((index) => {
+    setDraftDetalles((prev) => prev.filter((_, idx) => idx !== index));
+  }, []);
+
+  const guardarLiquidacion = useCallback(
+    async ({ confirmar = false } = {}) => {
       try {
-        const payload = buildUpdatePayload(registro, overrides);
+        setSubmitting(true);
+        setSuccessMessage("");
+        setError("");
+
+        const payload = {
+          id_empleado: draftForm.id_empleado,
+          fecha_inicio_periodo: normalizeDateForApi(draftForm.fecha_inicio_periodo),
+          fecha_fin_periodo: normalizeDateForApi(draftForm.fecha_fin_periodo),
+          fecha_liquidacion: normalizeDateForApi(draftForm.fecha_liquidacion),
+          motivo_liquidacion: draftForm.motivo_liquidacion,
+          observaciones: draftForm.observaciones,
+          detalles: draftDetalles,
+          confirmar,
+        };
+
+        await liquidacionesService.create(payload);
+        setSuccessMessage(confirmar ? "Liquidación confirmada" : "Borrador guardado");
+        resetDraft();
+        fetchLiquidaciones();
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible guardar la liquidación";
+        setError(message);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [draftForm, draftDetalles, fetchLiquidaciones, resetDraft]
+  );
+
+  const setEstadoEnServidor = useCallback(
+    async (registro, nuevoEstado) => {
+      if (!registro?.id_liquidacion) return;
+      setActionLoading((prev) => ({ ...prev, [registro.id_liquidacion]: true }));
+      try {
+        const payload = { id_estado: nuevoEstado };
+        if (nuevoEstado === 2 && user?.id_usuario) {
+          payload.aprobado_por = user.id_usuario;
+        }
+        if (nuevoEstado !== 2) {
+          payload.aprobado_por = null;
+        }
+
         await liquidacionesService.update(registro.id_liquidacion, payload);
         await fetchLiquidaciones();
-        return true;
       } catch (err) {
         console.error(err);
         const message = err.response?.data?.error || "No fue posible actualizar la liquidación";
         setError(message);
-        throw err;
       } finally {
         setActionLoading((prev) => ({ ...prev, [registro.id_liquidacion]: false }));
       }
     },
-    [fetchLiquidaciones]
+    [fetchLiquidaciones, user]
   );
 
   const approveLiquidacion = useCallback(
     async (registro) => {
-      if (!registro) return;
-      const fecha = normalizeDateForApi(
-        registro.fecha_liquidacion || new Date().toISOString()
-      );
-      try {
-        await updateLiquidacion(registro, {
-          id_estado: 2,
-          aprobado_por: user?.id_usuario ?? registro.aprobado_por ?? null,
-          fecha_liquidacion: fecha,
-        });
-        setSuccessMessage("Liquidación aprobada correctamente");
-      } catch {
-        // El error ya se gestiona en updateLiquidacion
-      }
+      await setEstadoEnServidor(registro, 2);
     },
-    [updateLiquidacion, user]
+    [setEstadoEnServidor]
   );
 
   const rejectLiquidacion = useCallback(
     async (registro) => {
-      if (!registro) return;
-      try {
-        await updateLiquidacion(registro, {
-          id_estado: 3,
-          aprobado_por: null,
-        });
-        setSuccessMessage("Liquidación rechazada correctamente");
-      } catch {
-        // El error ya se gestiona en updateLiquidacion
-      }
+      await setEstadoEnServidor(registro, 3);
     },
-    [updateLiquidacion]
+    [setEstadoEnServidor]
   );
 
-  const sortedLiquidaciones = useMemo(() => {
-    return [...liquidaciones].sort((a, b) => {
-      const fechaA = new Date(a.fecha_liquidacion || a.created_at || 0);
-      const fechaB = new Date(b.fecha_liquidacion || b.created_at || 0);
-      return fechaB - fechaA;
-    });
-  }, [liquidaciones]);
+  const openLiquidacion = useCallback(async (id_liquidacion) => {
+    if (!id_liquidacion) {
+      setDetalleSeleccionado(null);
+      return;
+    }
+    try {
+      setDetalleLoading(true);
+      const data = await liquidacionesService.getById(id_liquidacion);
+      setDetalleSeleccionado(data);
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.error || "No fue posible cargar el detalle de la liquidación";
+      setError((prev) => prev || message);
+    } finally {
+      setDetalleLoading(false);
+    }
+  }, []);
+
+  const sortedLiquidaciones = useMemo(() => liquidaciones, [liquidaciones]);
 
   return {
     liquidaciones: sortedLiquidaciones,
-    empleados,
-    empleadosLoading,
     loading,
-    submitting,
-    actionLoading,
     error,
     successMessage,
-    formData,
-    setFormData,
-    handleChange,
-    handleSubmit,
-    resetForm,
-    approveLiquidacion,
-    rejectLiquidacion,
     setError,
     setSuccessMessage,
-    fetchLiquidaciones,
+    empleados,
+    empleadosLoading,
+    draftForm,
+    draftDetalles,
+    draftTotales,
+    previewData,
+    detalleSeleccionado,
+    detalleLoading,
+    handleDraftChange,
+    generarPreview,
+    actualizarDetalle,
+    agregarDetalleManual,
+    eliminarDetalle,
+    guardarLiquidacion,
+    resetDraft,
+    submitting,
+    actionLoading,
+    approveLiquidacion,
+    rejectLiquidacion,
+    openLiquidacion,
   };
 };
-
