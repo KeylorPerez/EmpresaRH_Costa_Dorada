@@ -150,12 +150,9 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
       const updates = {};
       let changed = false;
 
-      if (
-        (!prev.fecha_inicio_periodo || !String(prev.fecha_inicio_periodo).trim()) &&
-        empleadoSeleccionado.fecha_ingreso
-      ) {
+      if (empleadoSeleccionado.fecha_ingreso) {
         const inicioNormalizado = normalizeDateForApi(empleadoSeleccionado.fecha_ingreso);
-        if (inicioNormalizado) {
+        if (inicioNormalizado && prev.fecha_inicio_periodo !== inicioNormalizado) {
           updates.fecha_inicio_periodo = inicioNormalizado;
           changed = true;
         }

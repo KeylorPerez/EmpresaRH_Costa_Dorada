@@ -101,8 +101,8 @@ const prepararLiquidacion = async ({
   const fechaIngresoDistribuidora = toValidDate(empleado.fecha_ingreso);
 
   const fechaInicio =
-    toValidDate(fecha_inicio_periodo) ||
     fechaIngresoDistribuidora ||
+    toValidDate(fecha_inicio_periodo) ||
     new Date(fechaFin.getTime() - 29 * 24 * 60 * 60 * 1000);
 
   const promedioInfo = await Liquidacion.calcularPromedioSalario(id_empleado, {
