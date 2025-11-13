@@ -14,12 +14,14 @@ import Liquidaciones from "../pages/Liquidaciones";
 import Aguinaldos from "../pages/Aguinaldos";
 import Asistencia from "../pages/Asistencia";
 import AuthForm from "../components/AuthForm"; // Login
+import Acerca from "../pages/Acerca";
 
 const AppRouter = () => {
   return (
     <Routes>
       {/* Página de login */}
       <Route path="/login" element={<AuthForm />} />
+      <Route path="/acerca" element={<Acerca />} />
 
       {/* Dashboard admin */}
       <Route
