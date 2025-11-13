@@ -25,6 +25,11 @@ const liquidacionesService = {
     const response = await api.put(`/liquidaciones/${id}`, payload);
     return response.data;
   },
+
+  exportPdf: async (id) => {
+    const response = await api.get(`/liquidaciones/${id}/export`);
+    return response.data;
+  },
 };
 
 export default liquidacionesService;

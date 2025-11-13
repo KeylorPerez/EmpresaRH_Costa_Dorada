@@ -6,11 +6,15 @@ const {
   previsualizarLiquidacion,
   crearLiquidacion,
   actualizarLiquidacion,
+  exportLiquidacionPdf,
 } = require('../controllers/liquidacionController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // GET /api/liquidaciones -> admin: todas / empleado: sus liquidaciones
 router.get('/', authenticateToken, getLiquidaciones);
+
+// GET /api/liquidaciones/:id/export -> generar constancia en PDF
+router.get('/:id/export', authenticateToken, exportLiquidacionPdf);
 
 // GET /api/liquidaciones/:id -> obtener detalle con conceptos
 router.get('/:id', authenticateToken, getLiquidacionById);
