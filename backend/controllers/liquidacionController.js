@@ -23,6 +23,16 @@ const parseDateValue = (value) => {
   return parsed.toISOString().split('T')[0];
 };
 
+const toValidDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
 const parseId = (value) => {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
@@ -87,10 +97,13 @@ const prepararLiquidacion = async ({
     throw error;
   }
 
-  const fechaFin = fecha_fin_periodo ? new Date(fecha_fin_periodo) : new Date();
-  const fechaInicio = fecha_inicio_periodo
-    ? new Date(fecha_inicio_periodo)
-    : new Date(fechaFin.getTime() - 29 * 24 * 60 * 60 * 1000);
+  const fechaFin = toValidDate(fecha_fin_periodo) || new Date();
+  const fechaIngresoDistribuidora = toValidDate(empleado.fecha_ingreso);
+
+  const fechaInicio =
+    toValidDate(fecha_inicio_periodo) ||
+    fechaIngresoDistribuidora ||
+    new Date(fechaFin.getTime() - 29 * 24 * 60 * 60 * 1000);
 
   const promedioInfo = await Liquidacion.calcularPromedioSalario(id_empleado, {
     meses: 6,
