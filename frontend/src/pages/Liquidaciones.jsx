@@ -71,6 +71,17 @@ const Liquidaciones = ({ mode }) => {
   const roleColor = isAdmin ? "blue" : "green";
   const tituloPagina = isAdmin ? "Liquidaciones híbridas" : "Mis liquidaciones";
 
+  const empleadoSeleccionado = useMemo(() => {
+    if (!draftForm.id_empleado) return null;
+    return (
+      empleados.find(
+        (empleado) => String(empleado.id_empleado) === String(draftForm.id_empleado)
+      ) || null
+    );
+  }, [draftForm.id_empleado, empleados]);
+
+  const disableFechaInicio = Boolean(empleadoSeleccionado?.fecha_ingreso);
+
   const limpiarMensajes = () => {
     if (error) setError("");
     if (successMessage) setSuccessMessage("");
@@ -295,8 +306,16 @@ const Liquidaciones = ({ mode }) => {
                     name="fecha_inicio_periodo"
                     value={draftForm.fecha_inicio_periodo}
                     onChange={handleDraftChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      disableFechaInicio ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
+                    readOnly={disableFechaInicio}
                   />
+                  {disableFechaInicio && (
+                    <span className="mt-1 text-xs text-gray-500">
+                      Esta fecha coincide con la fecha de ingreso del colaborador.
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-col">
