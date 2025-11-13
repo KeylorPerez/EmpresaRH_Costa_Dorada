@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { login } from "../services/authService";
 import AuthContext from "../context/AuthContext";
 import Button from "../components/Button"; // Opcional: si ya tenés componente Button
@@ -76,9 +76,17 @@ const AuthForm = () => {
         />
 
         {/* Botón con Tailwind o tu componente Button */}
-        <Button variant="primary" type="submit" className="w-full py-2">
-          Ingresar
-        </Button>
+      <Button variant="primary" type="submit" className="w-full py-2">
+        Ingresar
+      </Button>
+        <div className="mt-4 text-center">
+          <Link
+            to="/acerca"
+            className="text-blue-600 hover:underline"
+          >
+            Conocé más sobre EmpresaRH
+          </Link>
+        </div>
       </form>
     </div>
   );
