@@ -98,8 +98,8 @@ const calcularDetallesAutomaticos = ({
   const salarioPendiente = roundCurrency(salarioDiario * diasPeriodo);
 
   detalles.push({
-    concepto: 'Salario pendiente',
-    tipo: 'INGRESO',
+    concepto: 'Deducción salario pendiente',
+    tipo: 'DESCUENTO',
     monto_calculado: salarioPendiente,
     monto_final: salarioPendiente,
     editable: true,

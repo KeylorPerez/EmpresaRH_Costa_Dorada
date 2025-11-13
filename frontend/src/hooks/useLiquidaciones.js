@@ -137,6 +137,39 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     }
   }, [autoFetch, fetchLiquidaciones]);
 
+  useEffect(() => {
+    if (!draftForm.id_empleado) return;
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === String(draftForm.id_empleado)
+    );
+
+    if (!empleadoSeleccionado) return;
+
+    setDraftForm((prev) => {
+      const updates = {};
+      let changed = false;
+
+      if (
+        (!prev.fecha_inicio_periodo || !String(prev.fecha_inicio_periodo).trim()) &&
+        empleadoSeleccionado.fecha_ingreso
+      ) {
+        const inicioNormalizado = normalizeDateForApi(empleadoSeleccionado.fecha_ingreso);
+        if (inicioNormalizado) {
+          updates.fecha_inicio_periodo = inicioNormalizado;
+          changed = true;
+        }
+      }
+
+      if (!prev.fecha_fin_periodo || !String(prev.fecha_fin_periodo).trim()) {
+        updates.fecha_fin_periodo = getTodayInputValue();
+        changed = true;
+      }
+
+      return changed ? { ...prev, ...updates } : prev;
+    });
+  }, [draftForm.id_empleado, empleados]);
+
   const fetchEmpleados = useCallback(async () => {
     if (!isAdmin) return;
     try {
@@ -196,6 +229,14 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
       };
 
       const data = await liquidacionesService.preview(payload);
+      const encabezado = data?.encabezado || {};
+
+      setDraftForm((prev) => ({
+        ...prev,
+        fecha_inicio_periodo: encabezado.fecha_inicio_periodo || prev.fecha_inicio_periodo,
+        fecha_fin_periodo: encabezado.fecha_fin_periodo || prev.fecha_fin_periodo,
+        fecha_liquidacion: encabezado.fecha_liquidacion || prev.fecha_liquidacion || getTodayInputValue(),
+      }));
       setPreviewData(data);
       setDraftDetalles(data.detalles || []);
       actualizarTotales(data.detalles || []);
