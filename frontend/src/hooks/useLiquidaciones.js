@@ -109,6 +109,8 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
   const [previewData, setPreviewData] = useState(null);
   const [detalleSeleccionado, setDetalleSeleccionado] = useState(null);
   const [detalleLoading, setDetalleLoading] = useState(false);
+  const [exportingId, setExportingId] = useState(null);
+  const [sharingId, setSharingId] = useState(null);
 
   const fetchLiquidaciones = useCallback(async () => {
     try {
@@ -384,6 +386,119 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
 
   const sortedLiquidaciones = useMemo(() => liquidaciones, [liquidaciones]);
 
+  const exportLiquidacion = useCallback(
+    async (id_liquidacion, { openInNewTab = true, silent = false } = {}) => {
+      if (!id_liquidacion) {
+        setError('Selecciona una liquidación válida para exportar.');
+        return null;
+      }
+
+      setError('');
+      if (!silent) {
+        setSuccessMessage('');
+      }
+
+      try {
+        setExportingId(id_liquidacion);
+        const response = await liquidacionesService.exportPdf(id_liquidacion);
+        const fileUrl = response?.url;
+        const filename = response?.filename || '';
+        const format = response?.format || 'pdf';
+
+        if (!fileUrl) {
+          throw new Error('No se recibió la URL del archivo exportado.');
+        }
+
+        if (openInNewTab && typeof window !== 'undefined') {
+          window.open(fileUrl, '_blank', 'noopener');
+        }
+
+        if (!silent) {
+          setSuccessMessage('Constancia de liquidación generada correctamente.');
+        }
+
+        return { url: fileUrl, filename, format };
+      } catch (err) {
+        console.error(err);
+        const message =
+          err.response?.data?.error ||
+          err.message ||
+          'No fue posible exportar la liquidación.';
+        setError(message);
+        return null;
+      } finally {
+        setExportingId(null);
+      }
+    },
+    [setError, setSuccessMessage],
+  );
+
+  const shareLiquidacion = useCallback(
+    async (id_liquidacion) => {
+      if (!id_liquidacion) {
+        setError('Selecciona una liquidación válida para compartir.');
+        return;
+      }
+
+      if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+        setError('La función de compartir no está disponible en este dispositivo.');
+        return;
+      }
+
+      setError('');
+      setSuccessMessage('');
+      setSharingId(id_liquidacion);
+
+      try {
+        const exportData = await exportLiquidacion(id_liquidacion, {
+          openInNewTab: false,
+          silent: true,
+        });
+
+        if (!exportData?.url) {
+          return;
+        }
+
+        const fallbackName =
+          exportData.filename || `liquidacion-${id_liquidacion}.pdf`;
+
+        const response = await fetch(exportData.url);
+        if (!response.ok) {
+          throw new Error('No se pudo descargar el PDF generado.');
+        }
+
+        const blob = await response.blob();
+        const fileType = blob.type || 'application/pdf';
+        const fileName = fallbackName.endsWith('.pdf')
+          ? fallbackName
+          : `${fallbackName}.pdf`;
+        const file = new File([blob], fileName, { type: fileType });
+
+        if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
+          throw new Error('Este dispositivo no permite compartir archivos PDF.');
+        }
+
+        await navigator.share({
+          files: [file],
+          title: 'Liquidación de prestaciones',
+          text: 'Te comparto la constancia de liquidación generada desde EmpresaRH.',
+        });
+
+        setSuccessMessage('Liquidación compartida correctamente.');
+      } catch (err) {
+        console.error(err);
+        const message =
+          err.response?.data?.error ||
+          err.message ||
+          'No fue posible compartir la liquidación.';
+        setError(message);
+      } finally {
+        setSharingId(null);
+      }
+    },
+    [exportLiquidacion, setError, setSuccessMessage],
+  );
+
   return {
     liquidaciones: sortedLiquidaciones,
     loading,
@@ -411,5 +526,9 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     approveLiquidacion,
     rejectLiquidacion,
     openLiquidacion,
+    exportLiquidacion,
+    shareLiquidacion,
+    exportingId,
+    sharingId,
   };
 };

@@ -1,7 +1,413 @@
+const fs = require('fs');
+const path = require('path');
 const Liquidacion = require('../models/Liquidacion');
 const Empleado = require('../models/Empleado');
 const LiquidacionDetalle = require('../models/LiquidacionDetalle');
 const Usuario = require('../models/Usuario');
+
+const { promises: fsPromises } = fs;
+const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+
+const ensureExportsDir = async () => {
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    await fsPromises.mkdir(EXPORTS_DIR, { recursive: true });
+  }
+};
+
+const formatDateValue = (value) => {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+};
+
+const formatDateDisplay = (value) => {
+  const iso = formatDateValue(value);
+  if (!iso) return '';
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+const sanitizePdfText = (text = '') =>
+  String(text)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2007/g, ' ')
+    .replace(/\s+/g, ' ');
+
+const stripDiacritics = (text = '') => {
+  if (!text) return '';
+  if (typeof text.normalize !== 'function') return String(text);
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const PDF_SPECIAL_CHAR_MAP = {
+  '₡': 'CRC ',
+  '€': 'EUR ',
+  '£': 'GBP ',
+  '¥': 'JPY ',
+  '₩': 'KRW ',
+  '₦': 'NGN ',
+  '₱': 'PHP ',
+  '₭': 'LAK ',
+  '₮': 'MNT ',
+  '₨': 'INR ',
+  '₹': 'INR ',
+  '₴': 'UAH ',
+  '₲': 'PYG ',
+  '₵': 'GHS ',
+  '₽': 'RUB ',
+  '฿': 'THB ',
+  '₸': 'KZT ',
+  '–': '-',
+  '—': '-',
+  '‒': '-',
+  '―': '-',
+  '…': '...',
+  '•': '*',
+  '“': '"',
+  '”': '"',
+  '„': '"',
+  '’': "'",
+  '‘': "'",
+  '‚': "'",
+  '‹': "'",
+  '›': "'",
+};
+
+const encodeCharForPdf = (char) => {
+  if (Object.prototype.hasOwnProperty.call(PDF_SPECIAL_CHAR_MAP, char)) {
+    return PDF_SPECIAL_CHAR_MAP[char];
+  }
+
+  const code = char.codePointAt(0);
+  if (code !== undefined && code <= 0xff) {
+    return String.fromCharCode(code);
+  }
+
+  const stripped = stripDiacritics(char);
+  if (stripped && stripped !== char) {
+    return Array.from(stripped)
+      .map((nestedChar) => encodeCharForPdf(nestedChar))
+      .join('');
+  }
+
+  return '?';
+};
+
+const normalizePdfEncoding = (text = '') =>
+  Array.from(String(text || ''))
+    .map((char) => encodeCharForPdf(char))
+    .join('');
+
+const escapePdfText = (text = '') =>
+  normalizePdfEncoding(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const wrapText = (text, maxLength = 95) => {
+  if (!text) return [''];
+  const words = sanitizePdfText(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const tentative = currentLine ? `${currentLine} ${word}` : word;
+    if (tentative.length > maxLength) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      if (word.length > maxLength) {
+        let remaining = word;
+        while (remaining.length > maxLength) {
+          lines.push(remaining.slice(0, maxLength));
+          remaining = remaining.slice(maxLength);
+        }
+        currentLine = remaining;
+      } else {
+        currentLine = word;
+      }
+    } else {
+      currentLine = tentative;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [''];
+};
+
+const chunkArray = (items, size) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [[]];
+  }
+
+  const result = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+};
+
+const buildPdfContentStream = (lines) => {
+  const safeLines = lines.length > 0 ? lines : [''];
+  const instructions = ['BT', '/F1 11 Tf', '50 780 Td'];
+  instructions.push(`(${escapePdfText(safeLines[0])}) Tj`);
+  for (let i = 1; i < safeLines.length; i += 1) {
+    instructions.push('0 -14 Td');
+    instructions.push(`(${escapePdfText(safeLines[i])}) Tj`);
+  }
+  instructions.push('ET');
+  return instructions.join('\n');
+};
+
+const buildPdfBuffer = (pagesContent) => {
+  const contentStreams = pagesContent.length > 0 ? pagesContent : ['BT\n/F1 11 Tf\n50 780 Td\n() Tj\nET'];
+  const objects = [];
+
+  const addObject = (value) => {
+    objects.push(value);
+    return objects.length;
+  };
+
+  const catalogId = addObject(null);
+  const pagesId = addObject(null);
+  const fontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+
+  const pageIds = contentStreams.map((streamContent) => {
+    const contentId = addObject({ stream: streamContent });
+    const pageIndex = addObject({ contentId });
+    return { pageIndex, contentId };
+  });
+
+  const kids = pageIds.map(({ pageIndex }) => `${pageIndex} 0 R`).join(' ');
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${kids}] /Count ${pageIds.length} >>`;
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+
+  pageIds.forEach(({ pageIndex, contentId }) => {
+    objects[pageIndex - 1] = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+  });
+
+  const buffers = [];
+  const header = '%PDF-1.4\n';
+  buffers.push(Buffer.from(header, 'utf8'));
+  let offset = header.length;
+  const xrefPositions = [0];
+
+  objects.forEach((obj, index) => {
+    xrefPositions.push(offset);
+    const objectId = index + 1;
+    const objectHeader = `${objectId} 0 obj\n`;
+    let bodyBuffer;
+    if (obj && typeof obj === 'object' && obj.stream !== undefined) {
+      const streamString = typeof obj.stream === 'string' ? obj.stream : obj.stream.toString();
+      const normalizedStream = normalizePdfEncoding(streamString);
+      const streamBuffer = Buffer.from(normalizedStream, 'latin1');
+      const preamble = Buffer.from(`<< /Length ${streamBuffer.length} >>\nstream\n`, 'ascii');
+      const postamble = Buffer.from('\nendstream\n', 'ascii');
+      bodyBuffer = Buffer.concat([preamble, streamBuffer, postamble]);
+    } else {
+      const body = `${obj || ''}\n`;
+      bodyBuffer = Buffer.from(body, 'utf8');
+    }
+    const footer = 'endobj\n';
+    const objectBuffer = Buffer.concat([Buffer.from(objectHeader, 'utf8'), bodyBuffer, Buffer.from(footer, 'utf8')]);
+    buffers.push(objectBuffer);
+    offset += objectBuffer.length;
+  });
+
+  const xrefStart = offset;
+  const xrefHeader = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  const xrefLines = [];
+  for (let i = 1; i <= objects.length; i += 1) {
+    xrefLines.push(`${xrefPositions[i].toString().padStart(10, '0')} 00000 n \n`);
+  }
+  const xrefBuffer = Buffer.from(xrefHeader + xrefLines.join(''), 'utf8');
+  buffers.push(xrefBuffer);
+  offset += xrefBuffer.length;
+
+  const trailer = `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  buffers.push(Buffer.from(trailer, 'utf8'));
+
+  return Buffer.concat(buffers);
+};
+
+const currencyFormatter = new Intl.NumberFormat('es-CR', {
+  style: 'currency',
+  currency: 'CRC',
+  minimumFractionDigits: 2,
+});
+
+const formatCurrencyCRC = (value, fallback = '₡0.00') => {
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) {
+    return fallback;
+  }
+  return currencyFormatter.format(numero);
+};
+
+const padText = (text, length) => {
+  const sanitized = sanitizePdfText(text || '');
+  if (sanitized.length >= length) {
+    return sanitized.slice(0, length);
+  }
+  return sanitized + ' '.repeat(length - sanitized.length);
+};
+
+const padNumber = (text, length) => {
+  const sanitized = sanitizePdfText(text || '');
+  if (sanitized.length >= length) {
+    return sanitized.slice(0, length);
+  }
+  return ' '.repeat(length - sanitized.length) + sanitized;
+};
+
+const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }) => {
+  const lines = [];
+  const divider = '-'.repeat(110);
+  const titleDivider = '='.repeat(110);
+
+  const nombreCompleto = [liquidacion.nombre, liquidacion.apellido]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || `Colaborador ID ${liquidacion.id_empleado}`;
+
+  const puesto = empleado?.puesto_nombre ? sanitizePdfText(empleado.puesto_nombre) : 'No registrado';
+  const cedula = empleado?.cedula ? sanitizePdfText(empleado.cedula) : 'No registrada';
+  const salarioPromedio = formatCurrencyCRC(liquidacion.salario_promedio_mensual, 'Sin dato');
+  const salarioAcumulado = formatCurrencyCRC(liquidacion.salario_acumulado, '₡0.00');
+  const totales = LiquidacionDetalle.calcularTotales(detalles || []);
+  const totalPagar = formatCurrencyCRC(liquidacion.total_pagar ?? totales.total_pagar, '₡0.00');
+  const totalIngresos = formatCurrencyCRC(totales.totalIngresos, '₡0.00');
+  const totalDescuentos = formatCurrencyCRC(totales.totalDescuentos, '₡0.00');
+
+  lines.push(titleDivider);
+  lines.push('Distribuidora Astua Pirie');
+  lines.push('Constancia de liquidación de prestaciones');
+  lines.push(titleDivider);
+  lines.push('');
+
+  lines.push(`Liquidación N.º: ${liquidacion.id_liquidacion}`);
+  lines.push(`Colaborador: ${sanitizePdfText(nombreCompleto)} (ID ${liquidacion.id_empleado})`);
+  lines.push(`Cédula: ${cedula}`);
+  lines.push(`Puesto: ${puesto}`);
+  lines.push(`Fecha de liquidación: ${formatDateDisplay(liquidacion.fecha_liquidacion) || '—'}`);
+  lines.push(
+    `Periodo liquidado: ${formatDateDisplay(liquidacion.fecha_inicio_periodo) || '—'} al ${
+      formatDateDisplay(liquidacion.fecha_fin_periodo) || '—'
+    }`,
+  );
+  if (liquidacion.motivo_liquidacion) {
+    wrapText(`Motivo: ${sanitizePdfText(liquidacion.motivo_liquidacion)}`, 95).forEach((linea) =>
+      lines.push(linea),
+    );
+  }
+  if (liquidacion.observaciones) {
+    wrapText(`Observaciones: ${sanitizePdfText(liquidacion.observaciones)}`, 95).forEach((linea) =>
+      lines.push(linea),
+    );
+  }
+
+  lines.push('');
+  lines.push(divider);
+  lines.push(`Salario promedio mensual: ${salarioPromedio}`);
+  lines.push(`Salario acumulado periodo: ${salarioAcumulado}`);
+  lines.push(`Total de ingresos: ${totalIngresos}`);
+  lines.push(`Total de descuentos: ${totalDescuentos}`);
+  lines.push(`TOTAL A PAGAR: ${totalPagar}`);
+  lines.push(divider);
+
+  lines.push('Detalle de conceptos:');
+  const headerLine =
+    padText('Concepto', 42) + padText('Tipo', 12) + padNumber('Monto calc.', 18) + padNumber('Monto final', 18);
+  lines.push(headerLine);
+  lines.push(divider);
+
+  if (Array.isArray(detalles) && detalles.length > 0) {
+    detalles.forEach((detalle) => {
+      const concepto = padText(detalle.concepto || '—', 42);
+      const tipo = padText(detalle.tipo === 'DESCUENTO' ? 'Descuento' : 'Ingreso', 12);
+      const montoCalculado = padNumber(formatCurrencyCRC(detalle.monto_calculado, '₡0.00'), 18);
+      const montoFinal = padNumber(
+        formatCurrencyCRC(
+          detalle.monto_final !== null && detalle.monto_final !== undefined
+            ? detalle.monto_final
+            : detalle.monto_calculado,
+          '₡0.00',
+        ),
+        18,
+      );
+      lines.push(`${concepto}${tipo}${montoCalculado}${montoFinal}`);
+
+      if (detalle.comentario) {
+        wrapText(`Comentario: ${sanitizePdfText(detalle.comentario)}`, 95).forEach((linea) =>
+          lines.push(`  ${linea}`),
+        );
+      }
+    });
+  } else {
+    lines.push('No se registran conceptos detallados para esta liquidación.');
+  }
+
+  lines.push(divider);
+  lines.push('Declaración del colaborador:');
+  wrapText(
+    'Declaro haber recibido la suma indicada en concepto de liquidación de prestaciones, renunciando a cualquier otra reclamación vinculada a mi relación laboral.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  wrapText(
+    'Manifiesto que los montos reflejados corresponden a los conceptos detallados y que he sido informado sobre la forma de cálculo utilizada por la empresa.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push('');
+  wrapText(
+    'Cualquier observación adicional deberá comunicarse por escrito al departamento de Recursos Humanos dentro de los tres días hábiles posteriores a la firma de este documento.',
+    95,
+  ).forEach((linea) => lines.push(`  ${linea}`));
+  lines.push(divider);
+
+  lines.push('Firma del colaborador: ________________________________');
+  lines.push('Cédula: ______________________________________________');
+  lines.push('Fecha de firma: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Firma de autorización (RRHH / Dirección): __________________');
+  if (aprobador?.nombre || aprobador?.apellido) {
+    const nombreAprobador = [aprobador.nombre, aprobador.apellido]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (nombreAprobador) {
+      lines.push(`Aprobado por: ${sanitizePdfText(nombreAprobador)} (Usuario ID ${aprobador.id_usuario})`);
+    }
+  }
+  lines.push('Fecha: ____ / ____ / ______');
+  lines.push('');
+  lines.push('Observaciones internas:');
+  lines.push('______________________________________________________________');
+  lines.push('______________________________________________________________');
+  lines.push('');
+  lines.push('Documento generado automáticamente por EmpresaRH.');
+  lines.push(titleDivider);
+
+  return lines;
+};
 const { calcularDetallesAutomaticos } = require('../utils/liquidacionCalculations');
 
 const sanitizeText = (value, maxLength) => {
@@ -323,10 +729,64 @@ const actualizarLiquidacion = async (req, res) => {
   }
 };
 
+const exportLiquidacionPdf = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: 'No autenticado' });
+
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Identificador inválido' });
+
+    const liquidacion = await Liquidacion.getById(id);
+    if (!liquidacion) return res.status(404).json({ error: 'Liquidación no encontrada' });
+
+    if (user.id_rol !== 1) {
+      const usuarioDb = await Usuario.getById(user.id_usuario);
+      if (!usuarioDb || !usuarioDb.id_empleado || usuarioDb.id_empleado !== liquidacion.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado' });
+      }
+    }
+
+    if (Number(liquidacion.id_estado) !== 2) {
+      return res.status(400).json({ error: 'El documento solo está disponible para liquidaciones confirmadas' });
+    }
+
+    await ensureExportsDir();
+
+    const empleado = await Empleado.getById(liquidacion.id_empleado);
+    const aprobador = liquidacion.aprobado_por ? await Usuario.getById(liquidacion.aprobado_por) : null;
+    const detalles = Array.isArray(liquidacion.detalles) ? liquidacion.detalles : [];
+
+    const lines = buildLiquidacionPdfLines({
+      liquidacion,
+      empleado,
+      detalles,
+      aprobador,
+    });
+
+    const pages = chunkArray(lines, 40).map((pageLines) => buildPdfContentStream(pageLines));
+    const pdfBuffer = buildPdfBuffer(pages);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `liquidacion-${liquidacion.id_liquidacion}-${timestamp}.pdf`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    await fsPromises.writeFile(filePath, pdfBuffer);
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicUrl = `${baseUrl}/files/${filename}`;
+
+    return res.json({ url: publicUrl, filename, format: 'pdf' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getLiquidaciones,
   getLiquidacionById,
   previsualizarLiquidacion,
   crearLiquidacion,
   actualizarLiquidacion,
+  exportLiquidacionPdf,
 };

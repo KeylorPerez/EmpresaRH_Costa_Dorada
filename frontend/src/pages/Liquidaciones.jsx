@@ -40,6 +40,10 @@ const Liquidaciones = ({ mode }) => {
     approveLiquidacion,
     rejectLiquidacion,
     openLiquidacion,
+    exportLiquidacion,
+    shareLiquidacion,
+    exportingId,
+    sharingId,
   } = useLiquidaciones();
 
   const isAdmin = mode === "admin";
@@ -137,8 +141,97 @@ const Liquidaciones = ({ mode }) => {
       return <p className="text-sm text-gray-500">Selecciona una liquidación para ver el detalle.</p>;
     }
 
+    const puedeExportar = Number(detalleSeleccionado.id_estado) === 2;
+    const isExporting = exportingId === detalleSeleccionado.id_liquidacion;
+    const isSharing = sharingId === detalleSeleccionado.id_liquidacion;
+    const supportsShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    const resumen = (detalleSeleccionado.detalles || []).reduce(
+      (acc, detalle) => {
+        const montoBase =
+          detalle.monto_final !== null && detalle.monto_final !== undefined
+            ? Number(detalle.monto_final)
+            : Number(detalle.monto_calculado);
+        if (Number.isNaN(montoBase)) {
+          return acc;
+        }
+        if (detalle.tipo === "DESCUENTO") {
+          acc.descuentos += montoBase;
+        } else {
+          acc.ingresos += montoBase;
+        }
+        return acc;
+      },
+      { ingresos: 0, descuentos: 0 }
+    );
+
     return (
       <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-600">
+              Liquidación #{detalleSeleccionado.id_liquidacion}
+            </p>
+            <p className="text-2xl font-bold text-gray-900">
+              {formatearMontoCRC(detalleSeleccionado.total_pagar)}
+            </p>
+            <p className="text-xs text-gray-500">
+              Generada el {formatearFechaCorta(detalleSeleccionado.fecha_liquidacion)} · Estado: {" "}
+              {estadosLiquidacion[detalleSeleccionado.id_estado]?.label || "Pendiente"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={!puedeExportar || isExporting}
+              onClick={() => exportLiquidacion(detalleSeleccionado.id_liquidacion)}
+            >
+              {isExporting ? "Generando PDF..." : "Descargar PDF"}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!puedeExportar || !supportsShare || isSharing || isExporting}
+              onClick={() => shareLiquidacion(detalleSeleccionado.id_liquidacion)}
+            >
+              {isSharing ? "Compartiendo..." : "Compartir"}
+            </Button>
+          </div>
+        </div>
+
+        {!puedeExportar && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+            Solo las liquidaciones confirmadas pueden descargarse o compartirse.
+          </div>
+        )}
+
+        {puedeExportar && !supportsShare && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+            Tu navegador no permite compartir archivos directamente. Puedes descargar el PDF y enviarlo manualmente.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="text-xs font-medium text-green-700">Total ingresos</p>
+            <p className="text-lg font-semibold text-green-800">
+              {formatearMontoCRC(resumen.ingresos)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <p className="text-xs font-medium text-red-700">Total descuentos</p>
+            <p className="text-lg font-semibold text-red-800">
+              {formatearMontoCRC(resumen.descuentos)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <p className="text-xs font-medium text-blue-700">Total a pagar</p>
+            <p className="text-lg font-semibold text-blue-800">
+              {formatearMontoCRC(detalleSeleccionado.total_pagar)}
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div>
             <p className="font-semibold text-gray-700">Colaborador</p>
