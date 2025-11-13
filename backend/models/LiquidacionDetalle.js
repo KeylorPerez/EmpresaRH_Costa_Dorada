@@ -33,9 +33,9 @@ const sanitizeDetalle = (detalle) => {
   const editable = detalle.editable === undefined ? 1 : detalle.editable ? 1 : 0;
   const formula_usada = sanitizeString(detalle.formula_usada, 255);
   const comentario = sanitizeString(detalle.comentario, 300);
-  const id_prestamo = Number.isInteger(Number(detalle.id_prestamo))
-    ? Number(detalle.id_prestamo)
-    : null;
+  const idPrestamoRaw = Number(detalle.id_prestamo);
+  const id_prestamo =
+    Number.isInteger(idPrestamoRaw) && idPrestamoRaw > 0 ? idPrestamoRaw : null;
 
   return {
     concepto,
