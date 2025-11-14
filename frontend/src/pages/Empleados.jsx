@@ -73,8 +73,8 @@ const Empleados = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Empleados</h1>
               <p className="text-sm text-gray-500">
-                Administra la información registrada en la tabla{" "}
-                <strong>Empleados</strong> de SQL Server.
+                Administra y gestiona la información del personal registrado en el
+                sistema.
               </p>
             </div>
             <div className="flex flex-col md:items-end md:gap-3">
@@ -97,6 +97,7 @@ const Empleados = () => {
                     setSuccessMessage("");
                     setModalOpen(true);
                   }}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Agregar Empleado
                 </Button>
@@ -119,10 +120,11 @@ const Empleados = () => {
                   {isExportingExcel ? "Generando Excel..." : "Exportar Excel"}
                 </Button>
                 <Button
-                  variant="success"
+                  variant="primary"
                   size="sm"
                   disabled={exportDisabled}
                   onClick={() => shareEmpleados({ status: statusFilter })}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Compartir
                 </Button>
