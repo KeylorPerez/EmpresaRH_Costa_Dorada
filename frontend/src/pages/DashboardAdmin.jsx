@@ -1,10 +1,22 @@
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  FaArrowRightLong,
+  FaBriefcase,
+  FaCalendarCheck,
+  FaFileInvoiceDollar,
+  FaFileSignature,
+  FaGift,
+  FaHandHoldingDollar,
+  FaHouseChimney,
+  FaUmbrellaBeach,
+  FaUserGear,
+  FaUserGroup,
+} from "react-icons/fa6";
 import AuthContext from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
-
 
 const DashboardAdmin = () => {
   const navigate = useNavigate();
@@ -24,27 +36,95 @@ const DashboardAdmin = () => {
     navigate("/login");
   };
 
-  // Links del Sidebar
+  // Links del Sidebar con iconos
   const adminLinks = [
-    { path: "/admin", label: "Inicio" },
-    { path: "/admin/asistencia", label: "Asistencia" },
-    { path: "/admin/usuarios", label: "Usuarios" },
-    { path: "/admin/empleados", label: "Empleados" },
-    { path: "/admin/puestos", label: "Puestos" },
-    { path: "/admin/planilla", label: "Planilla" },
-    { path: "/admin/vacaciones", label: "Vacaciones" },
-    { path: "/admin/prestamos", label: "Préstamos" },
-    { path: "/admin/liquidaciones", label: "Liquidaciones" },
-    { path: "/admin/aguinaldos", label: "Aguinaldos" },
+    { path: "/admin", label: "Inicio", icon: FaHouseChimney },
+    { path: "/admin/asistencia", label: "Asistencia", icon: FaCalendarCheck },
+    { path: "/admin/usuarios", label: "Usuarios", icon: FaUserGear },
+    { path: "/admin/empleados", label: "Empleados", icon: FaUserGroup },
+    { path: "/admin/puestos", label: "Puestos", icon: FaBriefcase },
+    { path: "/admin/planilla", label: "Planilla", icon: FaFileInvoiceDollar },
+    { path: "/admin/vacaciones", label: "Vacaciones", icon: FaUmbrellaBeach },
+    { path: "/admin/prestamos", label: "Préstamos", icon: FaHandHoldingDollar },
+    { path: "/admin/liquidaciones", label: "Liquidaciones", icon: FaFileSignature },
+    { path: "/admin/aguinaldos", label: "Aguinaldos", icon: FaGift },
   ];
 
+  // Acciones rápidas para el panel principal
+  const quickActions = [
+    {
+      path: "/admin/asistencia",
+      label: "Gestionar Asistencia",
+      description: "Controla horarios, registros y reportes de asistencia.",
+      icon: FaCalendarCheck,
+      accent: "from-blue-500 to-blue-600",
+    },
+    {
+      path: "/admin/usuarios",
+      label: "Gestionar Usuarios",
+      description: "Administra roles, accesos y credenciales del sistema.",
+      icon: FaUserGear,
+      accent: "from-indigo-500 to-purple-500",
+    },
+    {
+      path: "/admin/empleados",
+      label: "Gestionar Empleados",
+      description: "Actualiza expedientes, datos personales y contratos.",
+      icon: FaUserGroup,
+      accent: "from-sky-500 to-cyan-500",
+    },
+    {
+      path: "/admin/puestos",
+      label: "Gestionar Puestos",
+      description: "Configura jerarquías, descripciones y requisitos.",
+      icon: FaBriefcase,
+      accent: "from-amber-500 to-orange-500",
+    },
+    {
+      path: "/admin/planilla",
+      label: "Planilla",
+      description: "Prepara nóminas, pagos y reportes contables.",
+      icon: FaFileInvoiceDollar,
+      accent: "from-emerald-500 to-green-500",
+    },
+    {
+      path: "/admin/vacaciones",
+      label: "Vacaciones",
+      description: "Autoriza solicitudes y controla saldos pendientes.",
+      icon: FaUmbrellaBeach,
+      accent: "from-teal-500 to-cyan-500",
+    },
+    {
+      path: "/admin/prestamos",
+      label: "Préstamos",
+      description: "Registra adelantos y gestiona estados de pago.",
+      icon: FaHandHoldingDollar,
+      accent: "from-fuchsia-500 to-rose-500",
+    },
+    {
+      path: "/admin/liquidaciones",
+      label: "Liquidaciones",
+      description: "Calcula liquidaciones y genera documentación.",
+      icon: FaFileSignature,
+      accent: "from-slate-500 to-slate-600",
+    },
+    {
+      path: "/admin/aguinaldos",
+      label: "Aguinaldos",
+      description: "Prepara bonificaciones y reportes anuales.",
+      icon: FaGift,
+      accent: "from-pink-500 to-rose-500",
+    },
+  ];
+
+  const initials =
+    user && user.username ? user.username.charAt(0).toUpperCase() : "A";
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-slate-100/60">
       <Sidebar links={adminLinks} roleColor="blue" />
 
-      <div className="flex flex-col flex-grow">
-        {/* Navbar */}
+      <div className="flex flex-1 flex-col">
         <Navbar
           title="Panel de Administración"
           user={user}
@@ -52,90 +132,128 @@ const DashboardAdmin = () => {
           onLogout={handleLogout}
         />
 
-        {/* Contenido principal */}
-        <main className="flex-grow flex flex-col items-center justify-center p-6">
-          {user ? (
-            <div className="bg-white p-8 rounded-2xl shadow-md w-96 text-center space-y-4">
-              <h2 className="text-2xl font-bold mb-2 text-gray-800">
-                ¡Bienvenido, {user.username}!
-              </h2>
-              <p className="text-gray-600 font-semibold">Rol: Administrador</p>
+        <main className="flex-grow bg-gradient-to-br from-slate-100 via-white to-blue-50">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
+            {user ? (
+              <>
+                <div className="grid gap-8 lg:grid-cols-3">
+                  <section className="relative overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-600 p-8 text-white shadow-xl">
+                    <div className="absolute -right-20 top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+                    <div className="absolute -left-16 -top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+                    <div className="relative z-10 flex h-full flex-col gap-6">
+                      <div className="flex items-center gap-4">
+                        <div className="flex size-16 items-center justify-center rounded-full bg-white/20 text-2xl font-semibold uppercase backdrop-blur-sm">
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+                            ¡Bienvenido!
+                          </p>
+                          <h2 className="text-3xl font-semibold leading-tight">
+                            {user.username}
+                          </h2>
+                        </div>
+                      </div>
 
-              {/* Links rápidos del panel con Button */}
-              <div className="flex flex-col space-y-2 mt-4">
-                <Button
-                  onClick={() => navigate("/admin/asistencia")}
-                  variant="primary"
-                  size="md"
-                >
-                  Gestionar Asistencia
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/usuarios")}
-                  variant="primary"
-                  size="md"
-                >
-                  Gestionar Usuarios
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/empleados")}
-                  variant="primary"
-                  size="md"
-                >
-                  Gestionar Empleados
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/puestos")}
-                  variant="primary"
-                  size="md"
-                >
-                  Gestionar Puestos
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/planilla")}
-                  variant="primary"
-                  size="md"
-                >
-                  Planilla
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/vacaciones")}
-                  variant="primary"
-                  size="md"
-                >
-                  Vacaciones
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/prestamos")}
-                  variant="primary"
-                  size="md"
-                >
-                  Préstamos
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/liquidaciones")}
-                  variant="primary"
-                  size="md"
-                >
-                  Liquidaciones
-                </Button>
-                <Button
-                  onClick={() => navigate("/admin/aguinaldos")}
-                  variant="primary"
-                  size="md"
-                >
-                  Aguinaldos
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-600 text-lg">Cargando...</p>
-          )}
+                      <p className="text-sm text-white/80">
+                        Gestiona los módulos principales de recursos humanos y
+                        mantén el control de tu organización desde un solo lugar.
+                      </p>
+
+                      <div className="grid gap-4 text-sm sm:grid-cols-2">
+                        <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                          <p className="text-xs uppercase tracking-wide text-white/60">
+                            Rol
+                          </p>
+                          <p className="mt-1 text-lg font-semibold">
+                            {user.rol || "Administrador"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+                          <p className="text-xs uppercase tracking-wide text-white/60">
+                            Accesos directos
+                          </p>
+                          <p className="mt-1 text-lg font-semibold">
+                            {quickActions.length}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-auto flex flex-wrap gap-3 text-sm">
+                        <Button
+                          onClick={() => navigate("/admin/planilla")}
+                          variant="secondary"
+                          size="sm"
+                          className="border border-white/30 bg-white/20 px-5 text-white backdrop-blur-sm hover:bg-white/30"
+                        >
+                          Ir a Planilla
+                        </Button>
+                        <Button
+                          onClick={() => navigate("/admin/usuarios")}
+                          variant="secondary"
+                          size="sm"
+                          className="border border-white/30 bg-white/10 px-5 text-white backdrop-blur-sm hover:bg-white/20"
+                        >
+                          Gestionar Usuarios
+                        </Button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="lg:col-span-2">
+                    <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-xl font-semibold text-slate-800">
+                          Acciones rápidas
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          Selecciona una opción para continuar con tu gestión.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {quickActions.map((action) => {
+                        const Icon = action.icon;
+                        return (
+                          <button
+                            key={action.path}
+                            type="button"
+                            onClick={() => navigate(action.path)}
+                            className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-5 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                          >
+                            <div>
+                              <span
+                                className={`inline-flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br ${action.accent} text-white shadow-md`}
+                              >
+                                <Icon className="text-xl" />
+                              </span>
+                              <h4 className="mt-4 text-base font-semibold text-slate-800">
+                                {action.label}
+                              </h4>
+                              <p className="mt-2 text-sm text-slate-500">
+                                {action.description}
+                              </p>
+                            </div>
+                            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition group-hover:text-blue-600">
+                              Explorar
+                              <FaArrowRightLong className="text-base transition-transform group-hover:translate-x-1" />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-lg text-gray-600">Cargando...</p>
+            )}
+          </div>
         </main>
 
-        {/* Footer */}
-        <footer className="text-center py-4 text-gray-500 text-sm">
-          © 2025 EmpresaRH - Todos los derechos reservados
+        <footer className="border-t border-slate-200 bg-white/70 py-4 text-center text-sm text-slate-500 backdrop-blur">
+          © {new Date().getFullYear()} EmpresaRH - Todos los derechos reservados
         </footer>
       </div>
     </div>

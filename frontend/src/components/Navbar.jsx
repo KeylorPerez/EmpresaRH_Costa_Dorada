@@ -3,27 +3,53 @@ import React from "react";
 import PropTypes from "prop-types";
 
 const Navbar = ({ title, user, roleColor = "blue", onLogout }) => {
-  const bgColor =
-    roleColor === "blue"
-      ? "bg-blue-600 hover:bg-blue-700"
-      : roleColor === "green"
-      ? "bg-green-600 hover:bg-green-700"
-      : "bg-gray-600 hover:bg-gray-700";
+  const accent = {
+    blue: {
+      text: "text-blue-600",
+      badge: "bg-blue-600/15 text-blue-600",
+    },
+    green: {
+      text: "text-emerald-600",
+      badge: "bg-emerald-600/15 text-emerald-600",
+    },
+    gray: {
+      text: "text-slate-700",
+      badge: "bg-slate-600/15 text-slate-700",
+    },
+  }[roleColor] ?? {
+    text: "text-blue-600",
+    badge: "bg-blue-600/15 text-blue-600",
+  };
 
   return (
-    <nav className={`flex justify-between items-center p-4 text-white shadow-md ${bgColor}`}>
-      <h1 className="text-xl font-semibold">{title}</h1>
+    <nav className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-4 text-slate-700 shadow-sm backdrop-blur">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
+          Administración
+        </p>
+        <h1 className={`text-xl font-semibold ${accent.text}`}>{title}</h1>
+      </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-wrap items-center gap-4">
         {user && (
-          <span className="font-medium text-sm">
-            {user.username} ({user.rol})
-          </span>
+          <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            <div
+              className={`flex size-9 items-center justify-center rounded-full text-sm font-semibold uppercase ${accent.badge}`}
+            >
+              {user.username?.charAt(0)?.toUpperCase() ?? "A"}
+            </div>
+            <div className="text-left text-xs leading-tight">
+              <p className="font-semibold text-slate-700">{user.username}</p>
+              <p className="text-slate-400">
+                Rol: {user.rol || "Administrador"}
+              </p>
+            </div>
+          </div>
         )}
 
         <button
           onClick={onLogout}
-          className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition"
+          className="rounded-full bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-rose-600 hover:to-red-600 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
         >
           Cerrar sesión
         </button>
