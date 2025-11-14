@@ -339,6 +339,10 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
           payload.aprobado_por = null;
         }
 
+        setDetalleSeleccionado((prev) =>
+          prev?.id_liquidacion === registro.id_liquidacion ? null : prev
+        );
+
         await liquidacionesService.update(registro.id_liquidacion, payload);
         await fetchLiquidaciones();
       } catch (err) {
@@ -366,23 +370,33 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     [setEstadoEnServidor]
   );
 
-  const openLiquidacion = useCallback(async (id_liquidacion) => {
-    if (!id_liquidacion) {
-      setDetalleSeleccionado(null);
-      return;
-    }
-    try {
-      setDetalleLoading(true);
-      const data = await liquidacionesService.getById(id_liquidacion);
-      setDetalleSeleccionado(data);
-    } catch (err) {
-      console.error(err);
-      const message = err.response?.data?.error || "No fue posible cargar el detalle de la liquidación";
-      setError((prev) => prev || message);
-    } finally {
-      setDetalleLoading(false);
-    }
-  }, []);
+  const openLiquidacion = useCallback(
+    async (id_liquidacion) => {
+      if (!id_liquidacion) {
+        setDetalleSeleccionado(null);
+        return;
+      }
+
+      if (detalleSeleccionado?.id_liquidacion === id_liquidacion) {
+        setDetalleSeleccionado(null);
+        return;
+      }
+
+      try {
+        setDetalleLoading(true);
+        const data = await liquidacionesService.getById(id_liquidacion);
+        setDetalleSeleccionado(data);
+      } catch (err) {
+        console.error(err);
+        const message =
+          err.response?.data?.error || "No fue posible cargar el detalle de la liquidación";
+        setError((prev) => prev || message);
+      } finally {
+        setDetalleLoading(false);
+      }
+    },
+    [detalleSeleccionado]
+  );
 
   const sortedLiquidaciones = useMemo(() => liquidaciones, [liquidaciones]);
 
