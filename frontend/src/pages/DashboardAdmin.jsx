@@ -160,7 +160,7 @@ const DashboardAdmin = () => {
                         mantén el control de tu organización desde un solo lugar.
                       </p>
 
-                      <div className="grid gap-4 text-sm sm:grid-cols-2">
+                      <div className="grid gap-4 text-sm">
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
                           <span className="inline-flex w-fit items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/70">
                             Rol
