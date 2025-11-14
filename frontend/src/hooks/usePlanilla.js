@@ -524,6 +524,7 @@ export const usePlanilla = () => {
         justificacion: "",
         observacion: "",
         autoJustificacion: false,
+        asistenciaManual: false,
       });
     }
 
@@ -549,6 +550,10 @@ export const usePlanilla = () => {
 
       if (asistenciaSet.size === 0) {
         const updated = prev.map((detalle) => {
+          if (detalle.asistenciaManual) {
+            return detalle;
+          }
+
           if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
             return detalle.salario_dia === salarioCero
               ? detalle
@@ -556,6 +561,7 @@ export const usePlanilla = () => {
                   ...detalle,
                   salario_dia: salarioCero,
                   estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                  asistenciaManual: false,
                 };
           }
 
@@ -564,6 +570,7 @@ export const usePlanilla = () => {
             asistio: false,
             salario_dia: salarioCero,
             estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+            asistenciaManual: false,
           };
         });
 
@@ -572,6 +579,10 @@ export const usePlanilla = () => {
       }
 
       const updated = prev.map((detalle) => {
+        if (detalle.asistenciaManual) {
+          return detalle;
+        }
+
         const asistio = asistenciaSet.has(detalle.fecha);
 
         if (!asistio) {
@@ -582,6 +593,7 @@ export const usePlanilla = () => {
                   ...detalle,
                   salario_dia: salarioCero,
                   estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                  asistenciaManual: false,
                 };
           }
 
@@ -590,6 +602,7 @@ export const usePlanilla = () => {
             asistio: false,
             salario_dia: salarioCero,
             estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+            asistenciaManual: false,
           };
         }
 
@@ -614,6 +627,7 @@ export const usePlanilla = () => {
           asistio: true,
           salario_dia: salarioTexto,
           estado: ajustarEstadoPorAsistencia(detalle.estado, true),
+          asistenciaManual: false,
         };
       });
 
@@ -804,44 +818,53 @@ export const usePlanilla = () => {
     );
   }, []);
 
-  const toggleDetalleAsistencia = useCallback((index) => {
-    setDetalleDias((prev) =>
-      prev.map((detalle, idx) =>
-        idx === index
-          ? (() => {
-              const asistio = !detalle.asistio;
-              const baseReferencia = (() => {
-                const base = Number(detalle.salario_base);
-                if (!Number.isNaN(base)) return base;
+  const toggleDetalleAsistencia = useCallback(
+    (index) => {
+      const attendanceFechas = new Set(attendanceState.fechas || []);
+      const attendanceDisponible = attendanceState.dias !== null;
 
-                const salarioActual = Number(detalle.salario_dia);
-                if (Number.isNaN(salarioActual)) return 0;
+      setDetalleDias((prev) =>
+        prev.map((detalle, idx) =>
+          idx === index
+            ? (() => {
+                const asistio = !detalle.asistio;
+                const baseReferencia = (() => {
+                  const base = Number(detalle.salario_base);
+                  if (!Number.isNaN(base)) return base;
 
-                return detalle.es_dia_doble && salarioActual > 0
-                  ? salarioActual / 2
-                  : salarioActual;
-              })();
+                  const salarioActual = Number(detalle.salario_dia);
+                  if (Number.isNaN(salarioActual)) return 0;
 
-              const formatear = (valor) => Number(valor).toFixed(2);
-              const baseNormalizado = Number(baseReferencia.toFixed(2));
+                  return detalle.es_dia_doble && salarioActual > 0
+                    ? salarioActual / 2
+                    : salarioActual;
+                })();
 
-              return {
-                ...detalle,
-                asistio,
-                salario_base: Number.isNaN(Number(detalle.salario_base))
-                  ? baseNormalizado
-                  : detalle.salario_base,
-                salario_dia: asistio
-                  ? formatear(baseReferencia * (detalle.es_dia_doble ? 2 : 1))
-                  : formatear(0),
-                estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
-                autoJustificacion: false,
-              };
-            })()
-          : detalle
-      )
-    );
-  }, []);
+                const formatear = (valor) => Number(valor).toFixed(2);
+                const baseNormalizado = Number(baseReferencia.toFixed(2));
+                const autoAsistio = attendanceFechas.has(detalle.fecha);
+                const asistenciaManual = attendanceDisponible ? asistio !== autoAsistio : true;
+
+                return {
+                  ...detalle,
+                  asistio,
+                  salario_base: Number.isNaN(Number(detalle.salario_base))
+                    ? baseNormalizado
+                    : detalle.salario_base,
+                  salario_dia: asistio
+                    ? formatear(baseReferencia * (detalle.es_dia_doble ? 2 : 1))
+                    : formatear(0),
+                  estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
+                  autoJustificacion: false,
+                  asistenciaManual,
+                };
+              })()
+            : detalle
+        )
+      );
+    },
+    [attendanceState.dias, attendanceState.fechas]
+  );
 
   const toggleDetalleDiaDoble = useCallback((index) => {
     setDetalleDias((prev) =>
