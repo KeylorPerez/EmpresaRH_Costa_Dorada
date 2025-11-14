@@ -475,7 +475,6 @@ const Liquidaciones = ({ mode }) => {
                   variant="success"
                   onClick={() => guardarLiquidacion({ confirmar: true })}
                   disabled={submitting || draftDetalles.length === 0}
-                  className="bg-emerald-600 hover:bg-emerald-700"
                 >
                   {submitting ? "Confirmando..." : "Confirmar liquidación"}
                 </Button>

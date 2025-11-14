@@ -97,7 +97,6 @@ const Empleados = () => {
                     setSuccessMessage("");
                     setModalOpen(true);
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Agregar Empleado
                 </Button>
@@ -124,7 +123,6 @@ const Empleados = () => {
                   size="sm"
                   disabled={exportDisabled}
                   onClick={() => shareEmpleados({ status: statusFilter })}
-                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Compartir
                 </Button>
