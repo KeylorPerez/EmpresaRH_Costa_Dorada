@@ -4,6 +4,23 @@ const JustificacionAsistencia = require('./JustificacionAsistencia');
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
+const ENSURE_ASISTENCIA_SCHEMA_QUERY = `
+IF OBJECT_ID('dbo.Asistencia', 'U') IS NOT NULL
+BEGIN
+  IF COL_LENGTH('dbo.Asistencia', 'justificado') IS NULL
+  BEGIN
+    ALTER TABLE dbo.Asistencia
+      ADD justificado BIT NOT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0);
+  END;
+
+  IF COL_LENGTH('dbo.Asistencia', 'justificacion') IS NULL
+  BEGIN
+    ALTER TABLE dbo.Asistencia
+      ADD justificacion NVARCHAR(MAX) NULL;
+  END;
+END;
+`;
+
 const JUSTIFICACION_SELECT = `
           , js.id_solicitud AS justificacion_solicitud_id
           , js.tipo AS justificacion_solicitud_tipo
@@ -31,9 +48,15 @@ const JUSTIFICACION_JOIN = `
 `;
 
 class Asistencia {
+  static async ensureSchema() {
+    const pool = await poolPromise;
+    await pool.request().query(ENSURE_ASISTENCIA_SCHEMA_QUERY);
+  }
+
   // Obtener todas las marcas (con información básica del empleado)
   static async getAll() {
     try {
+      await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const result = await pool.request()
@@ -66,6 +89,7 @@ ${JUSTIFICACION_SELECT}
 
   static async countDistinctDays(id_empleado, startDate, endDate) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -91,6 +115,7 @@ ${JUSTIFICACION_SELECT}
 
   static async getDistinctAttendanceDays(id_empleado, startDate, endDate) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -116,6 +141,7 @@ ${JUSTIFICACION_SELECT}
   // Obtener marcas por empleado
   static async getByEmpleado(id_empleado) {
     try {
+      await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const result = await pool.request()
@@ -148,6 +174,7 @@ ${JUSTIFICACION_SELECT}
   // Obtener por rango de fechas (opcional por empleado)
   static async getByDateRange(startDate, endDate, id_empleado = null) {
     try {
+      await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const req = pool.request()
@@ -192,6 +219,7 @@ ${JUSTIFICACION_SELECT}
 
   static async findById(id_asistencia) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_asistencia', sql.Int, id_asistencia)
@@ -219,6 +247,7 @@ ${JUSTIFICACION_SELECT}
 
   static async findByEmpleadoFechaTipo(id_empleado, fecha, tipo_marca) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -251,6 +280,7 @@ ${JUSTIFICACION_SELECT}
     longitud = null,
   }) {
     try {
+      await this.ensureSchema();
       if (!TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
@@ -318,6 +348,7 @@ ${JUSTIFICACION_SELECT}
   // Actualizar tipo_marca u observaciones
   static async update(id_asistencia, { tipo_marca, observaciones = null, estado, justificado, justificacion }) {
     try {
+      await this.ensureSchema();
       if (tipo_marca && !TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
@@ -380,6 +411,7 @@ ${JUSTIFICACION_SELECT}
 
   static async updateJustificacion(id_asistencia, { justificado, justificacion }) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       await pool.request()
         .input('id_asistencia', sql.Int, id_asistencia)
@@ -400,6 +432,7 @@ ${JUSTIFICACION_SELECT}
   // Opcional: eliminar marca (hard delete)
   static async delete(id_asistencia) {
     try {
+      await this.ensureSchema();
       const pool = await poolPromise;
       await pool.request()
         .input('id_asistencia', sql.Int, id_asistencia)
