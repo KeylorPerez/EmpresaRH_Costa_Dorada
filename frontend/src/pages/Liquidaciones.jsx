@@ -667,12 +667,19 @@ const Liquidaciones = ({ mode }) => {
                         </td>
                         <td className="px-4 py-3">{renderEstado(registro)}</td>
                         <td className="px-4 py-3 space-y-2">
+                          {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion && (
+                            <span className="block text-xs text-blue-600 font-medium">
+                              Detalle abierto
+                            </span>
+                          )}
                           <Button
                             variant="secondary"
                             size="sm"
                             onClick={() => openLiquidacion(registro.id_liquidacion)}
                           >
-                            Ver detalle
+                            {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion
+                              ? "Ocultar detalle"
+                              : "Ver detalle"}
                           </Button>
                           {renderAcciones(registro)}
                         </td>
