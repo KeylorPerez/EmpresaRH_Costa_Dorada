@@ -162,10 +162,10 @@ const DashboardAdmin = () => {
 
                       <div className="grid gap-4 text-sm sm:grid-cols-2">
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-                          <p className="text-xs uppercase tracking-wide text-white/60">
+                          <span className="inline-flex w-fit items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/70">
                             Rol
-                          </p>
-                          <p className="mt-1 text-lg font-semibold">
+                          </span>
+                          <p className="mt-3 text-xl font-semibold leading-tight text-white break-words">
                             {user.rol || "Administrador"}
                           </p>
                         </div>
