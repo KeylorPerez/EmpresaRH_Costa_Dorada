@@ -26,10 +26,7 @@ const Acerca = () => {
           por utilizar EmpresaRH!
         </p>
         <div className="text-center">
-          <Link
-            to="/login"
-            className="inline-block px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md transition"
-          >
+          <Link to="/login" className="btn btn-primary btn-md inline-flex">
             Volver al inicio de sesión
           </Link>
         </div>

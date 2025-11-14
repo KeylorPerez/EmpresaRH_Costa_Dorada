@@ -34,10 +34,55 @@ html, body {
   @apply bg-white p-6 rounded-2xl shadow-md;
 }
 
-.btn-primary {
-  @apply bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition;
-}
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent font-semibold transition
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none
+      disabled:opacity-60;
+  }
 
-.btn-secondary {
-  @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition;
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-200 text-slate-700 hover:bg-slate-300 focus-visible:ring-slate-300;
+  }
+
+  .btn-success {
+    @apply bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500;
+  }
+
+  .btn-danger {
+    @apply bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-500;
+  }
+
+  .btn-warning {
+    @apply bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-500;
+  }
+
+  .btn-outline {
+    @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-blue-500;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:ring-slate-300 focus-visible:ring-offset-0;
+  }
+
+  .btn-link {
+    @apply bg-transparent text-blue-600 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:ring-0
+      focus-visible:ring-offset-0;
+  }
+
+  .btn-sm {
+    @apply h-9 px-3 text-sm;
+  }
+
+  .btn-md {
+    @apply h-10 px-4 text-sm;
+  }
+
+  .btn-lg {
+    @apply h-11 px-5 text-base;
+  }
 }
