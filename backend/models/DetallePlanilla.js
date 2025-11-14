@@ -3,32 +3,56 @@ const { poolPromise, sql } = require('../db/db');
 const schemaState = {
   checked: false,
   hasJustificacionColumn: false,
+  hasJustificadoColumn: false,
 };
+
+const ENSURE_DETALLE_PLANILLA_SCHEMA_QUERY = `
+IF OBJECT_ID('dbo.DetallePlanilla', 'U') IS NOT NULL
+BEGIN
+  IF COL_LENGTH('dbo.DetallePlanilla', 'justificado') IS NULL
+  BEGIN
+    ALTER TABLE dbo.DetallePlanilla
+      ADD justificado BIT NOT NULL CONSTRAINT DF_DetallePlanilla_Justificado DEFAULT (0);
+  END;
+
+  IF COL_LENGTH('dbo.DetallePlanilla', 'justificacion') IS NULL
+  BEGIN
+    ALTER TABLE dbo.DetallePlanilla
+      ADD justificacion NVARCHAR(MAX) NULL;
+  END;
+END;
+`;
 
 async function resolveSchemaState(requestFactory) {
   if (schemaState.checked) {
     return schemaState;
   }
 
-  let request = null;
-  if (typeof requestFactory === 'function') {
-    request = requestFactory();
-  }
+  const getRequest = async () => {
+    if (typeof requestFactory === 'function') {
+      return requestFactory();
+    }
 
-  if (!request) {
     const pool = await poolPromise;
-    request = pool.request();
-  }
+    return pool.request();
+  };
 
-  const result = await request.query(`
-    SELECT 1 AS existe
+  const ensureRequest = await getRequest();
+  await ensureRequest.query(ENSURE_DETALLE_PLANILLA_SCHEMA_QUERY);
+
+  const checkRequest = await getRequest();
+  const result = await checkRequest.query(`
+    SELECT COLUMN_NAME
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'DetallePlanilla'
-      AND COLUMN_NAME = 'justificacion'
+      AND COLUMN_NAME IN ('justificado', 'justificacion')
   `);
 
+  const columnas = new Set(result.recordset.map((row) => row.COLUMN_NAME));
+
   schemaState.checked = true;
-  schemaState.hasJustificacionColumn = result.recordset.length > 0;
+  schemaState.hasJustificacionColumn = columnas.has('justificacion');
+  schemaState.hasJustificadoColumn = columnas.has('justificado');
 
   return schemaState;
 }
@@ -39,7 +63,9 @@ class DetallePlanilla {
       return;
     }
 
-    const { hasJustificacionColumn } = await resolveSchemaState(() => new sql.Request(transaction));
+    const { hasJustificacionColumn, hasJustificadoColumn } = await resolveSchemaState(
+      () => new sql.Request(transaction),
+    );
 
     for (const detalle of detalles) {
       const request = new sql.Request(transaction);
@@ -88,8 +114,11 @@ class DetallePlanilla {
         .input('asistio', sql.Bit, detalle.asistio ? 1 : 0)
         .input('es_dia_doble', sql.Bit, detalle.es_dia_doble ? 1 : 0)
         .input('estado', sql.NVarChar(20), estado)
-        .input('justificado', sql.Bit, justificado)
         .input('observacion', sql.NVarChar(150), observacionFinal);
+
+      if (hasJustificadoColumn) {
+        request.input('justificado', sql.Bit, justificado);
+      }
 
       if (hasJustificacionColumn) {
         request.input('justificacion', sql.NVarChar(sql.MAX), justificacion);
@@ -103,7 +132,6 @@ class DetallePlanilla {
         'asistio',
         'es_dia_doble',
         'estado',
-        'justificado',
         'observacion',
       ];
 
@@ -115,9 +143,13 @@ class DetallePlanilla {
         '@asistio',
         '@es_dia_doble',
         '@estado',
-        '@justificado',
         '@observacion',
       ];
+
+      if (hasJustificadoColumn) {
+        columnas.splice(columnas.length - 1, 0, 'justificado');
+        valores.splice(valores.length - 1, 0, '@justificado');
+      }
 
       if (hasJustificacionColumn) {
         columnas.splice(columnas.length - 1, 0, 'justificacion');
@@ -137,11 +169,13 @@ class DetallePlanilla {
 
   static async getByPlanilla(id_planilla) {
     const pool = await poolPromise;
-    const { hasJustificacionColumn } = await resolveSchemaState();
+    const { hasJustificacionColumn, hasJustificadoColumn } = await resolveSchemaState();
 
     const justificacionSelect = hasJustificacionColumn
       ? 'justificacion'
       : 'NULL AS justificacion';
+
+    const justificadoSelect = hasJustificadoColumn ? 'justificado' : 'NULL AS justificado';
 
     const result = await pool
       .request()
@@ -156,7 +190,7 @@ class DetallePlanilla {
           asistio,
           es_dia_doble,
           estado,
-          justificado,
+          ${justificadoSelect},
           ${justificacionSelect},
           observacion
         FROM DetallePlanilla
