@@ -4,6 +4,24 @@ const JustificacionAsistencia = require('./JustificacionAsistencia');
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
+const schemaState = {
+  checked: false,
+  hasJustificadoColumn: false,
+  hasJustificacionColumn: false,
+};
+
+const SELECT_FALLBACKS = {
+  justificado: 'CAST(0 AS BIT) AS justificado',
+  justificacion: 'CAST(NULL AS NVARCHAR(MAX)) AS justificacion',
+};
+
+const buildSelectFragments = ({ hasJustificadoColumn, hasJustificacionColumn }) => ({
+  justificado: hasJustificadoColumn ? 'a.justificado AS justificado' : SELECT_FALLBACKS.justificado,
+  justificacion: hasJustificacionColumn
+    ? 'a.justificacion AS justificacion'
+    : SELECT_FALLBACKS.justificacion,
+});
+
 const ENSURE_ASISTENCIA_SCHEMA_QUERY = `
 IF OBJECT_ID('dbo.Asistencia', 'U') IS NOT NULL
 BEGIN
@@ -48,9 +66,29 @@ const JUSTIFICACION_JOIN = `
 `;
 
 class Asistencia {
-  static async ensureSchema() {
+  static async ensureSchema({ force = false } = {}) {
+    if (schemaState.checked && !force) {
+      return schemaState;
+    }
+
     const pool = await poolPromise;
     await pool.request().query(ENSURE_ASISTENCIA_SCHEMA_QUERY);
+
+    const result = await pool
+      .request()
+      .query(`
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'Asistencia'
+          AND COLUMN_NAME IN ('justificado', 'justificacion')
+      `);
+
+    const columns = new Set(result.recordset.map((row) => row.COLUMN_NAME));
+    schemaState.hasJustificadoColumn = columns.has('justificado');
+    schemaState.hasJustificacionColumn = columns.has('justificacion');
+    schemaState.checked = schemaState.hasJustificadoColumn && schemaState.hasJustificacionColumn;
+
+    return schemaState;
   }
 
   // Obtener todas las marcas (con información básica del empleado)
@@ -59,6 +97,7 @@ class Asistencia {
       await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
+      const { justificado, justificacion } = buildSelectFragments(state);
       const result = await pool.request()
         .query(`
           SELECT
@@ -68,8 +107,8 @@ class Asistencia {
             a.id_empleado,
             a.tipo_marca,
             a.estado,
-            a.justificado,
-            a.justificacion,
+            ${justificado},
+            ${justificacion},
             a.observaciones,
             a.latitud,
             a.longitud,
@@ -141,9 +180,10 @@ ${JUSTIFICACION_SELECT}
   // Obtener marcas por empleado
   static async getByEmpleado(id_empleado) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
+      const { justificado, justificacion } = buildSelectFragments(state);
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
@@ -154,8 +194,8 @@ ${JUSTIFICACION_SELECT}
             id_empleado,
             tipo_marca,
             estado,
-            justificado,
-            justificacion,
+            ${justificado},
+            ${justificacion},
             observaciones,
             latitud,
             longitud
@@ -174,12 +214,14 @@ ${JUSTIFICACION_SELECT}
   // Obtener por rango de fechas (opcional por empleado)
   static async getByDateRange(startDate, endDate, id_empleado = null) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       await JustificacionAsistencia.ensureTable();
       const pool = await poolPromise;
       const req = pool.request()
         .input('start', sql.VarChar(10), startDate)
         .input('end', sql.VarChar(10), endDate);
+
+      const { justificado, justificacion } = buildSelectFragments(state);
 
       let query = `
         SELECT
@@ -189,8 +231,8 @@ ${JUSTIFICACION_SELECT}
           a.id_empleado,
           a.tipo_marca,
           a.estado,
-          a.justificado,
-          a.justificacion,
+          ${justificado},
+          ${justificacion},
           a.observaciones,
           a.latitud,
           a.longitud,
@@ -219,8 +261,9 @@ ${JUSTIFICACION_SELECT}
 
   static async findById(id_asistencia) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       const pool = await poolPromise;
+      const { justificado, justificacion } = buildSelectFragments(state);
       const result = await pool.request()
         .input('id_asistencia', sql.Int, id_asistencia)
         .query(`
@@ -231,8 +274,8 @@ ${JUSTIFICACION_SELECT}
             id_empleado,
             tipo_marca,
             estado,
-            justificado,
-            justificacion,
+            ${justificado},
+            ${justificacion},
             observaciones,
             latitud,
             longitud
@@ -280,7 +323,7 @@ ${JUSTIFICACION_SELECT}
     longitud = null,
   }) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       if (!TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
@@ -312,33 +355,58 @@ ${JUSTIFICACION_SELECT}
       }
 
       const pool = await poolPromise;
-      const result = await pool.request()
+      const request = pool
+        .request()
         .input('id_empleado', sql.Int, id_empleado)
         .input('fecha', sql.VarChar(10), fecha)
         .input('hora', sql.Time, horaSql)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('estado', sql.NVarChar(20), estadoNormalizado)
-        .input('justificado', sql.Bit, justificadoValor ? 1 : 0)
-        .input('justificacion', sql.NVarChar(sql.MAX), justificacionValor)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
         .input('latitud', sql.Decimal(9, 6), latitud)
-        .input('longitud', sql.Decimal(9, 6), longitud)
-        .query(`
-          INSERT INTO Asistencia (id_empleado, fecha, hora, tipo_marca, estado, justificado, justificacion, observaciones, latitud, longitud)
-          VALUES (
-            @id_empleado,
-            COALESCE(CONVERT(date, @fecha, 23), CAST(GETDATE() AS date)),
-            @hora,
-            @tipo_marca,
-            @estado,
-            @justificado,
-            @justificacion,
-            @observaciones,
-            @latitud,
-            @longitud
-          );
-          SELECT SCOPE_IDENTITY() AS id_asistencia;
-        `);
+        .input('longitud', sql.Decimal(9, 6), longitud);
+
+      const columns = [
+        'id_empleado',
+        'fecha',
+        'hora',
+        'tipo_marca',
+        'estado',
+      ];
+      const values = [
+        '@id_empleado',
+        "COALESCE(CONVERT(date, @fecha, 23), CAST(GETDATE() AS date))",
+        '@hora',
+        '@tipo_marca',
+        '@estado',
+      ];
+
+      if (state.hasJustificadoColumn) {
+        request.input('justificado', sql.Bit, justificadoValor ? 1 : 0);
+        columns.push('justificado');
+        values.push('@justificado');
+      }
+
+      if (state.hasJustificacionColumn) {
+        request.input('justificacion', sql.NVarChar(sql.MAX), justificacionValor);
+        columns.push('justificacion');
+        values.push('@justificacion');
+      }
+
+      columns.push('observaciones', 'latitud', 'longitud');
+      values.push('@observaciones', '@latitud', '@longitud');
+
+      const insertQuery = `
+        INSERT INTO Asistencia (
+          ${columns.join(',\n          ')}
+        )
+        VALUES (
+          ${values.join(',\n          ')}
+        );
+        SELECT SCOPE_IDENTITY() AS id_asistencia;
+      `;
+
+      const result = await request.query(insertQuery);
       return result.recordset[0];
     } catch (err) {
       throw err;
@@ -348,7 +416,7 @@ ${JUSTIFICACION_SELECT}
   // Actualizar tipo_marca u observaciones
   static async update(id_asistencia, { tipo_marca, observaciones = null, estado, justificado, justificacion }) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       if (tipo_marca && !TIPOS_MARCA.includes(tipo_marca)) {
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
@@ -386,23 +454,38 @@ ${JUSTIFICACION_SELECT}
       }
 
       const pool = await poolPromise;
-      await pool.request()
+      const request = pool
+        .request()
         .input('id_asistencia', sql.Int, id_asistencia)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
-        .input('estado', sql.NVarChar(20), estadoNormalizado)
-        .input('justificado', sql.Bit, justificadoValor !== null ? (justificadoValor ? 1 : 0) : null)
-        .input('justificacion', sql.NVarChar(sql.MAX), justificacionValor)
-        .input('actualizarJustificacion', sql.Bit, actualizarJustificacion)
-        .query(`
-          UPDATE Asistencia
-          SET tipo_marca = @tipo_marca,
-              observaciones = @observaciones,
-              estado = COALESCE(@estado, estado),
-              justificado = COALESCE(@justificado, justificado),
-              justificacion = CASE WHEN @actualizarJustificacion = 1 THEN @justificacion ELSE justificacion END
-          WHERE id_asistencia = @id_asistencia
-        `);
+        .input('estado', sql.NVarChar(20), estadoNormalizado);
+
+      const setClauses = [
+        'tipo_marca = @tipo_marca',
+        'observaciones = @observaciones',
+        'estado = COALESCE(@estado, estado)',
+      ];
+
+      if (state.hasJustificadoColumn) {
+        request.input('justificado', sql.Bit, justificadoValor !== null ? (justificadoValor ? 1 : 0) : null);
+        setClauses.push('justificado = COALESCE(@justificado, justificado)');
+      }
+
+      if (state.hasJustificacionColumn) {
+        request
+          .input('justificacion', sql.NVarChar(sql.MAX), justificacionValor)
+          .input('actualizarJustificacion', sql.Bit, actualizarJustificacion);
+        setClauses.push(
+          'justificacion = CASE WHEN @actualizarJustificacion = 1 THEN @justificacion ELSE justificacion END',
+        );
+      }
+
+      await request.query(`
+        UPDATE Asistencia
+        SET ${setClauses.join(',\n            ')}
+        WHERE id_asistencia = @id_asistencia
+      `);
       return { message: 'Asistencia actualizada' };
     } catch (err) {
       throw err;
@@ -411,18 +494,35 @@ ${JUSTIFICACION_SELECT}
 
   static async updateJustificacion(id_asistencia, { justificado, justificacion }) {
     try {
-      await this.ensureSchema();
+      const state = await this.ensureSchema();
       const pool = await poolPromise;
-      await pool.request()
-        .input('id_asistencia', sql.Int, id_asistencia)
-        .input('justificado', sql.Bit, justificado ? 1 : 0)
-        .input('justificacion', sql.NVarChar(sql.MAX), justificacion !== undefined ? justificacion || null : null)
-        .query(`
-          UPDATE Asistencia
-          SET justificado = @justificado,
-              justificacion = @justificacion
-          WHERE id_asistencia = @id_asistencia
-        `);
+      const request = pool.request().input('id_asistencia', sql.Int, id_asistencia);
+
+      const setClauses = [];
+
+      if (state.hasJustificadoColumn) {
+        request.input('justificado', sql.Bit, justificado ? 1 : 0);
+        setClauses.push('justificado = @justificado');
+      }
+
+      if (state.hasJustificacionColumn) {
+        request.input(
+          'justificacion',
+          sql.NVarChar(sql.MAX),
+          justificacion !== undefined ? justificacion || null : null,
+        );
+        setClauses.push('justificacion = @justificacion');
+      }
+
+      if (setClauses.length === 0) {
+        return { message: 'Justificación no disponible en este esquema' };
+      }
+
+      await request.query(`
+        UPDATE Asistencia
+        SET ${setClauses.join(',\n            ')}
+        WHERE id_asistencia = @id_asistencia
+      `);
       return { message: 'Justificación actualizada' };
     } catch (err) {
       throw err;
