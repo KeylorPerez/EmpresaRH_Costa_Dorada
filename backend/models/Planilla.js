@@ -184,6 +184,8 @@ class Planilla {
 
       const DIAS_POR_QUINCENA = 15;
 
+      const detallesSanitizados = sanitizeDetallePlanilla(detalles);
+
       let diasTrabajadosCalculados = null;
       if (dias_trabajados === null || dias_trabajados === undefined) {
         diasTrabajadosCalculados = null;
@@ -221,7 +223,13 @@ class Planilla {
       let salarioBasePeriodo = salario_base;
       let deduccionDiasMonto = 0;
 
-      if (tipo_pago === 'Diario') {
+      if (detallesSanitizados.length > 0) {
+        salarioBasePeriodo = detallesSanitizados.reduce((sum, detalle) => {
+          const salario = Number(detalle.salario_dia) || 0;
+          return sum + salario;
+        }, 0);
+        salarioBasePeriodo = Number(Number(salarioBasePeriodo).toFixed(2));
+      } else if (tipo_pago === 'Diario') {
         let diasParaPago = diasTrabajadosCalculados;
 
         if (diasParaPago === null) {
@@ -329,8 +337,6 @@ class Planilla {
         if (!Number.isInteger(planillaId)) {
           throw new Error('No se pudo obtener el identificador de la planilla creada');
         }
-
-        const detallesSanitizados = sanitizeDetallePlanilla(detalles);
 
         if (detallesSanitizados.length > 0) {
           await DetallePlanilla.createMany(transaction, planillaId, detallesSanitizados);
