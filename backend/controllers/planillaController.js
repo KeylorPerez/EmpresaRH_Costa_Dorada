@@ -280,15 +280,26 @@ const buildPdfLines = (planilla, detalles) => {
   detalles.forEach((detalle) => {
     const fecha = formatDateDisplay(detalle.fecha).padEnd(columnWidths.fecha, ' ');
     const dia = capitalize(detalle.dia_semana || '').padEnd(columnWidths.dia, ' ');
-    const asistencia = (detalle.asistio ? 'Asistió' : 'Faltó').padEnd(
+    const asistenciaBase = (() => {
+      const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
+      if (texto) return texto;
+      return detalle.asistio ? 'Asistió' : 'Faltó';
+    })();
+    const asistencia = sanitizePdfText(asistenciaBase).padEnd(
       columnWidths.asistencia,
       ' ',
     );
-    const tipo = (detalle.es_dia_doble ? 'Día doble' : 'Normal').padEnd(
+    const tipoBase = (() => {
+      const texto = detalle.tipo ? String(detalle.tipo).trim() : '';
+      if (texto) return texto;
+      return detalle.es_dia_doble ? 'Día doble' : 'Normal';
+    })();
+    const tipo = sanitizePdfText(tipoBase).padEnd(
       columnWidths.tipo,
       ' ',
     );
-    const estado = sanitizePdfText(detalle.estado || 'Presente').padEnd(
+    const estadoBase = detalle.estado ? String(detalle.estado).trim() : '';
+    const estado = sanitizePdfText(estadoBase || 'Presente').padEnd(
       columnWidths.estado,
       ' ',
     );
@@ -475,9 +486,15 @@ const createCsvFile = async (filePath, planilla, detalles) => {
       const fila = [
         formatDateValue(detalle.fecha),
         capitalize(detalle.dia_semana || ''),
-        detalle.asistio ? 'Asistió' : 'Faltó',
-        detalle.es_dia_doble ? 'Día doble' : 'Normal',
-        escapeCsv(detalle.estado || 'Presente'),
+        (() => {
+          const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
+          return texto || (detalle.asistio ? 'Asistió' : 'Faltó');
+        })(),
+        (() => {
+          const texto = detalle.tipo ? String(detalle.tipo).trim() : '';
+          return texto || (detalle.es_dia_doble ? 'Día doble' : 'Normal');
+        })(),
+        escapeCsv((detalle.estado ? String(detalle.estado).trim() : '') || 'Presente'),
         detalle.justificado ? 'Sí' : 'No',
         Number(detalle.salario_dia || 0).toFixed(2),
         escapeCsv(detalle.justificacion || ''),

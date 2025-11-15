@@ -529,24 +529,54 @@ const PlanillaDetalle = () => {
                             <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(item.fecha)}</td>
                             <td className="px-4 py-3 capitalize text-gray-600">{item.dia_semana}</td>
                             <td className="px-4 py-3 text-center">
-                              <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                  item.asistio ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                                }`}
-                              >
-                                {item.asistio ? "Asistió" : "Faltó"}
-                              </span>
+                              {(() => {
+                                const asistenciaTexto =
+                                  (typeof item.asistencia === "string" && item.asistencia.trim().length > 0
+                                    ? item.asistencia.trim()
+                                    : null) || (item.asistio ? "Asistió" : "Faltó");
+
+                                return (
+                                  <span
+                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                      item.asistio
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-red-100 text-red-600"
+                                    }`}
+                                  >
+                                    {asistenciaTexto}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                  item.es_dia_doble ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                {item.es_dia_doble ? "Día doble" : "Normal"}
-                              </span>
+                              {(() => {
+                                const tipoTexto =
+                                  (typeof item.tipo === "string" && item.tipo.trim().length > 0
+                                    ? item.tipo.trim()
+                                    : null) || (item.es_dia_doble ? "Día doble" : "Normal");
+
+                                return (
+                                  <span
+                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                      item.es_dia_doble
+                                        ? "bg-purple-100 text-purple-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {tipoTexto}
+                                  </span>
+                                );
+                              })()}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{item.estado || "-"}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {(() => {
+                                if (typeof item.estado === "string") {
+                                  const texto = item.estado.trim();
+                                  if (texto.length > 0) return texto;
+                                }
+                                return "-";
+                              })()}
+                            </td>
                             <td className="px-4 py-3 text-center">
                               <span
                                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${

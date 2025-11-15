@@ -2,6 +2,9 @@ const { poolPromise, sql } = require('../db/db');
 
 const schemaState = {
   checked: false,
+  hasEstadoColumn: false,
+  hasAsistenciaColumn: false,
+  hasTipoColumn: false,
   hasJustificacionColumn: false,
   hasJustificadoColumn: false,
 };
@@ -9,6 +12,24 @@ const schemaState = {
 const ENSURE_DETALLE_PLANILLA_SCHEMA_QUERY = `
 IF OBJECT_ID('dbo.DetallePlanilla', 'U') IS NOT NULL
 BEGIN
+  IF COL_LENGTH('dbo.DetallePlanilla', 'estado') IS NULL
+  BEGIN
+    ALTER TABLE dbo.DetallePlanilla
+      ADD estado NVARCHAR(50) NULL;
+  END;
+
+  IF COL_LENGTH('dbo.DetallePlanilla', 'asistencia') IS NULL
+  BEGIN
+    ALTER TABLE dbo.DetallePlanilla
+      ADD asistencia NVARCHAR(50) NULL;
+  END;
+
+  IF COL_LENGTH('dbo.DetallePlanilla', 'tipo') IS NULL
+  BEGIN
+    ALTER TABLE dbo.DetallePlanilla
+      ADD tipo NVARCHAR(50) NULL;
+  END;
+
   IF COL_LENGTH('dbo.DetallePlanilla', 'justificado') IS NULL
   BEGIN
     ALTER TABLE dbo.DetallePlanilla
@@ -45,12 +66,15 @@ async function resolveSchemaState(requestFactory) {
     SELECT COLUMN_NAME
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_NAME = 'DetallePlanilla'
-      AND COLUMN_NAME IN ('justificado', 'justificacion')
+      AND COLUMN_NAME IN ('estado', 'asistencia', 'tipo', 'justificado', 'justificacion')
   `);
 
   const columnas = new Set(result.recordset.map((row) => row.COLUMN_NAME));
 
   schemaState.checked = true;
+  schemaState.hasEstadoColumn = columnas.has('estado');
+  schemaState.hasAsistenciaColumn = columnas.has('asistencia');
+  schemaState.hasTipoColumn = columnas.has('tipo');
   schemaState.hasJustificacionColumn = columnas.has('justificacion');
   schemaState.hasJustificadoColumn = columnas.has('justificado');
 
@@ -63,16 +87,50 @@ class DetallePlanilla {
       return;
     }
 
-    const { hasJustificacionColumn, hasJustificadoColumn } = await resolveSchemaState(
+    const {
+      hasEstadoColumn,
+      hasAsistenciaColumn,
+      hasTipoColumn,
+      hasJustificacionColumn,
+      hasJustificadoColumn,
+    } = await resolveSchemaState(
       () => new sql.Request(transaction),
     );
 
     for (const detalle of detalles) {
       const request = new sql.Request(transaction);
-      const estado =
-        typeof detalle.estado === 'string' && detalle.estado.trim().length > 0
-          ? detalle.estado.trim()
-          : 'Presente';
+      const asistenciaTexto = (() => {
+        if (typeof detalle.asistencia === 'string') {
+          const texto = detalle.asistencia.trim();
+          if (texto.length > 0) {
+            return texto.length > 50 ? texto.slice(0, 50) : texto;
+          }
+        }
+        const base = detalle.asistio ? 'Asistió' : 'Faltó';
+        return base;
+      })();
+
+      const tipoTexto = (() => {
+        if (typeof detalle.tipo === 'string') {
+          const texto = detalle.tipo.trim();
+          if (texto.length > 0) {
+            return texto.length > 50 ? texto.slice(0, 50) : texto;
+          }
+        }
+        const base = detalle.es_dia_doble ? 'Día doble' : 'Normal';
+        return base;
+      })();
+
+      const estadoTexto = (() => {
+        if (typeof detalle.estado === 'string') {
+          const texto = detalle.estado.trim();
+          if (texto.length > 0) {
+            return texto.length > 50 ? texto.slice(0, 50) : texto;
+          }
+        }
+        return detalle.asistio ? 'Presente' : 'Ausente';
+      })();
+
       const justificado = detalle.justificado ? 1 : 0;
       const justificacion = (() => {
         if (!justificado) return null;
@@ -113,8 +171,19 @@ class DetallePlanilla {
         .input('salario_dia', sql.Decimal(12, 2), detalle.salario_dia)
         .input('asistio', sql.Bit, detalle.asistio ? 1 : 0)
         .input('es_dia_doble', sql.Bit, detalle.es_dia_doble ? 1 : 0)
-        .input('estado', sql.NVarChar(20), estado)
         .input('observacion', sql.NVarChar(150), observacionFinal);
+
+      if (hasEstadoColumn) {
+        request.input('estado', sql.NVarChar(50), estadoTexto);
+      }
+
+      if (hasAsistenciaColumn) {
+        request.input('asistencia', sql.NVarChar(50), asistenciaTexto);
+      }
+
+      if (hasTipoColumn) {
+        request.input('tipo', sql.NVarChar(50), tipoTexto);
+      }
 
       if (hasJustificadoColumn) {
         request.input('justificado', sql.Bit, justificado);
@@ -131,8 +200,6 @@ class DetallePlanilla {
         'salario_dia',
         'asistio',
         'es_dia_doble',
-        'estado',
-        'observacion',
       ];
 
       const valores = [
@@ -142,19 +209,35 @@ class DetallePlanilla {
         '@salario_dia',
         '@asistio',
         '@es_dia_doble',
-        '@estado',
-        '@observacion',
       ];
 
+      if (hasEstadoColumn) {
+        columnas.push('estado');
+        valores.push('@estado');
+      }
+
+      if (hasAsistenciaColumn) {
+        columnas.push('asistencia');
+        valores.push('@asistencia');
+      }
+
+      if (hasTipoColumn) {
+        columnas.push('tipo');
+        valores.push('@tipo');
+      }
+
       if (hasJustificadoColumn) {
-        columnas.splice(columnas.length - 1, 0, 'justificado');
-        valores.splice(valores.length - 1, 0, '@justificado');
+        columnas.push('justificado');
+        valores.push('@justificado');
       }
 
       if (hasJustificacionColumn) {
-        columnas.splice(columnas.length - 1, 0, 'justificacion');
-        valores.splice(valores.length - 1, 0, '@justificacion');
+        columnas.push('justificacion');
+        valores.push('@justificacion');
       }
+
+      columnas.push('observacion');
+      valores.push('@observacion');
 
       await request.query(`
         INSERT INTO DetallePlanilla (
@@ -169,13 +252,31 @@ class DetallePlanilla {
 
   static async getByPlanilla(id_planilla) {
     const pool = await poolPromise;
-    const { hasJustificacionColumn, hasJustificadoColumn } = await resolveSchemaState();
+    const {
+      hasEstadoColumn,
+      hasAsistenciaColumn,
+      hasTipoColumn,
+      hasJustificacionColumn,
+      hasJustificadoColumn,
+    } = await resolveSchemaState();
 
     const justificacionSelect = hasJustificacionColumn
       ? 'justificacion'
       : 'NULL AS justificacion';
 
     const justificadoSelect = hasJustificadoColumn ? 'justificado' : 'NULL AS justificado';
+
+    const estadoSelect = hasEstadoColumn
+      ? 'estado'
+      : "CASE WHEN asistio = 1 THEN 'Presente' ELSE 'Ausente' END AS estado";
+
+    const asistenciaSelect = hasAsistenciaColumn
+      ? 'asistencia'
+      : "CASE WHEN asistio = 1 THEN 'Asistió' ELSE 'Faltó' END AS asistencia";
+
+    const tipoSelect = hasTipoColumn
+      ? 'tipo'
+      : "CASE WHEN es_dia_doble = 1 THEN 'Día doble' ELSE 'Normal' END AS tipo";
 
     const result = await pool
       .request()
@@ -189,7 +290,9 @@ class DetallePlanilla {
           salario_dia,
           asistio,
           es_dia_doble,
-          estado,
+          ${asistenciaSelect},
+          ${tipoSelect},
+          ${estadoSelect},
           ${justificadoSelect},
           ${justificacionSelect},
           observacion
