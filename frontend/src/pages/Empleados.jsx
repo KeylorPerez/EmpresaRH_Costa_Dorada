@@ -138,143 +138,153 @@ const Empleados = () => {
           {loading ? (
             <p>Cargando empleados...</p>
           ) : (
-            <div className="overflow-auto max-h-[70vh] shadow-sm border border-gray-200 rounded-lg">
-              <table className="min-w-max w-full bg-white text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
-                    <th className="px-4 py-3">Empleado</th>
-                    <th className="px-4 py-3">Documento</th>
-                    <th className="px-4 py-3">Puesto</th>
-                    <th className="px-4 py-3">Contacto</th>
-                    <th className="px-4 py-3">Fechas</th>
-                    <th className="px-4 py-3">Tipo de Pago</th>
-                    <th className="px-4 py-3">Salario Base</th>
-                    <th className="px-4 py-3">Bonificación Fija</th>
-                    <th className="px-4 py-3">% CCSS</th>
-                    <th className="px-4 py-3">Deducción CCSS</th>
-                    <th className="px-4 py-3">Marcación externa</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEmpleados.length === 0 ? (
-                    <tr>
-                      <td colSpan="13" className="px-4 py-6 text-center text-gray-500">
-                        No hay empleados registrados con el filtro seleccionado.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredEmpleados.map((emp) => {
-                      const active = isActive(emp.estado);
-                      return (
-                        <tr
-                          key={emp.id_empleado}
-                          className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-4 py-3">
-                            <p className="font-semibold text-gray-900">
-                              {emp.nombre} {emp.apellido}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              ID: {emp.id_empleado}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-gray-800">{emp.cedula}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-800 font-medium">{emp.puesto_nombre}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-800">{emp.telefono || "—"}</p>
-                            <p className="text-xs text-gray-500">
-                              {emp.email || "Sin correo"}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-800">
-                              Ingreso: {formatDate(emp.fecha_ingreso)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Nacimiento: {formatDate(emp.fecha_nacimiento)}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                              {emp.tipo_pago || '—'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(emp.salario_monto)}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(emp.bonificacion_fija)}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatPercentage(emp)}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">
-                            {formatCurrency(calculateCCSSDeduccion(emp))}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                Number(emp.permitir_marcacion_fuera) === 1
-                                  ? "bg-indigo-100 text-indigo-700"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              {Number(emp.permitir_marcacion_fuera) === 1
-                                ? "Permitida"
-                                : "Restringida"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                active
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
-                            >
-                              {active ? "Activo" : "Inactivo"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                variant="warning"
-                                size="sm"
-                                onClick={() => handleEdit(emp)}
-                              >
-                                Editar
-                              </Button>
-                              {active ? (
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => handleDeactivate(emp.id_empleado)}
-                                >
-                                  Desactivar
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="success"
-                                  size="sm"
-                                  onClick={() => handleActivate(emp.id_empleado)}
-                                >
-                                  Activar
-                                </Button>
-                              )}
-                            </div>
-                          </td>
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">
+                Desliza horizontal y verticalmente para revisar todos los
+                registros sin alargar la página.
+              </p>
+              <div className="border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    <table className="min-w-[1100px] w-full bg-white text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          <th className="px-4 py-3">Empleado</th>
+                          <th className="px-4 py-3">Documento</th>
+                          <th className="px-4 py-3">Puesto</th>
+                          <th className="px-4 py-3">Contacto</th>
+                          <th className="px-4 py-3">Fechas</th>
+                          <th className="px-4 py-3">Tipo de Pago</th>
+                          <th className="px-4 py-3">Salario Base</th>
+                          <th className="px-4 py-3">Bonificación Fija</th>
+                          <th className="px-4 py-3">% CCSS</th>
+                          <th className="px-4 py-3">Deducción CCSS</th>
+                          <th className="px-4 py-3">Marcación externa</th>
+                          <th className="px-4 py-3">Estado</th>
+                          <th className="px-4 py-3">Acciones</th>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      </thead>
+                      <tbody>
+                        {filteredEmpleados.length === 0 ? (
+                          <tr>
+                            <td colSpan="13" className="px-4 py-6 text-center text-gray-500">
+                              No hay empleados registrados con el filtro seleccionado.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredEmpleados.map((emp) => {
+                            const active = isActive(emp.estado);
+                            return (
+                              <tr
+                                key={emp.id_empleado}
+                                className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
+                              >
+                                <td className="px-4 py-3">
+                                  <p className="font-semibold text-gray-900">
+                                    {emp.nombre} {emp.apellido}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    ID: {emp.id_empleado}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-gray-800">{emp.cedula}</p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-gray-800 font-medium">{emp.puesto_nombre}</p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-gray-800">{emp.telefono || "—"}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {emp.email || "Sin correo"}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-gray-800">
+                                    Ingreso: {formatDate(emp.fecha_ingreso)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Nacimiento: {formatDate(emp.fecha_nacimiento)}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                    {emp.tipo_pago || "—"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                  {formatCurrency(emp.salario_monto)}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                  {formatCurrency(emp.bonificacion_fija)}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                  {formatPercentage(emp)}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                  {formatCurrency(calculateCCSSDeduccion(emp))}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      Number(emp.permitir_marcacion_fuera) === 1
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {Number(emp.permitir_marcacion_fuera) === 1
+                                      ? "Permitida"
+                                      : "Restringida"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      active
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-red-100 text-red-700"
+                                    }`}
+                                  >
+                                    {active ? "Activo" : "Inactivo"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      variant="warning"
+                                      size="sm"
+                                      onClick={() => handleEdit(emp)}
+                                    >
+                                      Editar
+                                    </Button>
+                                    {active ? (
+                                      <Button
+                                        variant="danger"
+                                        size="sm"
+                                        onClick={() => handleDeactivate(emp.id_empleado)}
+                                      >
+                                        Desactivar
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="success"
+                                        size="sm"
+                                        onClick={() => handleActivate(emp.id_empleado)}
+                                      >
+                                        Activar
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
