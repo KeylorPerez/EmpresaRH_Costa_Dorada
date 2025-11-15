@@ -745,9 +745,6 @@ const Aguinaldos = ({ mode }) => {
                         <span>Automático</span>
                       </label>
                     </div>
-                    <p className="mt-3 text-xs text-gray-500">
-                      El periodo considerado es del {periodoCalculo.etiqueta}.
-                    </p>
                   </fieldset>
                 </div>
 
