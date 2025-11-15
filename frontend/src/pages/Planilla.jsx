@@ -1497,61 +1497,63 @@ const Planilla = () => {
                                     )}
                                   </div>
 
-                                  <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-3">
-                                    <h3 className="text-sm font-semibold text-gray-800">Resumen del colaborador</h3>
-                                    {selectedEmpleado ? (
-                                      <div className="space-y-2 text-sm text-gray-600">
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Nombre:</span>{" "}
-                                          {obtenerNombreCompletoEmpleado(selectedEmpleado)}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Identificación:</span>{" "}
-                                          {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Tipo de pago:</span>{" "}
-                                          {tipoPago}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Salario base referencia:</span>{" "}
-                                          {formatCurrency(salarioBaseReferencia)}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Días en periodo:</span>{" "}
-                                          {detalleDiasResumen.diasPeriodo}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Días estimados a pagar:</span>{" "}
-                                          {detalleDiasResumen.diasAsistidos}
-                                        </p>
-                                        {tipoPago === "Diario" && (
+                                  {false && (
+                                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-3">
+                                      <h3 className="text-sm font-semibold text-gray-800">Resumen del colaborador</h3>
+                                      {selectedEmpleado ? (
+                                        <div className="space-y-2 text-sm text-gray-600">
                                           <p>
-                                            <span className="font-semibold text-gray-700">Días dobles a pagar:</span>{" "}
-                                            {diasDoblesAplicados}
+                                            <span className="font-semibold text-gray-700">Nombre:</span>{" "}
+                                            {obtenerNombreCompletoEmpleado(selectedEmpleado)}
                                           </p>
-                                        )}
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
-                                          {detalleDiasResumen.diasFaltantes}
-                                        </p>
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
-                                          {formatCurrency(salarioBasePeriodo)}
-                                        </p>
-                                        {tipoPago === "Diario" && (
                                           <p>
-                                            <span className="font-semibold text-gray-700">Extra por días dobles:</span>{" "}
-                                            {formatCurrency(pagoExtraDiasDobles)}
+                                            <span className="font-semibold text-gray-700">Identificación:</span>{" "}
+                                            {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
                                           </p>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <p className="text-sm text-gray-500">
-                                        Selecciona un colaborador para ver su información de referencia.
-                                      </p>
-                                    )}
-                                  </div>
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Tipo de pago:</span>{" "}
+                                            {tipoPago}
+                                          </p>
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Salario base referencia:</span>{" "}
+                                            {formatCurrency(salarioBaseReferencia)}
+                                          </p>
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Días en periodo:</span>{" "}
+                                            {detalleDiasResumen.diasPeriodo}
+                                          </p>
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Días estimados a pagar:</span>{" "}
+                                            {detalleDiasResumen.diasAsistidos}
+                                          </p>
+                                          {tipoPago === "Diario" && (
+                                            <p>
+                                              <span className="font-semibold text-gray-700">Días dobles a pagar:</span>{" "}
+                                              {diasDoblesAplicados}
+                                            </p>
+                                          )}
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
+                                            {detalleDiasResumen.diasFaltantes}
+                                          </p>
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
+                                            {formatCurrency(salarioBasePeriodo)}
+                                          </p>
+                                          {tipoPago === "Diario" && (
+                                            <p>
+                                              <span className="font-semibold text-gray-700">Extra por días dobles:</span>{" "}
+                                              {formatCurrency(pagoExtraDiasDobles)}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-500">
+                                          Selecciona un colaborador para ver su información de referencia.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
