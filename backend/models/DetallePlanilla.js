@@ -250,6 +250,31 @@ class DetallePlanilla {
     }
   }
 
+  static async deleteByPlanilla(transactionOrId, maybeId) {
+    let request;
+    let id_planilla;
+
+    if (transactionOrId && typeof transactionOrId.input === 'function' && maybeId !== undefined) {
+      request = transactionOrId;
+      id_planilla = maybeId;
+    } else if (transactionOrId && transactionOrId instanceof sql.Transaction) {
+      request = new sql.Request(transactionOrId);
+      id_planilla = maybeId;
+    } else {
+      const pool = await poolPromise;
+      request = pool.request();
+      id_planilla = transactionOrId;
+    }
+
+    if (!Number.isInteger(Number(id_planilla))) {
+      return;
+    }
+
+    await request
+      .input('id_planilla', sql.Int, Number(id_planilla))
+      .query('DELETE FROM DetallePlanilla WHERE id_planilla = @id_planilla');
+  }
+
   static async getByPlanilla(id_planilla) {
     const pool = await poolPromise;
     const {

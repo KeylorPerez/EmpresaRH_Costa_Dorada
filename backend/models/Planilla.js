@@ -4,6 +4,73 @@ const DetallePlanilla = require('./DetallePlanilla');
 
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
+function sanitizeDetallePlanilla(detalles) {
+  if (!Array.isArray(detalles) || detalles.length === 0) {
+    return [];
+  }
+
+  return detalles
+    .map((detalle) => {
+      const estadoTexto = typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
+      const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto) ? estadoTexto : 'Presente';
+
+      const asistenciaTexto = (() => {
+        if (typeof detalle.asistencia === 'string') {
+          const texto = detalle.asistencia.trim();
+          if (texto.length > 0) {
+            return texto.length > 50 ? texto.slice(0, 50) : texto;
+          }
+        }
+        return detalle.asistio ? 'Asistió' : 'Faltó';
+      })();
+
+      const tipoTexto = (() => {
+        if (typeof detalle.tipo === 'string') {
+          const texto = detalle.tipo.trim();
+          if (texto.length > 0) {
+            return texto.length > 50 ? texto.slice(0, 50) : texto;
+          }
+        }
+        return detalle.es_dia_doble ? 'Día doble' : 'Normal';
+      })();
+
+      const justificadoValor =
+        detalle.justificado === true ||
+        detalle.justificado === 1 ||
+        detalle.justificado === '1';
+
+      const justificacionTexto = (() => {
+        if (!justificadoValor) return null;
+        if (detalle.justificacion === undefined || detalle.justificacion === null) {
+          return null;
+        }
+        const texto = String(detalle.justificacion).trim();
+        if (!texto) return null;
+        return texto.length > 500 ? texto.slice(0, 500) : texto;
+      })();
+
+      const salarioDia = Number(Number(detalle.salario_dia || 0).toFixed(2));
+
+      return {
+        fecha: detalle.fecha,
+        dia_semana: detalle.dia_semana,
+        salario_dia: salarioDia,
+        asistio: Boolean(detalle.asistio),
+        es_dia_doble: Boolean(detalle.es_dia_doble),
+        estado: estadoNormalizado.length > 50 ? estadoNormalizado.slice(0, 50) : estadoNormalizado,
+        asistencia: asistenciaTexto,
+        tipo: tipoTexto,
+        justificado: justificadoValor,
+        justificacion: justificacionTexto,
+        observacion:
+          detalle.observacion !== undefined && detalle.observacion !== null
+            ? String(detalle.observacion).slice(0, 150)
+            : null,
+      };
+    })
+    .filter((detalle) => Boolean(detalle.fecha) && Boolean(detalle.dia_semana));
+}
+
 class Planilla {
   // 🔹 Obtener todas las planillas (admin)
   static async getAll() {
@@ -263,72 +330,7 @@ class Planilla {
           throw new Error('No se pudo obtener el identificador de la planilla creada');
         }
 
-        const detallesSanitizados = Array.isArray(detalles)
-          ? detalles
-              .map((detalle) => {
-                const estadoTexto =
-                  typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
-                const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto)
-                  ? estadoTexto
-                  : 'Presente';
-
-                const asistenciaTexto = (() => {
-                  if (typeof detalle.asistencia === 'string') {
-                    const texto = detalle.asistencia.trim();
-                    if (texto.length > 0) {
-                      return texto.length > 50 ? texto.slice(0, 50) : texto;
-                    }
-                  }
-                  return detalle.asistio ? 'Asistió' : 'Faltó';
-                })();
-
-                const tipoTexto = (() => {
-                  if (typeof detalle.tipo === 'string') {
-                    const texto = detalle.tipo.trim();
-                    if (texto.length > 0) {
-                      return texto.length > 50 ? texto.slice(0, 50) : texto;
-                    }
-                  }
-                  return detalle.es_dia_doble ? 'Día doble' : 'Normal';
-                })();
-
-                const justificadoValor =
-                  detalle.justificado === true ||
-                  detalle.justificado === 1 ||
-                  detalle.justificado === '1';
-
-                const justificacionTexto = (() => {
-                  if (!justificadoValor) return null;
-                  if (detalle.justificacion === undefined || detalle.justificacion === null) {
-                    return null;
-                  }
-                  const texto = String(detalle.justificacion).trim();
-                  if (!texto) return null;
-                  return texto.length > 500 ? texto.slice(0, 500) : texto;
-                })();
-
-                return {
-                  fecha: detalle.fecha,
-                  dia_semana: detalle.dia_semana,
-                  salario_dia: Number(Number(detalle.salario_dia || 0).toFixed(2)),
-                  asistio: Boolean(detalle.asistio),
-                  es_dia_doble: Boolean(detalle.es_dia_doble),
-                  estado:
-                    estadoNormalizado.length > 50
-                      ? estadoNormalizado.slice(0, 50)
-                      : estadoNormalizado,
-                  asistencia: asistenciaTexto,
-                  tipo: tipoTexto,
-                  justificado: justificadoValor,
-                  justificacion: justificacionTexto,
-                  observacion:
-                    detalle.observacion !== undefined && detalle.observacion !== null
-                      ? String(detalle.observacion).slice(0, 150)
-                      : null,
-                };
-              })
-              .filter((detalle) => Boolean(detalle.fecha) && Boolean(detalle.dia_semana))
-          : [];
+        const detallesSanitizados = sanitizeDetallePlanilla(detalles);
 
         if (detallesSanitizados.length > 0) {
           await DetallePlanilla.createMany(transaction, planillaId, detallesSanitizados);
@@ -381,24 +383,42 @@ class Planilla {
   }
 
   // 🔹 Actualizar planilla existente
-  static async update(id_planilla, { horas_extras, bonificaciones, deducciones, fecha_pago }) {
+  static async update(
+    id_planilla,
+    {
+      horas_extras = 0,
+      bonificaciones = 0,
+      deducciones = 0,
+      fecha_pago = null,
+      dias_trabajados = null,
+      dias_descuento = 0,
+      monto_descuento_dias = null,
+      dias_dobles = 0,
+      monto_dias_dobles = null,
+      detalles = [],
+    }
+  ) {
     try {
       const pool = await poolPromise;
 
       const planillaRes = await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
-        .query('SELECT id_empleado FROM Planilla WHERE id_planilla = @id_planilla');
+        .query(
+          `SELECT id_empleado, periodo_inicio, periodo_fin
+           FROM Planilla
+           WHERE id_planilla = @id_planilla`
+        );
 
       if (!planillaRes.recordset[0]) {
         throw new Error('Planilla no encontrada');
       }
 
-      const id_empleado = planillaRes.recordset[0].id_empleado;
+      const { id_empleado, periodo_inicio, periodo_fin } = planillaRes.recordset[0];
 
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago
           FROM Empleados
           WHERE id_empleado = @id_empleado
         `);
@@ -411,39 +431,140 @@ class Planilla {
           : 9.34;
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
+      const tipo_pago = empleado.tipo_pago || 'Quincenal';
+
+      const detallesSanitizados = sanitizeDetallePlanilla(detalles);
 
       const montoHorasExtras = Math.max(Number(horas_extras) || 0, 0);
-      const bonificacionesNumber = Number(bonificaciones) || 0;
-      const deduccionesNumber = Number(deducciones) || 0;
+      const bonificacionesNumber = Math.max(Number(bonificaciones) || 0, 0);
+      const deduccionesBase = Math.max(Number(deducciones) || 0, 0);
 
-      const salario_bruto = salario_base + bonificacionesNumber + montoHorasExtras;
+      let salarioBasePeriodo = 0;
+      let deduccionDiasMonto = 0;
+
+      if (detallesSanitizados.length > 0) {
+        salarioBasePeriodo = detallesSanitizados.reduce((sum, detalle) => {
+          const salario = Number(detalle.salario_dia) || 0;
+          return sum + salario;
+        }, 0);
+        salarioBasePeriodo = Number(Number(salarioBasePeriodo).toFixed(2));
+      } else if (tipo_pago === 'Diario') {
+        const diasValor = Number(dias_trabajados);
+        let diasParaPago;
+        if (Number.isNaN(diasValor) || diasValor < 0) {
+          const diasAsistencia = await Asistencia.countDistinctDays(
+            id_empleado,
+            periodo_inicio,
+            periodo_fin,
+          );
+          diasParaPago = Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+        } else {
+          diasParaPago = diasValor;
+        }
+
+        const diasDoblesValor = Number(dias_dobles) || 0;
+        const montoDiasDoblesValor =
+          monto_dias_dobles === null || monto_dias_dobles === undefined
+            ? null
+            : Number(monto_dias_dobles);
+
+        let montoExtraDiasDobles = 0;
+
+        if (
+          montoDiasDoblesValor !== null &&
+          Number.isFinite(montoDiasDoblesValor) &&
+          montoDiasDoblesValor >= 0
+        ) {
+          montoExtraDiasDobles = montoDiasDoblesValor;
+        } else if (diasDoblesValor > 0 && salario_base > 0) {
+          montoExtraDiasDobles = salario_base * diasDoblesValor;
+        }
+
+        const pagoDiasNormales = Number((salario_base * Math.max(diasParaPago, 0)).toFixed(2));
+        const montoExtraNormalizado = Number(Number(montoExtraDiasDobles).toFixed(2));
+        salarioBasePeriodo = Number((pagoDiasNormales + montoExtraNormalizado).toFixed(2));
+      } else {
+        salarioBasePeriodo = salario_base;
+
+        const salarioDiarioEstimado = salario_base > 0 ? salario_base / 15 : 0;
+        const diasDescuentoValor = Number(dias_descuento);
+        const montoDescuentoDiasValor =
+          monto_descuento_dias === null || monto_descuento_dias === undefined
+            ? null
+            : Number(monto_descuento_dias);
+
+        if (
+          montoDescuentoDiasValor !== null &&
+          Number.isFinite(montoDescuentoDiasValor) &&
+          montoDescuentoDiasValor >= 0
+        ) {
+          deduccionDiasMonto = montoDescuentoDiasValor;
+        } else if (!Number.isNaN(diasDescuentoValor) && diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
+          deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
+        }
+
+        if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+          deduccionDiasMonto = 0;
+        }
+
+        deduccionDiasMonto = Number(
+          Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2)
+        );
+      }
+
+      if (!Number.isFinite(salarioBasePeriodo) || salarioBasePeriodo < 0) {
+        salarioBasePeriodo = 0;
+      }
+
+      const salario_bruto = Number(
+        (salarioBasePeriodo + bonificacionesNumber + montoHorasExtras).toFixed(2)
+      );
+      const ccssBase = Math.max(salario_bruto - deduccionDiasMonto, 0);
       const ccss_deduccion = usa_deduccion_fija
         ? deduccion_fija
-        : Number((salario_bruto * (porcentaje_ccss / 100)).toFixed(2));
-      const deducciones_totales = deduccionesNumber + ccss_deduccion;
-      const pago_neto = salario_bruto - deducciones_totales;
+        : Number((ccssBase * (porcentaje_ccss / 100)).toFixed(2));
+      const deducciones_totales = Number((deduccionesBase + deduccionDiasMonto).toFixed(2));
+      const total_deducciones = Number((deducciones_totales + ccss_deduccion).toFixed(2));
+      const pago_neto = Number((salario_bruto - total_deducciones).toFixed(2));
 
-      await pool.request()
-        .input('id_planilla', sql.Int, id_planilla)
-        .input('horas_extras', sql.Decimal(12,2), montoHorasExtras)
-        .input('bonificaciones', sql.Decimal(12,2), bonificacionesNumber)
-        .input('deducciones', sql.Decimal(12,2), deduccionesNumber)
-        .input('ccss_deduccion', sql.Decimal(10,2), ccss_deduccion)
-        .input('salario_bruto', sql.Decimal(12,2), salario_bruto)
-        .input('pago_neto', sql.Decimal(12,2), pago_neto)
-        .input('fecha_pago', sql.Date, fecha_pago)
-        .query(`
-          UPDATE Planilla
-          SET horas_extras = @horas_extras,
-              bonificaciones = @bonificaciones,
-              deducciones = @deducciones,
-              ccss_deduccion = @ccss_deduccion,
-              salario_bruto = @salario_bruto,
-              pago_neto = @pago_neto,
-              fecha_pago = @fecha_pago,
-              updated_at = GETDATE()
-          WHERE id_planilla = @id_planilla
-        `);
+      const transaction = new sql.Transaction(pool);
+      await transaction.begin();
+
+      try {
+        await new sql.Request(transaction)
+          .input('id_planilla', sql.Int, id_planilla)
+          .input('horas_extras', sql.Decimal(12, 2), montoHorasExtras)
+          .input('bonificaciones', sql.Decimal(12, 2), bonificacionesNumber)
+          .input('deducciones', sql.Decimal(12, 2), deducciones_totales)
+          .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
+          .input('salario_bruto', sql.Decimal(12, 2), salario_bruto)
+          .input('pago_neto', sql.Decimal(12, 2), pago_neto)
+          .input('fecha_pago', sql.Date, fecha_pago)
+          .query(`
+            UPDATE Planilla
+            SET horas_extras = @horas_extras,
+                bonificaciones = @bonificaciones,
+                deducciones = @deducciones,
+                ccss_deduccion = @ccss_deduccion,
+                salario_bruto = @salario_bruto,
+                pago_neto = @pago_neto,
+                fecha_pago = @fecha_pago,
+                updated_at = GETDATE()
+            WHERE id_planilla = @id_planilla
+          `);
+
+        await DetallePlanilla.deleteByPlanilla(transaction, id_planilla);
+
+        if (detallesSanitizados.length > 0) {
+          await DetallePlanilla.createMany(transaction, id_planilla, detallesSanitizados);
+        }
+
+        await transaction.commit();
+      } catch (err) {
+        await transaction.rollback();
+        throw err;
+      }
+
       return { message: 'Planilla actualizada correctamente' };
     } catch (err) {
       throw err;
