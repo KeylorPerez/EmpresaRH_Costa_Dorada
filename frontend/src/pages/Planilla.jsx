@@ -5,6 +5,15 @@ import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import { usePlanilla } from "../hooks/usePlanilla";
+import {
+  buildPlanillaDisplayName,
+  clonePlanillaWithCanonicalFields,
+  getPlanillaDateField,
+  getPlanillaNumericField,
+  getPlanillaTipoPagoValue,
+  resolveEmpleadoId,
+  resolvePlanillaId,
+} from "../utils/planillaUtils";
 
 const currencyFormatter = new Intl.NumberFormat("es-CR", {
   style: "currency",
@@ -180,15 +189,14 @@ const Planilla = () => {
     const fechaFin = fechaFinFiltro ? parseDateSafe(`${fechaFinFiltro}T23:59:59`) : null;
 
     return planillas.filter((planilla) => {
-      const tipoPlanilla = normalizarTipoPago(
-        planilla?.tipo_pago_empleado ?? planilla?.tipo_pago,
-      );
+      const tipoPlanilla = normalizarTipoPago(getPlanillaTipoPagoValue(planilla) || "");
 
       if (filtroTipoPago !== "todos" && tipoPlanilla !== filtroTipoPago) {
         return false;
       }
 
-      const idPlanilla = (planilla?.id_empleado ?? planilla?.empleado_id ?? "").toString();
+      const empleadoId = resolveEmpleadoId(planilla);
+      const idPlanilla = empleadoId !== null && empleadoId !== undefined ? empleadoId.toString() : "";
 
       if (filtroEmpleadoId && idPlanilla !== filtroEmpleadoId) {
         return false;
@@ -240,10 +248,10 @@ const Planilla = () => {
   const totalPlanillas = Array.isArray(planillas) ? planillas.length : 0;
 
   const resumenPlanillas = useMemo(() => {
-    const totalPago = (planillasFiltradas || []).reduce(
-      (sum, planillaActual) => sum + (Number(planillaActual?.pago_neto) || 0),
-      0,
-    );
+    const totalPago = (planillasFiltradas || []).reduce((sum, planillaActual) => {
+      const pagoNeto = getPlanillaNumericField(planillaActual, ["pago_neto", "pagoNeto"]);
+      return sum + (pagoNeto ?? 0);
+    }, 0);
 
     return {
       cantidad: planillasFiltradas?.length || 0,
@@ -252,7 +260,7 @@ const Planilla = () => {
   }, [planillasFiltradas]);
 
   const obtenerTipoPagoPlanilla = (planilla) =>
-    formatearTipoPago(planilla?.tipo_pago_empleado ?? planilla?.tipo_pago, {
+    formatearTipoPago(getPlanillaTipoPagoValue(planilla), {
       etiquetaPorDefecto: "No especificado",
     });
 
@@ -1090,68 +1098,104 @@ const Planilla = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {planillasFiltradas.map((planilla) => (
-                      <tr key={planilla.id_planilla} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
-                          {planilla.nombre
-                            ? `${planilla.nombre} ${planilla.apellido}`
-                            : planilla.id_empleado}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
-                          {formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin)}
-                        </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
-                          {obtenerTipoPagoPlanilla(planilla)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.salario_monto)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.horas_extras)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.bonificaciones)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.ccss_deduccion)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.deducciones)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(
-                            Number(planilla.deducciones || 0) + Number(planilla.ccss_deduccion || 0)
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {formatCurrency(planilla.salario_bruto)}
-                        </td>
-                        <td className="px-4 py-2 text-right text-sm font-semibold text-gray-800">
-                          {formatCurrency(planilla.pago_neto)}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-600">
-                          {planilla.fecha_pago ? formatDate(planilla.fecha_pago) : "Pendiente"}
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          <div className="flex justify-center gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() =>
-                                navigate(`/admin/planilla/${planilla.id_planilla}`, {
-                                  state: { planilla },
-                                })
-                              }
-                            >
-                              Ver detalle
-                            </Button>
-                            <Button variant="warning" size="sm" onClick={() => handleEdit(planilla)}>
-                              Editar
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {planillasFiltradas.map((planilla) => {
+                      const planillaId = resolvePlanillaId(planilla);
+                      const empleadoId = resolveEmpleadoId(planilla);
+                      const displayName = buildPlanillaDisplayName(planilla);
+                      const salarioBase =
+                        getPlanillaNumericField(planilla, [
+                          "salario_monto",
+                          "salarioMonto",
+                          "salario_base",
+                          "salarioBase",
+                        ]) ?? 0;
+                      const horasExtras =
+                        getPlanillaNumericField(planilla, ["horas_extras", "horasExtras"]) ?? 0;
+                      const bonificaciones =
+                        getPlanillaNumericField(planilla, [
+                          "bonificaciones",
+                          "bonos",
+                          "bonificacionesTotales",
+                        ]) ?? 0;
+                      const ccss =
+                        getPlanillaNumericField(planilla, ["ccss_deduccion", "ccssDeduccion"]) ?? 0;
+                      const deducciones =
+                        getPlanillaNumericField(planilla, [
+                          "deducciones",
+                          "otras_deducciones",
+                          "otrasDeducciones",
+                        ]) ?? 0;
+                      const salarioBruto =
+                        getPlanillaNumericField(planilla, ["salario_bruto", "salarioBruto"]) ?? 0;
+                      const pagoNeto =
+                        getPlanillaNumericField(planilla, ["pago_neto", "pagoNeto"]) ?? 0;
+                      const fechaPago = getPlanillaDateField(planilla, ["fecha_pago", "fechaPago"]);
+                      const keyFallback = `${empleadoId ?? "planilla"}-${planilla.periodo_inicio ?? ""}-${
+                        planilla.periodo_fin ?? ""
+                      }`;
+                      const totalDeducciones = deducciones + ccss;
+
+                      return (
+                        <tr key={planillaId ?? keyFallback} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
+                            {displayName}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                            {formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin)}
+                          </td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                            {obtenerTipoPagoPlanilla(planilla)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(salarioBase)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(horasExtras)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(bonificaciones)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(ccss)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(deducciones)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(totalDeducciones)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(salarioBruto)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm font-semibold text-gray-800">
+                            {formatCurrency(pagoNeto)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-600">
+                            {fechaPago ? formatDate(fechaPago) : "Pendiente"}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <div className="flex justify-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={!planillaId}
+                                onClick={() => {
+                                  if (!planillaId) return;
+                                  navigate(`/admin/planilla/${planillaId}`, {
+                                    state: { planilla: clonePlanillaWithCanonicalFields(planilla) },
+                                  });
+                                }}
+                              >
+                                Ver detalle
+                              </Button>
+                              <Button variant="warning" size="sm" onClick={() => handleEdit(planilla)}>
+                                Editar
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

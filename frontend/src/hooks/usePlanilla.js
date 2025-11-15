@@ -3,6 +3,11 @@ import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
+import {
+  ensurePlanillaArrayCanonical,
+  ensurePlanillaCanonical,
+  resolvePlanillaId,
+} from "../utils/planillaUtils";
 
 const ESTADOS_ASISTENCIA = [
   "Presente",
@@ -360,7 +365,7 @@ export const usePlanilla = () => {
     try {
       setLoading(true);
       const data = await planillaService.getAll();
-      setPlanillas(Array.isArray(data) ? data : []);
+      setPlanillas(ensurePlanillaArrayCanonical(data));
       setError("");
     } catch (err) {
       console.error(err);
@@ -441,15 +446,18 @@ export const usePlanilla = () => {
   );
 
   const handleEdit = (planilla) => {
-    setEditingPlanilla(planilla);
+    const canonicalPlanilla = ensurePlanillaCanonical(planilla);
+    setEditingPlanilla(canonicalPlanilla);
     setFormData({
-      id_empleado: planilla.id_empleado ? String(planilla.id_empleado) : "",
-      periodo_inicio: normalizeDate(planilla.periodo_inicio),
-      periodo_fin: normalizeDate(planilla.periodo_fin),
-      horas_extras: normalizeNumber(planilla.horas_extras),
-      bonificaciones: normalizeNumber(planilla.bonificaciones),
-      deducciones: normalizeNumber(planilla.deducciones),
-      fecha_pago: normalizeDate(planilla.fecha_pago),
+      id_empleado: canonicalPlanilla?.id_empleado
+        ? String(canonicalPlanilla.id_empleado)
+        : "",
+      periodo_inicio: normalizeDate(canonicalPlanilla?.periodo_inicio),
+      periodo_fin: normalizeDate(canonicalPlanilla?.periodo_fin),
+      horas_extras: normalizeNumber(canonicalPlanilla?.horas_extras),
+      bonificaciones: normalizeNumber(canonicalPlanilla?.bonificaciones),
+      deducciones: normalizeNumber(canonicalPlanilla?.deducciones),
+      fecha_pago: normalizeDate(canonicalPlanilla?.fecha_pago),
       dias_trabajados: "",
       dias_descuento: "0",
       monto_descuento_dias: "",
@@ -1504,17 +1512,23 @@ export const usePlanilla = () => {
           detalles: detallesPayload,
         };
 
-        await planillaService.create(payload);
-      } else {
-        const payload = {
-          horas_extras: buildNumber(formData.horas_extras),
-          bonificaciones: buildNumber(formData.bonificaciones),
-          deducciones: buildNumber(formData.deducciones),
-          fecha_pago: formData.fecha_pago || null,
-        };
+      await planillaService.create(payload);
+    } else {
+      const payload = {
+        horas_extras: buildNumber(formData.horas_extras),
+        bonificaciones: buildNumber(formData.bonificaciones),
+        deducciones: buildNumber(formData.deducciones),
+        fecha_pago: formData.fecha_pago || null,
+      };
 
-        await planillaService.update(editingPlanilla.id_planilla, payload);
+      const planillaIdValue = resolvePlanillaId(editingPlanilla);
+      if (!planillaIdValue) {
+        setError("No se pudo identificar la planilla seleccionada para actualizar");
+        return;
       }
+
+      await planillaService.update(planillaIdValue, payload);
+    }
 
       setModalOpen(false);
       resetForm();
