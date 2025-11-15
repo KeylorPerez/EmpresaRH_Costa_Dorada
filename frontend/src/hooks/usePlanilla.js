@@ -455,6 +455,57 @@ export const usePlanilla = () => {
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
   const autoDiasRef = useRef(null);
 
+  const empleadoDetalleActivo = useMemo(() => {
+    if (!formData.id_empleado) {
+      return null;
+    }
+
+    return (
+      empleados.find((empleado) => String(empleado.id_empleado) === String(formData.id_empleado)) ||
+      null
+    );
+  }, [empleados, formData.id_empleado]);
+
+  const salarioDetalleReferencia = useMemo(() => {
+    if (!empleadoDetalleActivo) {
+      return 0;
+    }
+
+    const salarioBaseEmpleado = Number(empleadoDetalleActivo.salario_monto);
+
+    if (!Number.isFinite(salarioBaseEmpleado) || salarioBaseEmpleado <= 0) {
+      return 0;
+    }
+
+    const tipoPagoEmpleado = (empleadoDetalleActivo.tipo_pago || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+
+    if (tipoPagoEmpleado === "diario") {
+      return Number(salarioBaseEmpleado.toFixed(2));
+    }
+
+    return Number((salarioBaseEmpleado / 15).toFixed(2));
+  }, [empleadoDetalleActivo]);
+
+  const applySalarioBaseFallback = useCallback(
+    (valor) => {
+      const normalizado = normalizeSalarioBase(valor);
+
+      if (normalizado > 0) {
+        return normalizado;
+      }
+
+      if (salarioDetalleReferencia > 0) {
+        return normalizeSalarioBase(salarioDetalleReferencia);
+      }
+
+      return normalizado;
+    },
+    [salarioDetalleReferencia],
+  );
+
   useEffect(() => {
     fetchPlanillas();
     fetchEmpleados();
@@ -1035,7 +1086,7 @@ export const usePlanilla = () => {
               const base = factorBase > 0 ? positivo / factorBase : positivo;
 
               if (detalle.asistio || detalle.justificado) {
-                siguiente.salario_base = normalizeSalarioBase(base);
+                siguiente.salario_base = applySalarioBaseFallback(base);
               }
             }
           }
@@ -1060,7 +1111,7 @@ export const usePlanilla = () => {
             }
           } else {
             const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
-            const baseNormalizado = normalizeSalarioBase(baseReferencia);
+            const baseNormalizado = applySalarioBaseFallback(baseReferencia);
             if (baseNormalizado > 0) {
               const factor = siguiente.asistio ? (siguiente.es_dia_doble ? 2 : 1) : 1;
               siguiente.salario_base = baseNormalizado;
@@ -1077,7 +1128,7 @@ export const usePlanilla = () => {
 
           if (nuevoEstado === ESTADO_PRESENTE) {
             const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
-            const baseNormalizado = normalizeSalarioBase(baseReferencia);
+            const baseNormalizado = applySalarioBaseFallback(baseReferencia);
             const factor = siguiente.es_dia_doble ? 2 : 1;
             siguiente.asistio = true;
             siguiente.salario_base = baseNormalizado;
@@ -1086,7 +1137,7 @@ export const usePlanilla = () => {
             siguiente.asistio = false;
             if (siguiente.justificado) {
               const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
-              const baseNormalizado = normalizeSalarioBase(baseReferencia);
+              const baseNormalizado = applySalarioBaseFallback(baseReferencia);
               siguiente.salario_base = baseNormalizado;
               siguiente.salario_dia = formatMontoPositivo(baseNormalizado);
             } else {
@@ -1102,7 +1153,7 @@ export const usePlanilla = () => {
         return siguiente;
       })
     );
-  }, []);
+  }, [applySalarioBaseFallback]);
 
   const normalizeDetalleSalario = useCallback((index) => {
     setDetalleDias((prev) =>
@@ -1151,7 +1202,7 @@ export const usePlanilla = () => {
             ? (() => {
                 const asistio = !detalle.asistio;
                 const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-                const baseNormalizado = normalizeSalarioBase(baseReferencia);
+                const baseNormalizado = applySalarioBaseFallback(baseReferencia);
                 const factorDobles = detalle.es_dia_doble ? 2 : 1;
                 const factorAplicado = asistio ? factorDobles : 1;
                 const debePagar = asistio || detalle.justificado;
@@ -1175,7 +1226,7 @@ export const usePlanilla = () => {
         )
       );
     },
-    [attendanceState.dias, attendanceState.fechas]
+    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback]
   );
 
   const toggleDetalleDiaDoble = useCallback((index) => {
@@ -1185,7 +1236,7 @@ export const usePlanilla = () => {
           ? (() => {
               const es_dia_doble = !detalle.es_dia_doble;
               const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-              const baseNormalizado = normalizeSalarioBase(baseReferencia);
+              const baseNormalizado = applySalarioBaseFallback(baseReferencia);
               const factorDobles = es_dia_doble ? 2 : 1;
               const factorAplicado = detalle.asistio ? factorDobles : 1;
               const debePagar = detalle.asistio || detalle.justificado;
@@ -1204,7 +1255,7 @@ export const usePlanilla = () => {
           : detalle
       )
     );
-  }, []);
+  }, [applySalarioBaseFallback]);
 
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
