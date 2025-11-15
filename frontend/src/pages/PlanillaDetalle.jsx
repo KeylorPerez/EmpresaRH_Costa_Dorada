@@ -5,6 +5,16 @@ import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import planillaService from "../services/planillaService";
+import {
+  buildPlanillaDisplayName,
+  ensurePlanillaArrayCanonical,
+  ensurePlanillaCanonical,
+  getPlanillaDateField,
+  getPlanillaNumericField,
+  getPlanillaTipoPagoValue,
+  resolveEmpleadoId,
+  resolvePlanillaId,
+} from "../utils/planillaUtils";
 
 const currencyFormatter = new Intl.NumberFormat("es-CR", {
   style: "currency",
@@ -66,6 +76,23 @@ const formatPeriodo = (inicio, fin) => {
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
 };
 
+const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();
+
+const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
+  const tipoNormalizado = normalizarTipoPago(valor);
+
+  if (tipoNormalizado === "diario") {
+    return "Pago diario";
+  }
+
+  if (tipoNormalizado === "quincenal") {
+    return "Pago quincenal";
+  }
+
+  const textoOriginal = (valor ?? "").toString().trim();
+  return textoOriginal || etiquetaPorDefecto;
+};
+
 const getFileNameFromUrl = (url) => {
   if (!url) return "";
   try {
@@ -86,13 +113,18 @@ const PlanillaDetalle = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const locationStatePlanilla = location.state?.planilla;
+  const initialPlanilla = locationStatePlanilla
+    ? ensurePlanillaCanonical(locationStatePlanilla)
+    : null;
+
   const planillaId = Number(id);
   const [idError, setIdError] = useState("");
   const [detalle, setDetalle] = useState([]);
   const [detalleLoading, setDetalleLoading] = useState(true);
   const [detalleError, setDetalleError] = useState("");
-  const [planillaInfo, setPlanillaInfo] = useState(() => location.state?.planilla ?? null);
-  const [planillaInfoLoading, setPlanillaInfoLoading] = useState(() => !location.state?.planilla);
+  const [planillaInfo, setPlanillaInfo] = useState(initialPlanilla);
+  const [planillaInfoLoading, setPlanillaInfoLoading] = useState(() => !initialPlanilla);
   const [planillaInfoError, setPlanillaInfoError] = useState("");
   const [exportingFormat, setExportingFormat] = useState(null);
   const [exportMessage, setExportMessage] = useState("");
@@ -186,8 +218,9 @@ const PlanillaDetalle = () => {
       try {
         const data = await planillaService.getAll();
         if (cancelled) return;
-        const lista = Array.isArray(data) ? data : [];
-        const encontrada = lista.find((item) => Number(item.id_planilla) === planillaId) || null;
+        const lista = ensurePlanillaArrayCanonical(data);
+        const encontrada =
+          lista.find((item) => Number(resolvePlanillaId(item)) === planillaId) || null;
         if (!encontrada) {
           setPlanillaInfoError("No se encontró la planilla solicitada.");
         }
@@ -332,18 +365,59 @@ const PlanillaDetalle = () => {
     );
   }, [detalle]);
 
+  const planillaDisplayName = useMemo(
+    () => (planillaInfo ? buildPlanillaDisplayName(planillaInfo) : ""),
+    [planillaInfo]
+  );
+
+  const planillaEmpleadoId = useMemo(
+    () => (planillaInfo ? resolveEmpleadoId(planillaInfo) : null),
+    [planillaInfo]
+  );
+
+  const planillaFechaPago = useMemo(
+    () => (planillaInfo ? getPlanillaDateField(planillaInfo, ["fecha_pago", "fechaPago"]) : null),
+    [planillaInfo]
+  );
+
+  const planillaTipoPago = useMemo(
+    () =>
+      planillaInfo
+        ? formatearTipoPago(getPlanillaTipoPagoValue(planillaInfo), {
+            etiquetaPorDefecto: "No especificado",
+          })
+        : "No especificado",
+    [planillaInfo]
+  );
+
   const planillaMetricas = useMemo(() => {
     if (!planillaInfo) {
       return null;
     }
 
-    const salarioBase = Number(planillaInfo.salario_monto) || 0;
-    const montoHorasExtras = Math.max(Number(planillaInfo.horas_extras) || 0, 0);
-    const bonificaciones = Number(planillaInfo.bonificaciones) || 0;
-    const deducciones = Number(planillaInfo.deducciones) || 0;
-    const ccss = Number(planillaInfo.ccss_deduccion) || 0;
-    const salarioBruto = Number(planillaInfo.salario_bruto) || 0;
-    const pagoNeto = Number(planillaInfo.pago_neto) || 0;
+    const salarioBase =
+      getPlanillaNumericField(
+        planillaInfo,
+        ["salario_monto", "salarioMonto", "salario_base", "salarioBase"],
+        { includeNested: true }
+      ) ?? 0;
+    const montoHorasExtras = Math.max(
+      getPlanillaNumericField(planillaInfo, ["horas_extras", "horasExtras"]) ?? 0,
+      0
+    );
+    const bonificaciones = getPlanillaNumericField(planillaInfo, ["bonificaciones", "bonos"]) ?? 0;
+    const deducciones = Math.max(
+      getPlanillaNumericField(planillaInfo, ["deducciones", "otras_deducciones", "otrasDeducciones"]) ?? 0,
+      0
+    );
+    const ccss = Math.max(
+      getPlanillaNumericField(planillaInfo, ["ccss_deduccion", "ccssDeduccion"]) ?? 0,
+      0
+    );
+    const salarioBruto =
+      getPlanillaNumericField(planillaInfo, ["salario_bruto", "salarioBruto"]) ??
+      salarioBase + bonificaciones + montoHorasExtras;
+    const pagoNeto = getPlanillaNumericField(planillaInfo, ["pago_neto", "pagoNeto"]) ?? 0;
 
     return {
       salarioBase,
@@ -452,11 +526,11 @@ const PlanillaDetalle = () => {
                 <article className="rounded-xl bg-white p-4 shadow">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Colaborador</p>
                   <p className="mt-1 text-lg font-semibold text-gray-800">
-                    {planillaInfo.nombre
-                      ? `${planillaInfo.nombre} ${planillaInfo.apellido}`
-                      : `ID ${planillaInfo.id_empleado}`}
+                    {planillaDisplayName}
                   </p>
-                  <p className="text-xs text-gray-500">ID empleado: {planillaInfo.id_empleado}</p>
+                  <p className="text-xs text-gray-500">
+                    ID empleado: {planillaEmpleadoId ?? "-"}
+                  </p>
                 </article>
                 <article className="rounded-xl bg-white p-4 shadow">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Periodo</p>
@@ -464,13 +538,13 @@ const PlanillaDetalle = () => {
                     {formatPeriodo(planillaInfo.periodo_inicio, planillaInfo.periodo_fin)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    Fecha de pago: {planillaInfo.fecha_pago ? formatDate(planillaInfo.fecha_pago) : "Pendiente"}
+                    Fecha de pago: {planillaFechaPago ? formatDate(planillaFechaPago) : "Pendiente"}
                   </p>
                 </article>
                 <article className="rounded-xl bg-white p-4 shadow">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Tipo de pago</p>
                   <p className="mt-1 text-lg font-semibold text-gray-800">
-                    {planillaInfo.tipo_pago || "No especificado"}
+                    {planillaTipoPago}
                   </p>
                   <p className="text-xs text-gray-500">
                     Salario referencia: {formatCurrency(planillaMetricas?.salarioBase)}
