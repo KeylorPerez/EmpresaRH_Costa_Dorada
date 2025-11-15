@@ -819,6 +819,23 @@ export const usePlanilla = () => {
 
         const siguiente = { ...detalle, ...updates };
 
+        const manualOverrideKeys = [
+          "asistio",
+          "estado",
+          "justificado",
+          "justificacion",
+          "salario_dia",
+          "observacion",
+        ];
+
+        const shouldMarkManual = manualOverrideKeys.some((key) =>
+          Object.prototype.hasOwnProperty.call(updates, key)
+        );
+
+        if (shouldMarkManual) {
+          siguiente.asistenciaManual = true;
+        }
+
         if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
           const valor = updates.salario_dia;
 
@@ -896,16 +913,7 @@ export const usePlanilla = () => {
           }
         }
 
-        const overrideKeys = [
-          "asistio",
-          "estado",
-          "justificado",
-          "justificacion",
-          "salario_dia",
-          "observacion",
-        ];
-
-        if (overrideKeys.some((key) => Object.prototype.hasOwnProperty.call(updates, key))) {
+        if (shouldMarkManual) {
           siguiente.autoJustificacion = false;
         }
 
