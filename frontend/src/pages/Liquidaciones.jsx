@@ -592,13 +592,12 @@ const Liquidaciones = ({ mode }) => {
                   <div className="border border-gray-200 rounded-lg p-4 text-xs text-gray-600 leading-relaxed bg-gray-50">
                     <p className="font-semibold text-gray-700 mb-2">Texto legal sugerido</p>
                     <p>
-                      El presente documento certifica la liquidación de prestaciones laborales correspondiente al periodo {" "}
-                      {formatearFechaCorta(previewData.encabezado.fecha_inicio_periodo)} — {" "}
+                      El presente documento certifica la liquidación de prestaciones laborales correspondiente al periodo comprendido entre {" "}
+                      {formatearFechaCorta(previewData.encabezado.fecha_inicio_periodo)} y {" "}
                       {formatearFechaCorta(previewData.encabezado.fecha_fin_periodo)}, calculada con base en la normativa laboral vigente.
-                      Las cantidades detalladas han sido revisadas y quedan sujetas a la aprobación final de la dirección de Recursos Humanos.
                     </p>
                     <p className="mt-2">
-                      Cualquier ajuste adicional deberá registrarse en el sistema antes de la confirmación definitiva para garantizar la trazabilidad del proceso.
+                      Las cantidades detalladas han sido revisadas y quedan sujetas a la aprobación final de la Dirección de Recursos Humanos. La empresa asume la responsabilidad de definir y aplicar este monto fijo conforme a sus políticas internas y a la normativa vigente.
                     </p>
                   </div>
                 )}
