@@ -1094,65 +1094,6 @@ const Planilla = () => {
                             )}
                           </div>
 
-                          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
-                            <h3 className="text-sm font-semibold text-gray-800">Resumen del colaborador</h3>
-                            {selectedEmpleado ? (
-                              <div className="space-y-2 text-sm text-gray-600">
-                                <p>
-                                  <span className="font-semibold text-gray-700">Nombre:</span>{" "}
-                                  {obtenerNombreCompletoEmpleado(selectedEmpleado)}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Identificación:</span>{" "}
-                                  {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Tipo de pago:</span>{" "}
-                                  {tipoPago}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Salario base referencia:</span>{" "}
-                                  {formatCurrency(salarioBaseReferencia)}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Días en periodo:</span>{" "}
-                                  {detalleDiasResumen.diasPeriodo}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Días estimados a pagar:</span>{" "}
-                                  {detalleDiasResumen.diasAsistidos}
-                                </p>
-                                {tipoPago === "Diario" && (
-                                  <p>
-                                    <span className="font-semibold text-gray-700">Días dobles a pagar:</span>{" "}
-                                    {diasDoblesAplicados}
-                                  </p>
-                                )}
-                                <p>
-                                  <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
-                                  {detalleDiasResumen.diasFaltantes}
-                                </p>
-                                <p>
-                                  <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
-                                  {formatCurrency(salarioBasePeriodo)}
-                                </p>
-                                {tipoPago === "Diario" && (
-                                  <p>
-                                    <span className="font-semibold text-gray-700">Extra por días dobles:</span>{" "}
-                                    {formatCurrency(pagoExtraDiasDobles)}
-                                  </p>
-                                )}
-                                <p>
-                                  <span className="font-semibold text-gray-700">Pago neto estimado:</span>{" "}
-                                  {formatCurrency(pagoNetoEstimado)}
-                                </p>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-500">
-                                Selecciona un colaborador para ver su información de referencia.
-                              </p>
-                            )}
-                          </div>
                         </aside>
 
                         <div className="flex-1 min-w-0 space-y-6">
@@ -1316,241 +1257,307 @@ const Planilla = () => {
                               </div>
                             </div>
 
-                            {!isEditing && selectedEmpleado?.tipo_pago === "Diario" && (
-                              <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                  <div className="space-y-1">
-                                    <p className="text-sm font-semibold text-gray-700">Asistencia del periodo</p>
-                                    <p className="text-xs text-gray-500">
-                                      Los días trabajados se calculan automáticamente a partir del detalle diario y la asistencia.
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={refreshAttendance}
-                                    disabled={attendanceState.loading}
-                                    className="text-xs font-semibold text-gray-600 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                                  >
-                                    {attendanceState.loading ? "Consultando…" : "Actualizar asistencia"}
-                                  </button>
-                                </div>
-                                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                  {attendanceState.error ? (
-                                    <span className="text-red-600">{attendanceState.error}</span>
-                                  ) : attendanceState.loading ? (
-                                    "Consultando asistencia…"
-                                  ) : usaDetalleParaCalculos ? (
-                                    <div className="space-y-1">
-                                      <p>
-                                        El detalle diario registra {formatAttendanceNumber(detalleDias.length)} días del periodo.
-                                      </p>
-                                      <p>
-                                        Se pagarán {formatAttendanceNumber(diasTrabajadosAplicados)} días regulares y {formatAttendanceNumber(diasDoblesAplicados)}{' '}
-                                        {diasDoblesAplicados === 1 ? "día doble" : "días dobles"} con un extra estimado de {formatCurrency(pagoExtraDiasDobles)}.
-                                      </p>
-                                      <p>
-                                        {detalleDiasResumen.diasFaltantes > 0
-                                          ? `Hay ${formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} ausencias registradas en el detalle.`
-                                          : "No hay ausencias registradas en el detalle."}
-                                      </p>
-                                    </div>
-                                  ) : attendanceState.dias !== null ? (
-                                    <>Se detectaron {formatAttendanceNumber(attendanceState.dias)} días con asistencia registrada. Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días al cálculo.</>
-                                  ) : diasTrabajadosAplicados > 0 ? (
-                                    <>Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días trabajados al cálculo.</>
-                                  ) : (
-                                    "Sincroniza la asistencia para precargar los días trabajados del periodo."
-                                  )}
-                                </div>
-                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días en el periodo</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(detalleDiasResumen.diasPeriodo)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días listos para pago</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(diasTrabajadosAplicados)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días dobles detectados</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(diasDoblesAplicados)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Pago extra estimado</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoExtraDiasDobles)}</p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:col-span-2 lg:col-span-4">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Ausencias registradas</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} días
-                                    </p>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  Gestiona ajustes de asistencia desde el detalle diario para reconocer ausencias, medios días o cambios especiales.
-                                </p>
-                              </div>
-                            )}
-
-                            {!isEditing && selectedEmpleado?.tipo_pago === "Quincenal" && (
-                              <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-gray-700">Resumen de asistencia del periodo</p>
-                                  <p className="text-xs text-gray-500">
-                                    Los días trabajados se calculan automáticamente a partir del detalle diario y la asistencia.
-                                  </p>
-                                </div>
-                                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                  {usaDetalleParaCalculos ? (
-                                    <div className="space-y-1">
-                                      <p>
-                                        El detalle diario registra {formatAttendanceNumber(detalleDias.length)} días del periodo.
-                                      </p>
-                                      <p>
-                                        Se consideran {formatAttendanceNumber(diasTrabajadosAplicados)} días con asistencia y {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} ausencias.
-                                      </p>
-                                      <p>
-                                        {diasDoblesAplicados > 0
-                                          ? `Se identificaron ${formatAttendanceNumber(diasDoblesAplicados)} días dobles con un extra estimado de ${formatCurrency(pagoExtraDiasDobles)}.`
-                                          : "No hay días dobles identificados para este periodo."}
-                                      </p>
-                                    </div>
-                                  ) : diasTrabajadosAplicados > 0 ? (
-                                    <>Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días trabajados al cálculo.</>
-                                  ) : (
-                                    "Sincroniza la asistencia para precargar los días trabajados del periodo."
-                                  )}
-                                </div>
-                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días en el periodo</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(detalleDiasResumen.diasPeriodo)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días con asistencia</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(diasTrabajadosAplicados)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Días dobles detectados</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(diasDoblesAplicados)} días
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Pago extra estimado</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoExtraDiasDobles)}</p>
-                                  </div>
-                                  <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:col-span-2 lg:col-span-4">
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Ausencias registradas</p>
-                                    <p className="mt-1 text-lg font-semibold text-gray-800">
-                                      {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} días
-                                    </p>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  Gestiona ajustes de asistencia desde el detalle diario para reconocer ausencias, medios días o cambios especiales.
-                                </p>
-                              </div>
-                            )}
-
                             {!isEditing && (
-                              <div className="mt-4 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <h3 className="text-sm font-semibold text-gray-700">Préstamos asociados a la planilla</h3>
-                                  {deduccionesPrestamos > 0 && (
-                                    <span className="text-xs font-semibold text-blue-600">
-                                      Total seleccionado: {formatCurrency(deduccionesPrestamos)}
-                                    </span>
+                              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                                <div className="space-y-4">
+                                  {selectedEmpleado?.tipo_pago === "Diario" && (
+                                    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                      <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-1">
+                                          <p className="text-sm font-semibold text-gray-700">Asistencia del periodo</p>
+                                          <p className="text-xs text-gray-500">
+                                            Los días trabajados se calculan automáticamente a partir del detalle diario y la asistencia.
+                                          </p>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={refreshAttendance}
+                                          disabled={attendanceState.loading}
+                                          className="text-xs font-semibold text-gray-600 hover:text-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
+                                        >
+                                          {attendanceState.loading ? "Consultando…" : "Actualizar asistencia"}
+                                        </button>
+                                      </div>
+                                      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                        {attendanceState.error ? (
+                                          <span className="text-red-600">{attendanceState.error}</span>
+                                        ) : attendanceState.loading ? (
+                                          "Consultando asistencia…"
+                                        ) : usaDetalleParaCalculos ? (
+                                          <div className="space-y-1">
+                                            <p>
+                                              El detalle diario registra {formatAttendanceNumber(detalleDias.length)} días del periodo.
+                                            </p>
+                                            <p>
+                                              Se pagarán {formatAttendanceNumber(diasTrabajadosAplicados)} días regulares y {formatAttendanceNumber(diasDoblesAplicados)}{' '}
+                                              {diasDoblesAplicados === 1 ? "día doble" : "días dobles"} con un extra estimado de {formatCurrency(pagoExtraDiasDobles)}.
+                                            </p>
+                                            <p>
+                                              {detalleDiasResumen.diasFaltantes > 0
+                                                ? `Hay ${formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} ausencias registradas en el detalle.`
+                                                : "No hay ausencias registradas en el detalle."}
+                                            </p>
+                                          </div>
+                                        ) : attendanceState.dias !== null ? (
+                                          <>Se detectaron {formatAttendanceNumber(attendanceState.dias)} días con asistencia registrada. Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días al cálculo.</>
+                                        ) : diasTrabajadosAplicados > 0 ? (
+                                          <>Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días trabajados al cálculo.</>
+                                        ) : (
+                                          "Sincroniza la asistencia para precargar los días trabajados del periodo."
+                                        )}
+                                      </div>
+                                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días en el periodo</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(detalleDiasResumen.diasPeriodo)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días listos para pago</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(diasTrabajadosAplicados)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días dobles detectados</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(diasDoblesAplicados)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Pago extra estimado</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoExtraDiasDobles)}</p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:col-span-2 xl:col-span-4">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Ausencias registradas</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} días
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="text-xs text-gray-600">
+                                        Gestiona ajustes de asistencia desde el detalle diario para reconocer ausencias, medios días o cambios especiales.
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {selectedEmpleado?.tipo_pago === "Quincenal" && (
+                                    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                      <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-gray-700">Resumen de asistencia del periodo</p>
+                                        <p className="text-xs text-gray-500">
+                                          Los días trabajados se calculan automáticamente a partir del detalle diario y la asistencia.
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                        {usaDetalleParaCalculos ? (
+                                          <div className="space-y-1">
+                                            <p>
+                                              El detalle diario registra {formatAttendanceNumber(detalleDias.length)} días del periodo.
+                                            </p>
+                                            <p>
+                                              Se consideran {formatAttendanceNumber(diasTrabajadosAplicados)} días con asistencia y {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} ausencias.
+                                            </p>
+                                            <p>
+                                              {diasDoblesAplicados > 0
+                                                ? `Se identificaron ${formatAttendanceNumber(diasDoblesAplicados)} días dobles con un extra estimado de ${formatCurrency(pagoExtraDiasDobles)}.`
+                                                : "No hay días dobles identificados para este periodo."}
+                                            </p>
+                                          </div>
+                                        ) : diasTrabajadosAplicados > 0 ? (
+                                          <>Se aplicarán {formatAttendanceNumber(diasTrabajadosAplicados)} días trabajados al cálculo.</>
+                                        ) : (
+                                          "Sincroniza la asistencia para precargar los días trabajados del periodo."
+                                        )}
+                                      </div>
+                                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días en el periodo</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(detalleDiasResumen.diasPeriodo)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días con asistencia</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(diasTrabajadosAplicados)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Días dobles detectados</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(diasDoblesAplicados)} días
+                                          </p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Pago extra estimado</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">{formatCurrency(pagoExtraDiasDobles)}</p>
+                                        </div>
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:col-span-2 xl:col-span-4">
+                                          <p className="text-xs uppercase tracking-wide text-gray-500">Ausencias registradas</p>
+                                          <p className="mt-1 text-lg font-semibold text-gray-800">
+                                            {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} días
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="text-xs text-gray-600">
+                                        Gestiona ajustes de asistencia desde el detalle diario para reconocer ausencias, medios días o cambios especiales.
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
 
-                                {prestamosEmpleado.length === 0 ? (
-                                  <p className="text-sm text-gray-500">
-                                    Este colaborador no tiene préstamos aprobados con saldo pendiente.
-                                  </p>
-                                ) : (
-                                  <div className="space-y-3">
-                                    {prestamosEmpleado.map((prestamo) => {
-                                      const seleccion = prestamoSelections[prestamo.id_prestamo];
-                                      const estaSeleccionado = Boolean(seleccion?.aplicar);
-                                      const cuotaSugerida = obtenerCuotaSugerida(prestamo);
-                                      const montoSeleccionado = estaSeleccionado
-                                        ? seleccion?.monto ?? cuotaSugerida
-                                        : cuotaSugerida;
+                                <div className="space-y-4">
+                                  <div className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <h3 className="text-sm font-semibold text-gray-700">Préstamos asociados a la planilla</h3>
+                                      {deduccionesPrestamos > 0 && (
+                                        <span className="text-xs font-semibold text-blue-600">
+                                          Total seleccionado: {formatCurrency(deduccionesPrestamos)}
+                                        </span>
+                                      )}
+                                    </div>
 
-                                      return (
-                                        <div
-                                          key={prestamo.id_prestamo}
-                                          className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
-                                        >
-                                          <div className="flex items-start gap-3">
-                                            <input
-                                              type="checkbox"
-                                              checked={estaSeleccionado}
-                                              onChange={() => togglePrestamo(prestamo.id_prestamo)}
-                                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <div className="flex-1 space-y-3">
-                                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <div>
-                                                  <p className="text-sm font-semibold text-gray-800">
-                                                    Préstamo #{prestamo.id_prestamo}
-                                                  </p>
-                                                  <p className="text-xs text-gray-500">
-                                                    Solicitado el {formatDate(prestamo.fecha_solicitud)} · {prestamo.cuotas} cuotas
-                                                  </p>
-                                                </div>
-                                                <div className="text-right">
-                                                  <p className="text-xs text-gray-500">Saldo pendiente</p>
-                                                  <p className="text-sm font-semibold text-gray-800">
-                                                    {formatCurrency(prestamo.saldo)}
-                                                  </p>
-                                                </div>
-                                              </div>
+                                    {prestamosEmpleado.length === 0 ? (
+                                      <p className="text-sm text-gray-500">
+                                        Este colaborador no tiene préstamos aprobados con saldo pendiente.
+                                      </p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {prestamosEmpleado.map((prestamo) => {
+                                          const seleccion = prestamoSelections[prestamo.id_prestamo];
+                                          const estaSeleccionado = Boolean(seleccion?.aplicar);
+                                          const cuotaSugerida = obtenerCuotaSugerida(prestamo);
+                                          const montoSeleccionado = estaSeleccionado
+                                            ? seleccion?.monto ?? cuotaSugerida
+                                            : cuotaSugerida;
 
-                                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                                <p className="text-xs text-gray-500">
-                                                  Cuota sugerida: {formatCurrency(cuotaSugerida)}
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                  <label className="text-xs text-gray-500" htmlFor={`prestamo-${prestamo.id_prestamo}`}>
-                                                    Monto a descontar
-                                                  </label>
-                                                  <input
-                                                    id={`prestamo-${prestamo.id_prestamo}`}
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={Number(montoSeleccionado || 0).toString()}
-                                                    onChange={(event) =>
-                                                      updateMontoPrestamo(prestamo.id_prestamo, event.target.value)
-                                                    }
-                                                    disabled={!estaSeleccionado}
-                                                    className="w-32 rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                                                  />
+                                          return (
+                                            <div
+                                              key={prestamo.id_prestamo}
+                                              className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+                                            >
+                                              <div className="flex items-start gap-3">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={estaSeleccionado}
+                                                  onChange={() => togglePrestamo(prestamo.id_prestamo)}
+                                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <div className="flex-1 space-y-3">
+                                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                      <p className="text-sm font-semibold text-gray-800">
+                                                        Préstamo #{prestamo.id_prestamo}
+                                                      </p>
+                                                      <p className="text-xs text-gray-500">
+                                                        Solicitado el {formatDate(prestamo.fecha_solicitud)} · {prestamo.cuotas} cuotas
+                                                      </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                      <p className="text-xs text-gray-500">Saldo pendiente</p>
+                                                      <p className="text-sm font-semibold text-gray-800">
+                                                        {formatCurrency(prestamo.saldo)}
+                                                      </p>
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                    <p className="text-xs text-gray-500">
+                                                      Cuota sugerida: {formatCurrency(cuotaSugerida)}
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                      <label className="text-xs text-gray-500" htmlFor={`prestamo-${prestamo.id_prestamo}`}>
+                                                        Monto a descontar
+                                                      </label>
+                                                      <input
+                                                        id={`prestamo-${prestamo.id_prestamo}`}
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={Number(montoSeleccionado || 0).toString()}
+                                                        onChange={(event) =>
+                                                          updateMontoPrestamo(prestamo.id_prestamo, event.target.value)
+                                                        }
+                                                        disabled={!estaSeleccionado}
+                                                        className="w-32 rounded-lg border border-gray-300 px-3 py-1 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                                                      />
+                                                    </div>
+                                                  </div>
                                                 </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                          );
+                                        })}
 
-                                    <p className="text-xs text-gray-500">
-                                      Los montos seleccionados se sumarán automáticamente a las deducciones de esta planilla.
-                                    </p>
+                                        <p className="text-xs text-gray-500">
+                                          Los montos seleccionados se sumarán automáticamente a las deducciones de esta planilla.
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+
+                                  <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-3">
+                                    <h3 className="text-sm font-semibold text-gray-800">Resumen del colaborador</h3>
+                                    {selectedEmpleado ? (
+                                      <div className="space-y-2 text-sm text-gray-600">
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Nombre:</span>{" "}
+                                          {obtenerNombreCompletoEmpleado(selectedEmpleado)}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Identificación:</span>{" "}
+                                          {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Tipo de pago:</span>{" "}
+                                          {tipoPago}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Salario base referencia:</span>{" "}
+                                          {formatCurrency(salarioBaseReferencia)}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Días en periodo:</span>{" "}
+                                          {detalleDiasResumen.diasPeriodo}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Días estimados a pagar:</span>{" "}
+                                          {detalleDiasResumen.diasAsistidos}
+                                        </p>
+                                        {tipoPago === "Diario" && (
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Días dobles a pagar:</span>{" "}
+                                            {diasDoblesAplicados}
+                                          </p>
+                                        )}
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Días sin asistir:</span>{" "}
+                                          {detalleDiasResumen.diasFaltantes}
+                                        </p>
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Monto días estimado:</span>{" "}
+                                          {formatCurrency(salarioBasePeriodo)}
+                                        </p>
+                                        {tipoPago === "Diario" && (
+                                          <p>
+                                            <span className="font-semibold text-gray-700">Extra por días dobles:</span>{" "}
+                                            {formatCurrency(pagoExtraDiasDobles)}
+                                          </p>
+                                        )}
+                                        <p>
+                                          <span className="font-semibold text-gray-700">Pago neto estimado:</span>{" "}
+                                          {formatCurrency(pagoNetoEstimado)}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">
+                                        Selecciona un colaborador para ver su información de referencia.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             )}
 
