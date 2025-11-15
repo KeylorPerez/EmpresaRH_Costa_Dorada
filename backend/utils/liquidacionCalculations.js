@@ -95,15 +95,15 @@ const calcularDetallesAutomaticos = ({
   const mesesPeriodo = diasPeriodo / 30;
 
   const salarioDiario = salarioPromedio > 0 ? salarioPromedio / 30 : 0;
-  const salarioPendiente = roundCurrency(salarioDiario * diasPeriodo);
 
   detalles.push({
     concepto: 'Deducción salario pendiente',
     tipo: 'DESCUENTO',
-    monto_calculado: salarioPendiente,
-    monto_final: salarioPendiente,
+    monto_calculado: 0,
+    monto_final: 0,
     editable: true,
-    formula_usada: 'Salario promedio diario x días pendientes',
+    formula_usada:
+      'Salario promedio diario x días pendientes (valor editable, predeterminado en 0)',
   });
 
   const aguinaldo = roundCurrency((salarioPromedio / 12) * Math.max(mesesPeriodo, 1));
