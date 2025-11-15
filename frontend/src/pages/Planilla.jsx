@@ -484,6 +484,67 @@ const Planilla = () => {
     element.style.height = `${element.scrollHeight}px`;
   }, []);
 
+  const restoreDetalleFieldFocus = useCallback((target) => {
+    if (!target || typeof window === "undefined") {
+      return;
+    }
+
+    const { detalleField, detalleIndex, detalleContext } = target.dataset || {};
+
+    if (!detalleField || detalleIndex === undefined || !detalleContext) {
+      return;
+    }
+
+    const selectionStart =
+      typeof target.selectionStart === "number" ? target.selectionStart : null;
+    const selectionEnd =
+      typeof target.selectionEnd === "number" ? target.selectionEnd : null;
+    const selectionDirection = target.selectionDirection || "none";
+
+    window.requestAnimationFrame(() => {
+      let element = target;
+
+      if (!element.isConnected) {
+        element = document.querySelector(
+          `[data-detalle-field="${detalleField}"][data-detalle-index="${detalleIndex}"][data-detalle-context="${detalleContext}"]`
+        );
+      }
+
+      if (!element) {
+        return;
+      }
+
+      if (document.activeElement !== element) {
+        element.focus({ preventScroll: true });
+      }
+
+      if (
+        element === document.activeElement &&
+        selectionStart !== null &&
+        selectionEnd !== null &&
+        typeof element.setSelectionRange === "function"
+      ) {
+        try {
+          element.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
+        } catch (err) {
+          // Some input types (e.g. "number") may not support setSelectionRange in every browser.
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const textareas = document.querySelectorAll(
+      '[data-detalle-field="justificacion"]'
+    );
+
+    textareas.forEach((element) => {
+      autoResizeTextarea(element);
+    });
+  }, [detalleDias, autoResizeTextarea]);
+
   const DetalleResumenBadges = ({ className = "" }) => (
     <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
       <span>Días: {detalleDias.length}</span>
@@ -525,7 +586,7 @@ const Planilla = () => {
     return null;
   };
 
-  const DetalleTable = ({ className = "" }) => {
+  const DetalleTable = ({ className = "", context = "main" }) => {
     if (detalleDias.length === 0) {
       return (
         <p className={`text-sm text-gray-500 ${className}`}>
@@ -539,6 +600,19 @@ const Planilla = () => {
       const { value } = target;
       autoResizeTextarea(target);
       updateDetalleDia(rowIndex, { justificacion: value });
+      restoreDetalleFieldFocus(target);
+    };
+
+    const handleSalarioChange = (event, rowIndex) => {
+      const { target } = event;
+      updateDetalleDia(rowIndex, { salario_dia: target.value });
+      restoreDetalleFieldFocus(target);
+    };
+
+    const handleObservacionChange = (event, rowIndex) => {
+      const { target } = event;
+      updateDetalleDia(rowIndex, { observacion: target.value });
+      restoreDetalleFieldFocus(target);
     };
 
     const handleSalarioBlur = (event, rowIndex) => {
@@ -626,11 +700,10 @@ const Planilla = () => {
                     rows={2}
                     maxLength={500}
                     disabled={!detalle.justificado}
-                    ref={(element) => {
-                      if (element) {
-                        autoResizeTextarea(element);
-                      }
-                    }}
+                    data-detalle-field="justificacion"
+                    data-detalle-index={index}
+                    data-detalle-context={context}
+                    ref={autoResizeTextarea}
                     className="w-full min-h-[3rem] rounded-lg border border-gray-200 px-3 py-2 text-sm leading-relaxed text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none overflow-hidden disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
                   />
                 </td>
@@ -640,8 +713,11 @@ const Planilla = () => {
                     min="0"
                     step="0.01"
                     value={detalle.salario_dia ?? ""}
-                    onChange={(event) => updateDetalleDia(index, { salario_dia: event.target.value })}
+                    onChange={(event) => handleSalarioChange(event, index)}
                     onBlur={(event) => handleSalarioBlur(event, index)}
+                    data-detalle-field="salario_dia"
+                    data-detalle-index={index}
+                    data-detalle-context={context}
                     className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </td>
@@ -649,8 +725,11 @@ const Planilla = () => {
                   <input
                     type="text"
                     value={detalle.observacion || ""}
-                    onChange={(event) => updateDetalleDia(index, { observacion: event.target.value })}
+                    onChange={(event) => handleObservacionChange(event, index)}
                     placeholder="Opcional"
+                    data-detalle-field="observacion"
+                    data-detalle-index={index}
+                    data-detalle-context={context}
                     className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </td>
@@ -1471,7 +1550,7 @@ const Planilla = () => {
                             </div>
                           </div>
 
-                          <DetalleTable className="mt-4" />
+                          <DetalleTable className="mt-4" context="main" />
                           </div>
 
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -1609,7 +1688,10 @@ const Planilla = () => {
                       className="flex-1 overflow-y-auto px-6 py-6 focus:outline-none"
                       style={{ WebkitOverflowScrolling: "touch" }}
                     >
-                      <DetalleTable className={detalleDias.length === 0 ? "" : "mt-2"} />
+                      <DetalleTable
+                        className={detalleDias.length === 0 ? "" : "mt-2"}
+                        context="overlay"
+                      />
                     </div>
                   </div>
                 </div>
