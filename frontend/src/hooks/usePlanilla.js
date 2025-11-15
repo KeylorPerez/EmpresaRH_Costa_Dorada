@@ -340,6 +340,7 @@ export const usePlanilla = () => {
     dias: null,
     fechas: [],
     error: "",
+    message: "",
   });
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
@@ -392,7 +393,7 @@ export const usePlanilla = () => {
 
     if (name === "id_empleado") {
       autoDiasRef.current = null;
-      setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
+      setAttendanceState({ loading: false, dias: null, fechas: [], error: "", message: "" });
       setFormData((prev) => ({
         ...prev,
         id_empleado: value,
@@ -407,7 +408,7 @@ export const usePlanilla = () => {
 
     if (name === "periodo_inicio" || name === "periodo_fin") {
       autoDiasRef.current = null;
-      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [], error: "" }));
+      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [], error: "", message: "" }));
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -418,7 +419,7 @@ export const usePlanilla = () => {
     setEditingPlanilla(null);
     setError("");
     setPrestamoSelections({});
-    setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
+    setAttendanceState({ loading: false, dias: null, fechas: [], error: "", message: "" });
     setAttendanceReloadKey(0);
     autoDiasRef.current = null;
     setDetalleDias([]);
@@ -1162,10 +1163,10 @@ export const usePlanilla = () => {
 
     if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
       setAttendanceState((prev) => {
-        if (!prev.loading && prev.dias === null && !prev.error) {
+        if (!prev.loading && prev.dias === null && !prev.error && !prev.message) {
           return prev;
         }
-        return { loading: false, dias: null, fechas: [], error: "" };
+        return { loading: false, dias: null, fechas: [], error: "", message: "" };
       });
       return;
     }
@@ -1176,10 +1177,10 @@ export const usePlanilla = () => {
 
     if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Diario") {
       setAttendanceState((prev) => {
-        if (!prev.loading && prev.dias === null && !prev.error) {
+        if (!prev.loading && prev.dias === null && !prev.error && !prev.message) {
           return prev;
         }
-        return { loading: false, dias: null, fechas: [], error: "" };
+        return { loading: false, dias: null, fechas: [], error: "", message: "" };
       });
       return;
     }
@@ -1188,14 +1189,14 @@ export const usePlanilla = () => {
     const fin = parseDateSafe(formData.periodo_fin);
 
     if (!inicio || !fin || fin < inicio) {
-      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [] }));
+      setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [], message: "" }));
       return;
     }
 
     let cancelled = false;
 
     const fetchDias = async () => {
-      setAttendanceState((prev) => ({ ...prev, loading: true, fechas: [], error: "" }));
+      setAttendanceState((prev) => ({ ...prev, loading: true, fechas: [], error: "", message: "" }));
       try {
         const data = await planillaService.getAttendanceSummary({
           id_empleado: formData.id_empleado,
@@ -1218,7 +1219,7 @@ export const usePlanilla = () => {
         const previousAuto = autoDiasRef.current;
         autoDiasRef.current = dias;
 
-        setAttendanceState({ loading: false, dias, fechas, error: "" });
+        setAttendanceState({ loading: false, dias, fechas, error: "", message: "" });
 
         setFormData((prev) => {
           const actualNumero = Number(prev.dias_trabajados);
@@ -1241,6 +1242,7 @@ export const usePlanilla = () => {
           dias: null,
           fechas: [],
           error: "No fue posible obtener los días de asistencia",
+          message: "",
         });
       }
     };
@@ -1310,6 +1312,7 @@ export const usePlanilla = () => {
       setAttendanceState((prev) => ({
         ...prev,
         error: "Selecciona empleado y fechas para consultar asistencia",
+        message: "",
       }));
       return;
     }
@@ -1318,17 +1321,57 @@ export const usePlanilla = () => {
       (empleado) => String(empleado.id_empleado) === formData.id_empleado
     );
 
-    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Diario") {
+    if (!empleadoSeleccionado) {
       setAttendanceState((prev) => ({
         ...prev,
-        error: "La asistencia automática solo aplica para colaboradores con pago diario",
+        error: "No se encontró información del colaborador seleccionado",
+        message: "",
       }));
       return;
     }
 
-    setAttendanceState((prev) => ({ ...prev, error: "" }));
+    if (empleadoSeleccionado.tipo_pago !== "Diario") {
+      const detallesBase = buildDetalleDias(
+        empleadoSeleccionado,
+        formData.periodo_inicio,
+        formData.periodo_fin,
+      );
+
+      const keyActual = `${formData.id_empleado}-${formData.periodo_inicio}-${formData.periodo_fin}`;
+      const debeAplicarJustificaciones = detalleJustificaciones.key === keyActual;
+
+      const detallesRestaurados = debeAplicarJustificaciones
+        ? aplicarJustificacionesAuto(detallesBase, detalleJustificaciones.registros)
+        : detallesBase;
+
+      setDetalleDias(detallesRestaurados);
+      detalleContextRef.current = {
+        empleadoId: formData.id_empleado,
+        inicio: formData.periodo_inicio,
+        fin: formData.periodo_fin,
+      };
+      autoDiasRef.current = null;
+      setAttendanceState({
+        loading: false,
+        dias: null,
+        fechas: [],
+        error: "",
+        message: "El detalle diario se restauró a los valores iniciales.",
+      });
+      return;
+    }
+
+    setAttendanceState((prev) => ({ ...prev, error: "", message: "" }));
     setAttendanceReloadKey((key) => key + 1);
-  }, [empleados, formData.id_empleado, formData.periodo_inicio, formData.periodo_fin]);
+  }, [
+    empleados,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    buildDetalleDias,
+    detalleJustificaciones.key,
+    detalleJustificaciones.registros,
+  ]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

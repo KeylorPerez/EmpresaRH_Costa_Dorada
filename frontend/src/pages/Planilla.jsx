@@ -573,6 +573,14 @@ const Planilla = () => {
       );
     }
 
+    if (attendanceState.message) {
+      return (
+        <p className={`text-xs text-gray-500 ${className}`.trim()}>
+          {attendanceState.message}
+        </p>
+      );
+    }
+
     if (attendanceState.dias !== null) {
       const dias = Number(attendanceState.dias) || 0;
       const labelDias = dias === 1 ? "día" : "días";
