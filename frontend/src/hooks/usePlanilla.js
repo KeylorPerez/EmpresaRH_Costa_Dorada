@@ -1340,6 +1340,24 @@ export const usePlanilla = () => {
           asistio: Boolean(detalle.asistio),
           es_dia_doble: Boolean(detalle.es_dia_doble),
           estado: normalizeEstado(detalle.estado),
+          asistencia: (() => {
+            if (typeof detalle.asistencia === "string") {
+              const texto = detalle.asistencia.trim();
+              if (texto.length > 0) {
+                return texto.length > 50 ? texto.slice(0, 50) : texto;
+              }
+            }
+            return detalle.asistio ? "Asistió" : "Faltó";
+          })(),
+          tipo: (() => {
+            if (typeof detalle.tipo === "string") {
+              const texto = detalle.tipo.trim();
+              if (texto.length > 0) {
+                return texto.length > 50 ? texto.slice(0, 50) : texto;
+              }
+            }
+            return detalle.es_dia_doble ? "Día doble" : "Normal";
+          })(),
           justificado: Boolean(detalle.justificado),
           justificacion:
             Boolean(detalle.justificado) && detalle.justificacion

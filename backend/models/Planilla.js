@@ -272,6 +272,26 @@ class Planilla {
                   ? estadoTexto
                   : 'Presente';
 
+                const asistenciaTexto = (() => {
+                  if (typeof detalle.asistencia === 'string') {
+                    const texto = detalle.asistencia.trim();
+                    if (texto.length > 0) {
+                      return texto.length > 50 ? texto.slice(0, 50) : texto;
+                    }
+                  }
+                  return detalle.asistio ? 'Asistió' : 'Faltó';
+                })();
+
+                const tipoTexto = (() => {
+                  if (typeof detalle.tipo === 'string') {
+                    const texto = detalle.tipo.trim();
+                    if (texto.length > 0) {
+                      return texto.length > 50 ? texto.slice(0, 50) : texto;
+                    }
+                  }
+                  return detalle.es_dia_doble ? 'Día doble' : 'Normal';
+                })();
+
                 const justificadoValor =
                   detalle.justificado === true ||
                   detalle.justificado === 1 ||
@@ -293,7 +313,12 @@ class Planilla {
                   salario_dia: Number(Number(detalle.salario_dia || 0).toFixed(2)),
                   asistio: Boolean(detalle.asistio),
                   es_dia_doble: Boolean(detalle.es_dia_doble),
-                  estado: estadoNormalizado,
+                  estado:
+                    estadoNormalizado.length > 50
+                      ? estadoNormalizado.slice(0, 50)
+                      : estadoNormalizado,
+                  asistencia: asistenciaTexto,
+                  tipo: tipoTexto,
                   justificado: justificadoValor,
                   justificacion: justificacionTexto,
                   observacion:
