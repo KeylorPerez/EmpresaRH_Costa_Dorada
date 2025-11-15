@@ -82,7 +82,8 @@ const createInitialDraft = () => ({
   fecha_inicio_periodo: "",
   fecha_fin_periodo: "",
   fecha_liquidacion: getTodayInputValue(),
-  motivo_liquidacion: "",
+  motivo_liquidacion:
+    "Despido con responsabilidad patronal con base en el articulo 85, inciso D, del codigo de trabajo.",
   observaciones: "",
 });
 
