@@ -606,13 +606,30 @@ const updatePlanilla = async (req, res) => {
     const id_planilla = parseInt(req.params.id, 10);
     if (isNaN(id_planilla)) return res.status(400).json({ error: 'ID inválido' });
 
-    const { horas_extras = 0, bonificaciones = 0, deducciones = 0, fecha_pago } = req.body;
+    const {
+      horas_extras = 0,
+      bonificaciones = 0,
+      deducciones = 0,
+      fecha_pago,
+      dias_trabajados = null,
+      dias_descuento = 0,
+      monto_descuento_dias = null,
+      dias_dobles = 0,
+      monto_dias_dobles = null,
+      detalles = [],
+    } = req.body;
 
     await Planilla.update(id_planilla, {
       horas_extras,
       bonificaciones,
       deducciones,
       fecha_pago,
+      dias_trabajados,
+      dias_descuento,
+      monto_descuento_dias,
+      dias_dobles,
+      monto_dias_dobles,
+      detalles,
     });
 
     return res.json({ message: 'Planilla actualizada correctamente' });

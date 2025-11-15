@@ -1559,8 +1559,10 @@ export const usePlanilla = () => {
     try {
       setError("");
 
+      const empleadoIdSeleccionado = formData.id_empleado ? String(formData.id_empleado) : "";
+
       if (!editingPlanilla) {
-        if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
+        if (!empleadoIdSeleccionado || !formData.periodo_inicio || !formData.periodo_fin) {
           setError("Selecciona empleado y periodo de pago");
           return;
         }
@@ -1573,7 +1575,7 @@ export const usePlanilla = () => {
         if (
           hasOverlappingPlanilla(
             planillas,
-            formData.id_empleado,
+            empleadoIdSeleccionado,
             formData.periodo_inicio,
             formData.periodo_fin
           )
@@ -1581,7 +1583,100 @@ export const usePlanilla = () => {
           setError("Este colaborador ya tiene una planilla generada para el periodo seleccionado");
           return;
         }
+      }
 
+      const empleadoSeleccionado = empleados.find(
+        (empleado) => String(empleado.id_empleado) === empleadoIdSeleccionado
+      );
+
+      if (!empleadoSeleccionado) {
+        setError("No se encontró información del colaborador seleccionado");
+        return;
+      }
+
+      const deduccionesManuales = buildNumber(formData.deducciones);
+      const tipoPagoEmpleado = empleadoSeleccionado?.tipo_pago || "Quincenal";
+      const salarioBaseEmpleado = Number(empleadoSeleccionado?.salario_monto) || 0;
+
+      const diasDoblesDetalle = Number(detalleDiasResumen.diasDobles) || 0;
+      const montoDoblesDetalle = Number(detalleDiasResumen.montoDiasDobles) || 0;
+
+      const diasDoblesManual = parseNonNegative(formData.dias_dobles);
+      const montoDoblesManual = parseOptionalNonNegative(formData.monto_dias_dobles);
+
+      const ingresoManualDobles =
+        (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
+      const usaDoblesManualPayload = detalleDias.length === 0 || ingresoManualDobles;
+
+      let diasDoblesPayload = 0;
+      let montoDoblesPayload = null;
+
+      if (usaDoblesManualPayload) {
+        diasDoblesPayload = diasDoblesManual;
+        if (montoDoblesManual !== null) {
+          montoDoblesPayload = montoDoblesManual;
+        } else if (diasDoblesManual > 0) {
+          const salarioReferenciaDobles =
+            tipoPagoEmpleado === "Diario" ? salarioBaseEmpleado : salarioBaseEmpleado / 15;
+          montoDoblesPayload = Number((salarioReferenciaDobles * diasDoblesManual).toFixed(2));
+        } else {
+          montoDoblesPayload = 0;
+        }
+      } else if (diasDoblesDetalle > 0) {
+        diasDoblesPayload = Number(diasDoblesDetalle.toFixed(2));
+        montoDoblesPayload = Number(montoDoblesDetalle.toFixed(2));
+      }
+
+      const detallesPayload = detalleDias.map((detalle) => ({
+        fecha: detalle.fecha,
+        dia_semana: detalle.dia_semana,
+        salario_dia: buildNumber(detalle.salario_dia),
+        asistio: Boolean(detalle.asistio),
+        es_dia_doble: Boolean(detalle.es_dia_doble),
+        estado: normalizeEstado(detalle.estado),
+        asistencia: (() => {
+          if (typeof detalle.asistencia === "string") {
+            const texto = detalle.asistencia.trim();
+            if (texto.length > 0) {
+              return texto.length > 50 ? texto.slice(0, 50) : texto;
+            }
+          }
+          return detalle.asistio ? "Asistió" : "Faltó";
+        })(),
+        tipo: (() => {
+          if (typeof detalle.tipo === "string") {
+            const texto = detalle.tipo.trim();
+            if (texto.length > 0) {
+              return texto.length > 50 ? texto.slice(0, 50) : texto;
+            }
+          }
+          return detalle.es_dia_doble ? "Día doble" : "Normal";
+        })(),
+        justificado: Boolean(detalle.justificado),
+        justificacion:
+          Boolean(detalle.justificado) && detalle.justificacion
+            ? String(detalle.justificacion).trim()
+            : null,
+        observacion:
+          detalle.observacion && detalle.observacion.trim() !== ""
+            ? detalle.observacion.trim()
+            : null,
+      }));
+
+      const commonPayload = {
+        horas_extras: buildNumber(formData.horas_extras),
+        bonificaciones: buildNumber(formData.bonificaciones),
+        deducciones: deduccionesManuales,
+        fecha_pago: formData.fecha_pago || null,
+        dias_trabajados: parseOptionalNonNegative(formData.dias_trabajados),
+        dias_descuento: parseNonNegative(formData.dias_descuento),
+        monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
+        dias_dobles: diasDoblesPayload,
+        monto_dias_dobles: montoDoblesPayload,
+        detalles: detallesPayload,
+      };
+
+      if (!editingPlanilla) {
         const prestamosPayload = prestamosSeleccionados.map((prestamo) => {
           if (prestamo.monto_pago > prestamo.saldo_actual) {
             throw new Error("El monto de pago supera el saldo disponible del préstamo");
@@ -1593,115 +1688,24 @@ export const usePlanilla = () => {
           };
         });
 
-        const deduccionesManuales = buildNumber(formData.deducciones);
-
-        const empleadoSeleccionado = empleados.find(
-          (empleado) => String(empleado.id_empleado) === String(formData.id_empleado)
-        );
-        const tipoPagoEmpleado = empleadoSeleccionado?.tipo_pago || "Quincenal";
-
-        const diasDoblesDetalle = Number(detalleDiasResumen.diasDobles) || 0;
-        const montoDoblesDetalle = Number(detalleDiasResumen.montoDiasDobles) || 0;
-
-        const diasDoblesManual = parseNonNegative(formData.dias_dobles);
-        const montoDoblesManual = parseOptionalNonNegative(formData.monto_dias_dobles);
-
-        const ingresoManualDobles =
-          (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
-        const usaDoblesManualPayload = detalleDias.length === 0 || ingresoManualDobles;
-
-        let diasDoblesPayload = 0;
-        let montoDoblesPayload = null;
-
-        if (usaDoblesManualPayload) {
-          diasDoblesPayload = diasDoblesManual;
-          if (montoDoblesManual !== null) {
-            montoDoblesPayload = montoDoblesManual;
-          } else if (diasDoblesManual > 0) {
-            const salarioBaseEmpleado = Number(empleadoSeleccionado?.salario_monto) || 0;
-            const salarioReferenciaDobles =
-              tipoPagoEmpleado === "Diario"
-                ? salarioBaseEmpleado
-                : salarioBaseEmpleado / 15;
-            montoDoblesPayload = Number((salarioReferenciaDobles * diasDoblesManual).toFixed(2));
-          } else {
-            montoDoblesPayload = 0;
-          }
-        } else if (diasDoblesDetalle > 0) {
-          diasDoblesPayload = Number(diasDoblesDetalle.toFixed(2));
-          montoDoblesPayload = Number(montoDoblesDetalle.toFixed(2));
-        }
-
-        const detallesPayload = detalleDias.map((detalle) => ({
-          fecha: detalle.fecha,
-          dia_semana: detalle.dia_semana,
-          salario_dia: buildNumber(detalle.salario_dia),
-          asistio: Boolean(detalle.asistio),
-          es_dia_doble: Boolean(detalle.es_dia_doble),
-          estado: normalizeEstado(detalle.estado),
-          asistencia: (() => {
-            if (typeof detalle.asistencia === "string") {
-              const texto = detalle.asistencia.trim();
-              if (texto.length > 0) {
-                return texto.length > 50 ? texto.slice(0, 50) : texto;
-              }
-            }
-            return detalle.asistio ? "Asistió" : "Faltó";
-          })(),
-          tipo: (() => {
-            if (typeof detalle.tipo === "string") {
-              const texto = detalle.tipo.trim();
-              if (texto.length > 0) {
-                return texto.length > 50 ? texto.slice(0, 50) : texto;
-              }
-            }
-            return detalle.es_dia_doble ? "Día doble" : "Normal";
-          })(),
-          justificado: Boolean(detalle.justificado),
-          justificacion:
-            Boolean(detalle.justificado) && detalle.justificacion
-              ? String(detalle.justificacion).trim()
-              : null,
-          observacion:
-            detalle.observacion && detalle.observacion.trim() !== ""
-              ? detalle.observacion.trim()
-              : null,
-        }));
-
         const payload = {
-          id_empleado: Number(formData.id_empleado),
+          ...commonPayload,
+          id_empleado: Number(empleadoIdSeleccionado),
           periodo_inicio: formData.periodo_inicio,
           periodo_fin: formData.periodo_fin,
-          horas_extras: buildNumber(formData.horas_extras),
-          bonificaciones: buildNumber(formData.bonificaciones),
-          deducciones: deduccionesManuales,
-          fecha_pago: formData.fecha_pago || null,
           prestamos: prestamosPayload,
-          dias_trabajados: parseOptionalNonNegative(formData.dias_trabajados),
-          dias_descuento: parseNonNegative(formData.dias_descuento),
-          monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
-          dias_dobles: diasDoblesPayload,
-          monto_dias_dobles: montoDoblesPayload,
-          detalles: detallesPayload,
         };
 
-      await planillaService.create(payload);
-    } else {
-      const payload = {
-        horas_extras: buildNumber(formData.horas_extras),
-        bonificaciones: buildNumber(formData.bonificaciones),
-        deducciones: buildNumber(formData.deducciones),
-        fecha_pago: formData.fecha_pago || null,
-      };
+        await planillaService.create(payload);
+      } else {
+        const planillaIdValue = resolvePlanillaId(editingPlanilla);
+        if (!planillaIdValue) {
+          setError("No se pudo identificar la planilla seleccionada para actualizar");
+          return;
+        }
 
-      const planillaIdValue = resolvePlanillaId(editingPlanilla);
-      if (!planillaIdValue) {
-        setError("No se pudo identificar la planilla seleccionada para actualizar");
-        return;
+        await planillaService.update(planillaIdValue, commonPayload);
       }
-
-      await planillaService.update(planillaIdValue, payload);
-    }
 
       setModalOpen(false);
       resetForm();
@@ -1710,7 +1714,8 @@ export const usePlanilla = () => {
     } catch (err) {
       console.error(err);
       const isConflict = err.response?.status === 409;
-      const message = err.response?.data?.error ||
+      const message =
+        err.response?.data?.error ||
         (isConflict
           ? "Este colaborador ya tiene una planilla registrada en ese periodo"
           : err.message) ||
