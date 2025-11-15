@@ -261,7 +261,6 @@ export const usePlanilla = () => {
   );
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
   const autoDiasRef = useRef(null);
-  const autoMontoDescuentoRef = useRef(null);
 
   useEffect(() => {
     fetchPlanillas();
@@ -306,7 +305,6 @@ export const usePlanilla = () => {
 
     if (name === "id_empleado") {
       autoDiasRef.current = null;
-      autoMontoDescuentoRef.current = null;
       setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
       setFormData((prev) => ({
         ...prev,
@@ -336,7 +334,6 @@ export const usePlanilla = () => {
     setAttendanceState({ loading: false, dias: null, fechas: [], error: "" });
     setAttendanceReloadKey(0);
     autoDiasRef.current = null;
-    autoMontoDescuentoRef.current = null;
     setDetalleDias([]);
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
     setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
@@ -1162,56 +1159,6 @@ export const usePlanilla = () => {
     attendanceState.dias,
     attendanceState.fechas,
     syncDetalleWithAttendance,
-  ]);
-
-  useEffect(() => {
-    if (!modalOpen || editingPlanilla) return;
-
-    const empleadoSeleccionado = empleados.find(
-      (empleado) => String(empleado.id_empleado) === formData.id_empleado
-    );
-
-    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Quincenal") {
-      return;
-    }
-
-    const dias = Number(formData.dias_descuento);
-    if (!Number.isFinite(dias) || dias < 0) {
-      return;
-    }
-
-    const salarioBase = Number(empleadoSeleccionado.salario_monto) || 0;
-    if (salarioBase <= 0) {
-      return;
-    }
-
-    const montoCalculado = salarioBase / 15 * dias;
-    if (!Number.isFinite(montoCalculado)) {
-      return;
-    }
-
-    const montoRedondeado = Number(montoCalculado.toFixed(2));
-    const montoTexto = montoRedondeado.toFixed(2);
-    const previousAuto = autoMontoDescuentoRef.current;
-    autoMontoDescuentoRef.current = montoRedondeado;
-
-    setFormData((prev) => {
-      const actualNumero = Number(prev.monto_descuento_dias);
-      if (
-        prev.monto_descuento_dias === "" ||
-        Number.isNaN(actualNumero) ||
-        actualNumero === previousAuto
-      ) {
-        return { ...prev, monto_descuento_dias: montoTexto };
-      }
-      return prev;
-    });
-  }, [
-    modalOpen,
-    editingPlanilla,
-    formData.dias_descuento,
-    formData.id_empleado,
-    empleados,
   ]);
 
   const buildNumber = (value) => {
