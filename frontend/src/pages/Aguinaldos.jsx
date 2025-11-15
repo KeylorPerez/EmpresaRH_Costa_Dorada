@@ -346,13 +346,6 @@ const Aguinaldos = ({ mode }) => {
   const fechaCalculoHoy = useMemo(() => formatearFechaInput(new Date()), []);
   const fechaCalculoHoyTexto = useMemo(() => formatearFechaLarga(new Date()), []);
 
-  const fechaIngresoAplicada = useMemo(() => {
-    if (!formData.fecha_ingreso_manual) return null;
-    const fecha = new Date(formData.fecha_ingreso_manual);
-    if (Number.isNaN(fecha.getTime())) return null;
-    return formatearFechaLarga(fecha);
-  }, [formData.fecha_ingreso_manual]);
-
   const sidebarLinks = useMemo(() => {
     if (isAdminView) {
       return [
@@ -764,11 +757,6 @@ const Aguinaldos = ({ mode }) => {
                         <p className="mt-1 text-xs text-gray-500">
                           Se registra automáticamente la fecha del cálculo ({fechaCalculoHoyTexto}).
                         </p>
-                        {fechaIngresoAplicada && (
-                          <p className="mt-2 text-xs font-medium text-blue-700">
-                            Fecha de ingreso del colaborador considerada: {fechaIngresoAplicada}
-                          </p>
-                        )}
                       </div>
 
                       <div className="flex flex-col gap-4">
