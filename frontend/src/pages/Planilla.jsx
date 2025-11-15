@@ -491,7 +491,6 @@ const Planilla = () => {
       <span>Faltas: {detalleDiasResumen.diasFaltantes}</span>
       <span>Total detalle: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
       <span>Extra días dobles: {formatCurrency(pagoExtraDiasDobles)}</span>
-      <span>Pago neto estimado: {formatCurrency(pagoNetoEstimado)}</span>
     </div>
   );
 
@@ -1546,10 +1545,6 @@ const Planilla = () => {
                                             {formatCurrency(pagoExtraDiasDobles)}
                                           </p>
                                         )}
-                                        <p>
-                                          <span className="font-semibold text-gray-700">Pago neto estimado:</span>{" "}
-                                          {formatCurrency(pagoNetoEstimado)}
-                                        </p>
                                       </div>
                                     ) : (
                                       <p className="text-sm text-gray-500">
