@@ -97,6 +97,106 @@ const normalizeSalarioBase = (valor) => {
   return Number(numero.toFixed(2));
 };
 
+const normalizeDetallePlanillaRegistro = (detalle) => {
+  if (!detalle || typeof detalle !== "object") {
+    return null;
+  }
+
+  const fechaRaw = detalle.fecha;
+  const fecha = (() => {
+    if (!fechaRaw) return "";
+    if (fechaRaw instanceof Date) {
+      const year = fechaRaw.getFullYear();
+      const month = String(fechaRaw.getMonth() + 1).padStart(2, "0");
+      const day = String(fechaRaw.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    if (typeof fechaRaw === "string") {
+      const texto = fechaRaw.trim();
+      if (!texto) return "";
+      return texto.split("T")[0];
+    }
+    return "";
+  })();
+
+  if (!fecha) {
+    return null;
+  }
+
+  const diaSemana = typeof detalle.dia_semana === "string" ? detalle.dia_semana : "";
+
+  const asistio = Boolean(
+    detalle.asistio === true || Number(detalle.asistio) === 1,
+  );
+  const esDiaDoble = Boolean(
+    detalle.es_dia_doble === true || Number(detalle.es_dia_doble) === 1,
+  );
+
+  const salarioDiaNumero = (() => {
+    const numero = parseNumberInput(detalle.salario_dia);
+    if (Number.isNaN(numero)) {
+      return 0;
+    }
+    return Math.max(numero, 0);
+  })();
+
+  const salarioDiaTexto = formatMontoPositivo(salarioDiaNumero);
+
+  const salarioBase = (() => {
+    const baseRegistro = parseNumberInput(detalle.salario_base);
+    if (!Number.isNaN(baseRegistro) && baseRegistro > 0) {
+      return Number(baseRegistro.toFixed(2));
+    }
+    if (salarioDiaNumero > 0) {
+      const divisor = esDiaDoble ? 2 : 1;
+      if (divisor > 0) {
+        return Number((salarioDiaNumero / divisor).toFixed(2));
+      }
+    }
+    return 0;
+  })();
+
+  const estado = (() => {
+    if (typeof detalle.estado === "string") {
+      const texto = detalle.estado.trim();
+      if (estadoAsistenciaSet.has(texto)) {
+        return texto;
+      }
+    }
+    return asistio ? ESTADO_PRESENTE : ESTADO_AUSENTE;
+  })();
+
+  const justificado = Boolean(
+    detalle.justificado === true || Number(detalle.justificado) === 1,
+  );
+
+  const justificacion = justificado
+    ? detalle.justificacion !== undefined && detalle.justificacion !== null
+      ? String(detalle.justificacion)
+      : ""
+    : "";
+
+  const observacion =
+    detalle.observacion !== undefined && detalle.observacion !== null
+      ? String(detalle.observacion)
+      : "";
+
+  return {
+    fecha,
+    dia_semana: diaSemana,
+    salario_base: normalizeSalarioBase(salarioBase),
+    salario_dia: salarioDiaTexto,
+    asistio,
+    es_dia_doble: esDiaDoble,
+    estado,
+    justificado,
+    justificacion,
+    observacion,
+    autoJustificacion: false,
+    asistenciaManual: true,
+  };
+};
+
 const obtenerSalarioBaseDetalle = (detalle) => {
   if (!detalle) return 0;
 
@@ -445,15 +545,19 @@ export const usePlanilla = () => {
     [handleChange]
   );
 
-  const handleEdit = (planilla) => {
+  const handleEdit = async (planilla) => {
     const canonicalPlanilla = ensurePlanillaCanonical(planilla);
     setEditingPlanilla(canonicalPlanilla);
+    const idEmpleado = canonicalPlanilla?.id_empleado
+      ? String(canonicalPlanilla.id_empleado)
+      : "";
+    const periodoInicio = normalizeDate(canonicalPlanilla?.periodo_inicio);
+    const periodoFin = normalizeDate(canonicalPlanilla?.periodo_fin);
+
     setFormData({
-      id_empleado: canonicalPlanilla?.id_empleado
-        ? String(canonicalPlanilla.id_empleado)
-        : "",
-      periodo_inicio: normalizeDate(canonicalPlanilla?.periodo_inicio),
-      periodo_fin: normalizeDate(canonicalPlanilla?.periodo_fin),
+      id_empleado: idEmpleado,
+      periodo_inicio: periodoInicio,
+      periodo_fin: periodoFin,
       horas_extras: normalizeNumber(canonicalPlanilla?.horas_extras),
       bonificaciones: normalizeNumber(canonicalPlanilla?.bonificaciones),
       deducciones: normalizeNumber(canonicalPlanilla?.deducciones),
@@ -465,7 +569,75 @@ export const usePlanilla = () => {
       monto_dias_dobles: "",
     });
     setError("");
+    setPrestamoSelections({});
+    setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+    autoDiasRef.current = null;
+    setAttendanceState({
+      loading: false,
+      dias: null,
+      fechas: [],
+      error: "",
+      message: "Cargando detalle guardado...",
+    });
+    setDetalleDias([]);
+    detalleContextRef.current = { empleadoId: idEmpleado, inicio: periodoInicio, fin: periodoFin };
     setModalOpen(true);
+
+    const planillaIdValue = resolvePlanillaId(canonicalPlanilla);
+    if (!planillaIdValue) {
+      setAttendanceState({
+        loading: false,
+        dias: null,
+        fechas: [],
+        error: "",
+        message: "No se pudo identificar la planilla seleccionada.",
+      });
+      return;
+    }
+
+    try {
+      const data = await planillaService.getDetalle(planillaIdValue);
+      const detalles = Array.isArray(data)
+        ? data.map((item) => normalizeDetallePlanillaRegistro(item)).filter(Boolean)
+        : [];
+
+      if (detalles.length > 0) {
+        setDetalleDias(detalles);
+        detalleContextRef.current = {
+          empleadoId: idEmpleado,
+          inicio: periodoInicio,
+          fin: periodoFin,
+        };
+        setAttendanceState({
+          loading: false,
+          dias: detalles.length,
+          fechas: detalles.map((detalle) => detalle.fecha),
+          error: "",
+          message: "",
+        });
+      } else {
+        setAttendanceState({
+          loading: false,
+          dias: null,
+          fechas: [],
+          error: "",
+          message: "Esta planilla no tiene detalle registrado.",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      const message =
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo cargar el detalle guardado de la planilla.";
+      setAttendanceState({
+        loading: false,
+        dias: null,
+        fechas: [],
+        error: message,
+        message: "",
+      });
+    }
   };
 
   const prestamosEmpleado = useMemo(() => {
@@ -730,7 +902,7 @@ export const usePlanilla = () => {
   }, []);
 
   useEffect(() => {
-    if (!modalOpen) return;
+    if (!modalOpen || editingPlanilla) return;
 
     const { id_empleado, periodo_inicio, periodo_fin } = formData;
 
@@ -767,6 +939,7 @@ export const usePlanilla = () => {
     detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
   }, [
     modalOpen,
+    editingPlanilla,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,

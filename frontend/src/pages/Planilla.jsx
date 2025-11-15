@@ -1562,17 +1562,15 @@ const Planilla = () => {
                               </div>
                             )}
 
-                            {!isEditing && (
-                              <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                                <p className="text-xs uppercase tracking-wide text-gray-500">Monto neto estimado a pagar</p>
-                                <p className="mt-1 text-xl font-semibold text-gray-800">{formatCurrency(pagoNetoEstimado)}</p>
-                                <p className="mt-1 text-xs text-gray-600">
-                                  {tipoPago === "Diario"
-                                    ? "Incluye salario diario según los días aplicados, montos por días dobles, bonificaciones y todas las deducciones seleccionadas."
-                                    : "Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual."}
-                                </p>
-                              </div>
-                            )}
+                            <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                              <p className="text-xs uppercase tracking-wide text-gray-500">Monto neto estimado a pagar</p>
+                              <p className="mt-1 text-xl font-semibold text-gray-800">{formatCurrency(pagoNetoEstimado)}</p>
+                              <p className="mt-1 text-xs text-gray-600">
+                                {tipoPago === "Diario"
+                                  ? "Incluye salario diario según los días aplicados, montos por días dobles, bonificaciones y todas las deducciones seleccionadas."
+                                  : "Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual."}
+                              </p>
+                            </div>
                           </div>
 
                           <div
