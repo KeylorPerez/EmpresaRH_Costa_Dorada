@@ -495,6 +495,36 @@ const Planilla = () => {
     </div>
   );
 
+  const AttendanceStatusMessage = ({ className = "" }) => {
+    if (attendanceState.error) {
+      return (
+        <p className={`text-xs font-medium text-red-600 ${className}`.trim()}>
+          {attendanceState.error}
+        </p>
+      );
+    }
+
+    if (attendanceState.loading) {
+      return (
+        <p className={`text-xs text-blue-600 ${className}`.trim()}>
+          Actualizando asistencia...
+        </p>
+      );
+    }
+
+    if (attendanceState.dias !== null) {
+      const dias = Number(attendanceState.dias) || 0;
+      const labelDias = dias === 1 ? "día" : "días";
+      return (
+        <p className={`text-xs text-gray-500 ${className}`.trim()}>
+          Asistencia sincronizada ({dias} {labelDias} registrados).
+        </p>
+      );
+    }
+
+    return null;
+  };
+
   const DetalleTable = ({ className = "" }) => {
     if (detalleDias.length === 0) {
       return (
@@ -505,7 +535,8 @@ const Planilla = () => {
     }
 
     const handleJustificacionChange = (event, rowIndex) => {
-      const { value, target } = event;
+      const { target } = event;
+      const { value } = target;
       autoResizeTextarea(target);
       updateDetalleDia(rowIndex, { justificacion: value });
     };
@@ -1421,12 +1452,26 @@ const Planilla = () => {
                               detalleHighlighted ? "ring-2 ring-blue-300" : ""
                             }`}
                           >
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
                               <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
-                              <DetalleResumenBadges />
+                              <AttendanceStatusMessage className="mt-1" />
                             </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <DetalleResumenBadges />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={refreshAttendance}
+                                disabled={attendanceState.loading}
+                              >
+                                {attendanceState.loading ? "Actualizando..." : "Refrescar asistencia"}
+                              </Button>
+                            </div>
+                          </div>
 
-                            <DetalleTable className="mt-4" />
+                          <DetalleTable className="mt-4" />
                           </div>
 
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -1532,9 +1577,27 @@ const Planilla = () => {
                         <p className="text-sm text-gray-500">
                           Actualiza asistencias, marca días dobles y ajusta los montos directamente en esta vista ampliada.
                         </p>
+                        <AttendanceStatusMessage />
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <DetalleResumenBadges className="text-sm" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          onClick={refreshAttendance}
+                          disabled={attendanceState.loading}
+                        >
+                          {attendanceState.loading ? "Actualizando..." : "Refrescar"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setDetalleOverlayOpen(false)}
+                        >
+                          Cancelar
+                        </Button>
                         <Button variant="secondary" size="sm" type="button" onClick={() => setDetalleOverlayOpen(false)}>
                           Aceptar cambios
                         </Button>
