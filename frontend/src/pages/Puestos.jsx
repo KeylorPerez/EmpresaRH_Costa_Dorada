@@ -126,7 +126,7 @@ const Puestos = () => {
           )}
 
           {modalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center">
+            <div className="fixed inset-0 bg-black/30 flex justify-center items-center">
               <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-800">
