@@ -1262,35 +1262,6 @@ const Planilla = () => {
                                   )}
                                 </div>
 
-                                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                                  <h4 className="text-sm font-semibold text-gray-800">Resumen del periodo</h4>
-                                  <dl className="mt-3 space-y-3 text-sm text-gray-600">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Rango</dt>
-                                      <dd className="font-medium text-gray-800">
-                                        {formatPeriodo(formData.periodo_inicio, formData.periodo_fin)}
-                                      </dd>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Fecha de pago</dt>
-                                      <dd className="font-medium text-gray-800">
-                                        {formData.fecha_pago ? formatDate(formData.fecha_pago) : "Pendiente"}
-                                      </dd>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Horas extras</dt>
-                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.horas_extras)}</dd>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Bonificaciones</dt>
-                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.bonificaciones)}</dd>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Deducciones</dt>
-                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.deducciones)}</dd>
-                                    </div>
-                                  </dl>
-                                </div>
                               </div>
                             ) : (
                               <>
