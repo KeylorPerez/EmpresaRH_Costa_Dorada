@@ -138,8 +138,8 @@ const Empleados = () => {
           {loading ? (
             <p>Cargando empleados...</p>
           ) : (
-            <div className="overflow-x-auto shadow-sm border border-gray-200 rounded-lg">
-              <table className="min-w-full bg-white text-sm">
+            <div className="overflow-auto max-h-[70vh] shadow-sm border border-gray-200 rounded-lg">
+              <table className="min-w-max w-full bg-white text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                     <th className="px-4 py-3">Empleado</th>
