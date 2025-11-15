@@ -778,8 +778,7 @@ const Planilla = () => {
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
   const ingresoManualDiasDobles =
     (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
-  const usaDoblesManual =
-    tipoPago !== "Diario" || !usaDetalleParaCalculos || ingresoManualDiasDobles;
+  const usaDoblesManual = !usaDetalleParaCalculos || ingresoManualDiasDobles;
   const diasDoblesAplicados = usaDoblesManual
     ? diasDoblesManual
     : Number(detalleDiasResumen.diasDobles) || 0;

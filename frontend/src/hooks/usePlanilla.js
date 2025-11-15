@@ -1427,7 +1427,7 @@ export const usePlanilla = () => {
 
         const ingresoManualDobles =
           (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
-        const usaDoblesManualPayload = tipoPagoEmpleado !== "Diario" || ingresoManualDobles;
+        const usaDoblesManualPayload = detalleDias.length === 0 || ingresoManualDobles;
 
         let diasDoblesPayload = 0;
         let montoDoblesPayload = null;
@@ -1446,7 +1446,7 @@ export const usePlanilla = () => {
           } else {
             montoDoblesPayload = 0;
           }
-        } else if (tipoPagoEmpleado === "Diario" && diasDoblesDetalle > 0) {
+        } else if (diasDoblesDetalle > 0) {
           diasDoblesPayload = Number(diasDoblesDetalle.toFixed(2));
           montoDoblesPayload = Number(montoDoblesDetalle.toFixed(2));
         }
