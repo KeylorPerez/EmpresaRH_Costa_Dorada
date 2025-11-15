@@ -1553,7 +1553,7 @@ const Planilla = () => {
                                 onClick={refreshAttendance}
                                 disabled={attendanceState.loading}
                               >
-                                {attendanceState.loading ? "Actualizando..." : "Refrescar asistencia"}
+                                {attendanceState.loading ? "Recalculando..." : "Recalcular asistencia"}
                               </Button>
                             </div>
                           </div>
@@ -1675,7 +1675,7 @@ const Planilla = () => {
                           onClick={refreshAttendance}
                           disabled={attendanceState.loading}
                         >
-                          {attendanceState.loading ? "Actualizando..." : "Refrescar"}
+                          {attendanceState.loading ? "Recalculando..." : "Recalcular"}
                         </Button>
                         <Button
                           variant="ghost"
