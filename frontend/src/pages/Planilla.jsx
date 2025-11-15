@@ -1231,14 +1231,75 @@ const Planilla = () => {
                       <div className="flex flex-col gap-6 lg:flex-row">
                         <aside className="space-y-6 lg:w-80 flex-shrink-0 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 lg:min-h-0">
                           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4 flex flex-col min-h-0 lg:max-h-[60vh]">
-                            {!selectedEmpleado && (
-                              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                                Selecciona un colaborador desde la lista para ver sus datos.
-                              </div>
-                            )}
+                            {isEditing ? (
+                              <div className="space-y-4">
+                                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
+                                  <p className="text-xs uppercase tracking-wide text-blue-700">Colaborador</p>
+                                  {selectedEmpleado ? (
+                                    <div className="mt-3 space-y-2 text-sm text-blue-900">
+                                      <p className="text-base font-semibold text-blue-900">
+                                        {obtenerNombreCompletoEmpleado(selectedEmpleado)}
+                                      </p>
+                                      <p className="text-sm">
+                                        <span className="font-medium">Identificación:</span>{" "}
+                                        {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
+                                      </p>
+                                      {selectedEmpleado.puesto_nombre && (
+                                        <p className="text-sm">
+                                          <span className="font-medium">Puesto:</span>{" "}
+                                          {selectedEmpleado.puesto_nombre}
+                                        </p>
+                                      )}
+                                      <p className="text-sm">
+                                        <span className="font-medium">Tipo de pago:</span>{" "}
+                                        {formatearTipoPago(selectedEmpleado.tipo_pago)}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <p className="mt-3 text-sm text-blue-800">
+                                      No se encontró la información del colaborador asociado a esta planilla.
+                                    </p>
+                                  )}
+                                </div>
 
-                            {!isEditing && (
+                                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                  <h4 className="text-sm font-semibold text-gray-800">Resumen del periodo</h4>
+                                  <dl className="mt-3 space-y-3 text-sm text-gray-600">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Rango</dt>
+                                      <dd className="font-medium text-gray-800">
+                                        {formatPeriodo(formData.periodo_inicio, formData.periodo_fin)}
+                                      </dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Fecha de pago</dt>
+                                      <dd className="font-medium text-gray-800">
+                                        {formData.fecha_pago ? formatDate(formData.fecha_pago) : "Pendiente"}
+                                      </dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Horas extras</dt>
+                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.horas_extras)}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Bonificaciones</dt>
+                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.bonificaciones)}</dd>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <dt className="text-xs uppercase tracking-wide text-gray-500">Deducciones</dt>
+                                      <dd className="font-medium text-gray-800">{formatCurrency(formData.deducciones)}</dd>
+                                    </div>
+                                  </dl>
+                                </div>
+                              </div>
+                            ) : (
                               <>
+                                {!selectedEmpleado && (
+                                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                                    Selecciona un colaborador desde la lista para ver sus datos.
+                                  </div>
+                                )}
+
                                 <div className="space-y-3">
                                   <div className="sm:col-span-2">
                                     <Button
