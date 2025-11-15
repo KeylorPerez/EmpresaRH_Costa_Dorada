@@ -133,6 +133,7 @@ const Planilla = () => {
     refreshAttendance,
     detalleDias,
     updateDetalleDia,
+    normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
     detalleDiasResumen,
@@ -509,6 +510,15 @@ const Planilla = () => {
       updateDetalleDia(rowIndex, { justificacion: value });
     };
 
+    const handleSalarioBlur = (event, rowIndex) => {
+      const { value } = event.target;
+      if (value === "" || value === null) {
+        updateDetalleDia(rowIndex, { salario_dia: "" });
+        return;
+      }
+      normalizeDetalleSalario(rowIndex);
+    };
+
     return (
       <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -600,6 +610,7 @@ const Planilla = () => {
                     step="0.01"
                     value={detalle.salario_dia ?? ""}
                     onChange={(event) => updateDetalleDia(index, { salario_dia: event.target.value })}
+                    onBlur={(event) => handleSalarioBlur(event, index)}
                     className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </td>

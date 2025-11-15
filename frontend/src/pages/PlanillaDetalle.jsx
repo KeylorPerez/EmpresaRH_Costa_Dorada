@@ -13,7 +13,39 @@ const currencyFormatter = new Intl.NumberFormat("es-CR", {
   minimumFractionDigits: 2,
 });
 
-const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
+const parseMonto = (value) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+
+    let cleaned = trimmed.replace(/\s+/g, "");
+    const hasComma = cleaned.includes(",");
+    const hasDot = cleaned.includes(".");
+
+    if (hasComma && hasDot) {
+      const lastComma = cleaned.lastIndexOf(",");
+      const lastDot = cleaned.lastIndexOf(".");
+      if (lastComma > lastDot) {
+        cleaned = cleaned.replace(/\./g, "");
+      }
+    }
+
+    if (hasComma) {
+      cleaned = cleaned.replace(/,/g, ".");
+    }
+
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
+const formatCurrency = (value) => currencyFormatter.format(parseMonto(value));
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -287,7 +319,7 @@ const PlanillaDetalle = () => {
 
     return detalle.reduce(
       (acumulado, item) => {
-        const salario = Number(item.salario_dia) || 0;
+        const salario = parseMonto(item.salario_dia);
         const factor = item.es_dia_doble ? 2 : 1;
         if (item.asistio) {
           acumulado.asistencias += factor;
