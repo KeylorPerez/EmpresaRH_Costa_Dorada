@@ -22,17 +22,71 @@ const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 
+const isEmptyValue = (value) => value === "" || value === null || value === undefined;
+
+const normalizeNumericString = (value) => {
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  let cleaned = trimmed.replace(/\s+/g, "");
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, "");
+    }
+  }
+
+  if (hasComma) {
+    cleaned = cleaned.replace(/,/g, ".");
+  }
+
+  return cleaned;
+};
+
+const parseNumberInput = (value) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.NaN;
+  }
+
+  if (typeof value === "string") {
+    const normalized = normalizeNumericString(value);
+    if (!normalized) return Number.NaN;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }
+
+  if (isEmptyValue(value)) {
+    return Number.NaN;
+  }
+
+  return Number.NaN;
+};
+
+const toPositiveNumber = (value) => {
+  const numero = parseNumberInput(value);
+  if (Number.isNaN(numero)) {
+    return 0;
+  }
+  return Math.max(numero, 0);
+};
+
 const formatMontoPositivo = (valor) => {
-  const numero = Number(valor);
-  if (!Number.isFinite(numero)) {
+  const numero = parseNumberInput(valor);
+  if (Number.isNaN(numero)) {
     return Number(0).toFixed(2);
   }
   return Math.max(numero, 0).toFixed(2);
 };
 
 const normalizeSalarioBase = (valor) => {
-  const numero = Number(valor);
-  if (!Number.isFinite(numero) || numero < 0) {
+  const numero = parseNumberInput(valor);
+  if (Number.isNaN(numero) || numero < 0) {
     return 0;
   }
   return Number(numero.toFixed(2));
@@ -584,7 +638,7 @@ export const usePlanilla = () => {
             return detalle;
           }
 
-          if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
+          if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
             return detalle.salario_dia === salarioCero
               ? detalle
               : {
@@ -616,7 +670,7 @@ export const usePlanilla = () => {
         const asistio = asistenciaSet.has(detalle.fecha);
 
         if (!asistio) {
-          if (!detalle.asistio && Number(detalle.salario_dia) === 0) {
+          if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
             return detalle.salario_dia === salarioCero
               ? detalle
               : {
@@ -636,13 +690,13 @@ export const usePlanilla = () => {
           };
         }
 
-        const salarioBase = Number(detalle.salario_base);
+        const salarioBase = parseNumberInput(detalle.salario_base);
         const factor = detalle.es_dia_doble ? 2 : 1;
         const salarioCalculado = (() => {
           if (Number.isFinite(salarioBase) && salarioBase >= 0) {
             return salarioBase * factor;
           }
-          const actual = Number(detalle.salario_dia);
+          const actual = parseNumberInput(detalle.salario_dia);
           return Number.isFinite(actual) && actual >= 0 ? actual : 0;
         })();
 
@@ -768,14 +822,18 @@ export const usePlanilla = () => {
         if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
           const valor = updates.salario_dia;
 
-          if (valor === "") {
+          if (isEmptyValue(valor)) {
             siguiente.salario_dia = "";
+            siguiente.salario_base = 0;
           } else {
-            const numero = Number(valor);
+            const texto = typeof valor === "string" ? valor : String(valor);
+            siguiente.salario_dia = texto;
+            const numero = parseNumberInput(valor);
+
             if (!Number.isNaN(numero)) {
+              const positivo = Math.max(numero, 0);
               const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
-              const base = factorBase > 0 ? numero / factorBase : numero;
-              siguiente.salario_dia = formatMontoPositivo(numero);
+              const base = factorBase > 0 ? positivo / factorBase : positivo;
 
               if (detalle.asistio || detalle.justificado) {
                 siguiente.salario_base = normalizeSalarioBase(base);
@@ -852,6 +910,42 @@ export const usePlanilla = () => {
         }
 
         return siguiente;
+      })
+    );
+  }, []);
+
+  const normalizeDetalleSalario = useCallback((index) => {
+    setDetalleDias((prev) =>
+      prev.map((detalle, idx) => {
+        if (idx !== index) return detalle;
+
+        const valorActual = detalle.salario_dia;
+
+        if (isEmptyValue(valorActual)) {
+          if (detalle.salario_base !== 0) {
+            return { ...detalle, salario_dia: "", salario_base: 0 };
+          }
+          return { ...detalle, salario_dia: "" };
+        }
+
+        const numero = parseNumberInput(valorActual);
+        if (Number.isNaN(numero)) {
+          return {
+            ...detalle,
+            salario_dia:
+              typeof valorActual === "string" ? valorActual.trim() : String(valorActual ?? ""),
+          };
+        }
+
+        const positivo = Math.max(numero, 0);
+        const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
+        const base = factorBase > 0 ? positivo / factorBase : positivo;
+
+        return {
+          ...detalle,
+          salario_base: normalizeSalarioBase(base),
+          salario_dia: formatMontoPositivo(positivo),
+        };
       })
     );
   }, []);
@@ -936,8 +1030,8 @@ export const usePlanilla = () => {
 
     return detalleDias.reduce(
       (acumulado, detalle) => {
-        const salario = Math.max(Number(detalle.salario_dia) || 0, 0);
-        const salarioBase = Math.max(Number(detalle.salario_base) || 0, 0);
+        const salario = toPositiveNumber(detalle.salario_dia);
+        const salarioBase = toPositiveNumber(detalle.salario_base);
         const pagado = detalle.asistio || detalle.justificado;
         const factorAsistencia = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
 
@@ -1188,18 +1282,18 @@ export const usePlanilla = () => {
   ]);
 
   const buildNumber = (value) => {
-    const parsed = Number(value);
+    const parsed = parseNumberInput(value);
     return Number.isNaN(parsed) ? 0 : parsed;
   };
 
   const parseNonNegative = (value) => {
-    const parsed = Number(value);
+    const parsed = parseNumberInput(value);
     if (Number.isNaN(parsed) || parsed < 0) return 0;
     return parsed;
   };
 
   const parseOptionalNonNegative = (value) => {
-    if (value === "" || value === null || value === undefined) return null;
+    if (isEmptyValue(value)) return null;
     return parseNonNegative(value);
   };
 
@@ -1430,6 +1524,7 @@ export const usePlanilla = () => {
     refreshAttendance,
     detalleDias,
     updateDetalleDia,
+    normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
     detalleDiasResumen,
