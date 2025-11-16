@@ -46,7 +46,6 @@ class Liquidacion {
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
         l.salario_promedio_diario,
-        l.dias_trabajados_aguinaldo,
         l.dias_pendientes_vacaciones,
         l.dias_preaviso,
         l.dias_cesantia,
@@ -75,7 +74,6 @@ class Liquidacion {
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
         l.salario_promedio_diario,
-        l.dias_trabajados_aguinaldo,
         l.dias_pendientes_vacaciones,
         l.dias_preaviso,
         l.dias_cesantia,
@@ -109,7 +107,6 @@ class Liquidacion {
           l.motivo_liquidacion,
           l.salario_promedio_mensual,
           l.salario_promedio_diario,
-          l.dias_trabajados_aguinaldo,
           l.dias_pendientes_vacaciones,
           l.dias_preaviso,
           l.dias_cesantia,
@@ -190,7 +187,6 @@ class Liquidacion {
     salario_acumulado = null,
     total_pagar = null,
     salario_promedio_diario = null,
-    dias_trabajados_aguinaldo = null,
     dias_pendientes_vacaciones = null,
     dias_preaviso = null,
     dias_cesantia = null,
@@ -227,7 +223,6 @@ class Liquidacion {
         .input('salario_promedio_mensual', sql.Decimal(12, 2), toDecimalOrNull(salario_promedio_mensual))
         .input('observaciones', sql.VarChar(500), observaciones || null)
         .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
-        .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
         .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
         .input('dias_preaviso', sql.Int, toIntegerOrNull(dias_preaviso))
         .input('dias_cesantia', sql.Int, toIntegerOrNull(dias_cesantia));
@@ -236,12 +231,12 @@ class Liquidacion {
         INSERT INTO Liquidaciones
           (id_empleado, salario_acumulado, total_pagar, fecha_liquidacion, aprobado_por, id_estado, created_at, updated_at,
            fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion, salario_promedio_mensual, observaciones,
-           salario_promedio_diario, dias_trabajados_aguinaldo, dias_pendientes_vacaciones,
+           salario_promedio_diario, dias_pendientes_vacaciones,
            dias_preaviso, dias_cesantia)
         VALUES
           (@id_empleado, @salario_acumulado, @total_pagar, @fecha_liquidacion, @aprobado_por, @id_estado, GETDATE(), GETDATE(),
            @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion, @salario_promedio_mensual, @observaciones,
-           @salario_promedio_diario, @dias_trabajados_aguinaldo, @dias_pendientes_vacaciones,
+           @salario_promedio_diario, @dias_pendientes_vacaciones,
            @dias_preaviso, @dias_cesantia);
         SELECT SCOPE_IDENTITY() AS id_liquidacion;
       `);
@@ -279,7 +274,6 @@ class Liquidacion {
     salario_acumulado = null,
     total_pagar = null,
     salario_promedio_diario = null,
-    dias_trabajados_aguinaldo = null,
     dias_pendientes_vacaciones = null,
     dias_preaviso = null,
     dias_cesantia = null,
@@ -332,7 +326,6 @@ class Liquidacion {
         .input('salario_acumulado', sql.Decimal(12, 2), salarioAcumuladoFinal)
         .input('total_pagar', sql.Decimal(12, 2), totalPagarFinal)
         .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
-        .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
         .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
         .input('dias_preaviso', sql.Int, toIntegerOrNull(dias_preaviso))
         .input('dias_cesantia', sql.Int, toIntegerOrNull(dias_cesantia));
@@ -351,7 +344,6 @@ class Liquidacion {
           salario_acumulado = COALESCE(@salario_acumulado, salario_acumulado),
           total_pagar = COALESCE(@total_pagar, total_pagar),
           salario_promedio_diario = COALESCE(@salario_promedio_diario, salario_promedio_diario),
-          dias_trabajados_aguinaldo = COALESCE(@dias_trabajados_aguinaldo, dias_trabajados_aguinaldo),
           dias_pendientes_vacaciones = COALESCE(@dias_pendientes_vacaciones, dias_pendientes_vacaciones),
           dias_preaviso = COALESCE(@dias_preaviso, dias_preaviso),
           dias_cesantia = COALESCE(@dias_cesantia, dias_cesantia),
