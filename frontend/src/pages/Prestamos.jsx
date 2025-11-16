@@ -446,81 +446,83 @@ const Prestamos = ({ mode }) => {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
-                    <tr>
-                      {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
-                      <th className="px-4 py-3 text-left">Fecha solicitud</th>
-                      <th className="px-4 py-3 text-left">Monto</th>
-                      <th className="px-4 py-3 text-left">Saldo</th>
-                      <th className="px-4 py-3 text-left">Cuotas</th>
-                      <th className="px-4 py-3 text-left">Interés</th>
-                      <th className="px-4 py-3 text-left">Estado</th>
-                      <th className="px-4 py-3 text-left">Documento</th>
-                      {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPrestamos.map((prestamo) => {
-                      const isApproved = Number(prestamo.id_estado) === 2;
-                      const isGenerating = downloadingId === prestamo.id_prestamo;
+                <div className="max-h-[70vh] overflow-y-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+                      <tr>
+                        {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
+                        <th className="px-4 py-3 text-left">Fecha solicitud</th>
+                        <th className="px-4 py-3 text-left">Monto</th>
+                        <th className="px-4 py-3 text-left">Saldo</th>
+                        <th className="px-4 py-3 text-left">Cuotas</th>
+                        <th className="px-4 py-3 text-left">Interés</th>
+                        <th className="px-4 py-3 text-left">Estado</th>
+                        <th className="px-4 py-3 text-left">Documento</th>
+                        {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPrestamos.map((prestamo) => {
+                        const isApproved = Number(prestamo.id_estado) === 2;
+                        const isGenerating = downloadingId === prestamo.id_prestamo;
 
-                      return (
-                        <tr
-                          key={prestamo.id_prestamo}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          {isAdmin && (
-                            <td className="px-4 py-3 text-gray-800">
-                              <p className="font-semibold">
-                                {prestamo.nombre || "Empleado"}{" "}
-                                {prestamo.apellido || ""}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                ID #{prestamo.id_empleado}
-                              </p>
-                            </td>
-                          )}
-                          <td className="px-4 py-3 text-gray-700">
-                            {formatearFecha(prestamo.fecha_solicitud)}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-gray-800">
-                            {formatearMonto(prestamo.monto)}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {formatearMonto(prestamo.saldo)}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {prestamo.cuotas} cuotas
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {formatearPorcentaje(prestamo.interes_porcentaje)}
-                          </td>
-                          <td className="px-4 py-3">{renderEstadoBadge(prestamo)}</td>
-                          <td className="px-4 py-3">
-                            {isApproved ? (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => onExport(prestamo)}
-                                disabled={isGenerating}
-                              >
-                                {isGenerating ? "Generando..." : "Descargar PDF"}
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                Disponible al aprobarse
-                              </span>
+                        return (
+                          <tr
+                            key={prestamo.id_prestamo}
+                            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                          >
+                            {isAdmin && (
+                              <td className="px-4 py-3 text-gray-800">
+                                <p className="font-semibold">
+                                  {prestamo.nombre || "Empleado"}{" "}
+                                  {prestamo.apellido || ""}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  ID #{prestamo.id_empleado}
+                                </p>
+                              </td>
                             )}
-                          </td>
-                          {isAdmin && (
-                            <td className="px-4 py-3">{renderAcciones(prestamo)}</td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <td className="px-4 py-3 text-gray-700">
+                              {formatearFecha(prestamo.fecha_solicitud)}
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-gray-800">
+                              {formatearMonto(prestamo.monto)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {formatearMonto(prestamo.saldo)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {prestamo.cuotas} cuotas
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {formatearPorcentaje(prestamo.interes_porcentaje)}
+                            </td>
+                            <td className="px-4 py-3">{renderEstadoBadge(prestamo)}</td>
+                            <td className="px-4 py-3">
+                              {isApproved ? (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => onExport(prestamo)}
+                                  disabled={isGenerating}
+                                >
+                                  {isGenerating ? "Generando..." : "Descargar PDF"}
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-500">
+                                  Disponible al aprobarse
+                                </span>
+                              )}
+                            </td>
+                            {isAdmin && (
+                              <td className="px-4 py-3">{renderAcciones(prestamo)}</td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </section>
