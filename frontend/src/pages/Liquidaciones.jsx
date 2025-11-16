@@ -36,6 +36,20 @@ const formatDiasLabel = (value) => {
   return `${diasFormatter.format(numero)} días`;
 };
 
+const DEFAULT_HISTORICO_MONTHS = 12;
+
+const formatPeriodoInput = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 const mapResumenEditable = (encabezado = {}) => ({
   salario_promedio_mensual:
     encabezado.salario_promedio_mensual !== undefined ? encabezado.salario_promedio_mensual : "",
@@ -51,12 +65,58 @@ const mapResumenEditable = (encabezado = {}) => ({
   dias_cesantia: encabezado.dias_cesantia !== undefined ? encabezado.dias_cesantia : "",
 });
 
-const mapHistoricoEditable = (historicos = []) => {
-  if (!Array.isArray(historicos)) return [];
-  return historicos.map((registro) => ({
-    periodo: registro.periodo || "",
-    monto: registro.monto ?? "",
-  }));
+const mapHistoricoEditable = (
+  historicos = [],
+  { fechaReferencia = null, meses = DEFAULT_HISTORICO_MONTHS } = {},
+) => {
+  const referencia = (() => {
+    if (fechaReferencia) {
+      const parsed = new Date(fechaReferencia);
+      if (!Number.isNaN(parsed.getTime())) {
+        return new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+      }
+    }
+    return new Date();
+  })();
+
+  const registrosBase = Array.isArray(historicos)
+    ? historicos
+        .map((registro) => {
+          const periodoNormalizado = formatPeriodoInput(registro.periodo);
+          if (!periodoNormalizado) return null;
+          return {
+            periodo: periodoNormalizado,
+            monto: registro.monto ?? 0,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  const registrosOrdenados = [...registrosBase].sort((a, b) => b.periodo.localeCompare(a.periodo));
+  const registrosPorPeriodo = new Map(
+    registrosOrdenados.map((registro) => [registro.periodo, { ...registro }]),
+  );
+
+  const totalMeses = Number.isInteger(meses) && meses > 0 ? meses : registrosOrdenados.length;
+  if (totalMeses === 0) {
+    return registrosOrdenados;
+  }
+
+  const filas = [];
+  for (let i = 0; i < totalMeses; i += 1) {
+    const date = new Date(referencia.getFullYear(), referencia.getMonth() - i, 1);
+    const periodo = formatPeriodoInput(date);
+    const registroExistente = registrosPorPeriodo.get(periodo);
+    filas.push({
+      periodo,
+      monto:
+        registroExistente && registroExistente.monto !== undefined
+          ? registroExistente.monto
+          : 0,
+    });
+  }
+
+  return filas;
 };
 
 const numberInputBaseClasses =
@@ -383,6 +443,7 @@ const Liquidaciones = ({ mode }) => {
   const [resumenDirty, setResumenDirty] = useState(false);
   const [historicoEditable, setHistoricoEditable] = useState([]);
   const [historicoDirty, setHistoricoDirty] = useState(false);
+  const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
 
   const isAdmin = mode === "admin";
 
@@ -431,9 +492,16 @@ const Liquidaciones = ({ mode }) => {
       setResumenEditable(null);
     }
     setResumenDirty(false);
+    setSalarioAcumuladoManual(false);
 
-    if (previewData?.salarios_historicos) {
-      setHistoricoEditable(mapHistoricoEditable(previewData.salarios_historicos));
+    if (previewData) {
+      const referencia =
+        previewData.encabezado?.fecha_fin_periodo || previewData.encabezado?.fecha_liquidacion;
+      setHistoricoEditable(
+        mapHistoricoEditable(previewData.salarios_historicos, {
+          fechaReferencia: referencia,
+        }),
+      );
     } else {
       setHistoricoEditable([]);
     }
@@ -442,6 +510,9 @@ const Liquidaciones = ({ mode }) => {
 
   const handleResumenManualChange = (campo, valor) => {
     setResumenDirty(true);
+    if (campo === "salario_acumulado") {
+      setSalarioAcumuladoManual(true);
+    }
     setResumenEditable((prev) => ({ ...(prev || {}), [campo]: valor }));
   };
 
@@ -452,6 +523,7 @@ const Liquidaciones = ({ mode }) => {
       setResumenEditable(null);
     }
     setResumenDirty(false);
+    setSalarioAcumuladoManual(false);
   };
 
   const handleHistoricoChange = (index, campo, valor) => {
@@ -474,13 +546,45 @@ const Liquidaciones = ({ mode }) => {
   };
 
   const handleResetHistorico = () => {
-    if (previewData?.salarios_historicos) {
-      setHistoricoEditable(mapHistoricoEditable(previewData.salarios_historicos));
+    if (previewData) {
+      const referencia =
+        previewData.encabezado?.fecha_fin_periodo || previewData.encabezado?.fecha_liquidacion;
+      setHistoricoEditable(
+        mapHistoricoEditable(previewData.salarios_historicos, { fechaReferencia: referencia }),
+      );
     } else {
       setHistoricoEditable([]);
     }
     setHistoricoDirty(false);
+    setSalarioAcumuladoManual(false);
   };
+
+  useEffect(() => {
+    if (!resumenEditable || salarioAcumuladoManual) return;
+    if (!Array.isArray(historicoEditable) || historicoEditable.length === 0) return;
+
+    const totalHistorico = historicoEditable.reduce((acc, registro) => {
+      const monto = Number(registro?.monto);
+      if (!Number.isFinite(monto)) {
+        return acc;
+      }
+      return acc + monto;
+    }, 0);
+
+    const totalRedondeado = Number(totalHistorico.toFixed(2));
+    const salarioActual = Number(resumenEditable.salario_acumulado);
+    const salarioRedondeado = Number.isFinite(salarioActual)
+      ? Number(salarioActual.toFixed(2))
+      : null;
+
+    if (salarioRedondeado === totalRedondeado) return;
+
+    setResumenEditable((prev) => {
+      if (!prev) return prev;
+      return { ...prev, salario_acumulado: totalRedondeado };
+    });
+    setResumenDirty(true);
+  }, [historicoEditable, resumenEditable, salarioAcumuladoManual]);
 
   const handleGuardarLiquidacion = (options = {}) => {
     guardarLiquidacion({
