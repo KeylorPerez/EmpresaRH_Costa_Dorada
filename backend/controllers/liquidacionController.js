@@ -159,12 +159,7 @@ const mergeEncabezadoManual = (encabezado, overrides) => {
     }
   });
 
-  const integerFields = [
-    'dias_trabajados_aguinaldo',
-    'dias_pendientes_vacaciones',
-    'dias_preaviso',
-    'dias_cesantia',
-  ];
+  const integerFields = ['dias_pendientes_vacaciones', 'dias_preaviso', 'dias_cesantia'];
 
   integerFields.forEach((field) => {
     if (Object.prototype.hasOwnProperty.call(overrides, field)) {
@@ -385,7 +380,6 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   const totalPagar = formatCurrencyCRC(liquidacion.total_pagar ?? totales.total_pagar, '₡0.00');
   const totalIngresos = formatCurrencyCRC(totales.totalIngresos, '₡0.00');
   const totalDescuentos = formatCurrencyCRC(totales.totalDescuentos, '₡0.00');
-  const diasAguinaldo = normalizeNumeroEntero(liquidacion.dias_trabajados_aguinaldo);
   const diasVacaciones = normalizeNumeroEntero(liquidacion.dias_pendientes_vacaciones);
   const diasPreaviso = normalizeNumeroEntero(liquidacion.dias_preaviso);
   const diasCesantia = normalizeNumeroEntero(liquidacion.dias_cesantia);
@@ -430,11 +424,8 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   lines.push(`TOTAL A PAGAR: ${totalPagar}`);
   lines.push(divider);
 
-  if (diasAguinaldo !== null || diasVacaciones !== null || diasPreaviso !== null || diasCesantia !== null) {
+  if (diasVacaciones !== null || diasPreaviso !== null || diasCesantia !== null) {
     lines.push('Días considerados en el cálculo:');
-    if (diasAguinaldo !== null) {
-      lines.push(`- Aguinaldo proporcional: ${diasAguinaldo} días`);
-    }
     if (diasVacaciones !== null) {
       lines.push(`- Vacaciones pendientes: ${diasVacaciones} días`);
     }
@@ -673,13 +664,6 @@ const prepararLiquidacion = async ({
       : salarioPromedio > 0
         ? Number((salarioPromedio / 30).toFixed(2))
         : null;
-  const diasHistorico = salariosHistoricos.reduce(
-    (acc, registro) => acc + (Number(registro.dias) || 0),
-    0,
-  );
-  const diasAguinaldo = normalizeNumeroEntero(
-    diasHistorico > 0 ? diasHistorico : contextoLiquidacion.diasPeriodo,
-  );
   const diasVacaciones = normalizeNumeroEntero(contextoLiquidacion.vacacionesDias);
   const diasPreaviso = normalizeNumeroEntero(contextoLiquidacion.diasPreaviso);
   const diasCesantia = normalizeNumeroEntero(contextoLiquidacion.diasCesantia);
@@ -702,7 +686,6 @@ const prepararLiquidacion = async ({
       salario_promedio_mensual: salarioPromedio,
       salario_promedio_diario: salarioPromedioDiario,
       salario_acumulado: salarioAcumulado,
-      dias_trabajados_aguinaldo: diasAguinaldo,
       dias_pendientes_vacaciones: diasVacaciones,
       dias_preaviso: diasPreaviso,
       dias_cesantia: diasCesantia,
@@ -829,7 +812,6 @@ const crearLiquidacion = async (req, res) => {
       salario_promedio_mensual: encabezadoAplicado.salario_promedio_mensual,
       salario_promedio_diario: encabezadoAplicado.salario_promedio_diario,
       salario_acumulado: encabezadoAplicado.salario_acumulado,
-      dias_trabajados_aguinaldo: encabezadoAplicado.dias_trabajados_aguinaldo,
       dias_pendientes_vacaciones: encabezadoAplicado.dias_pendientes_vacaciones,
       dias_preaviso: encabezadoAplicado.dias_preaviso,
       dias_cesantia: encabezadoAplicado.dias_cesantia,
@@ -893,7 +875,6 @@ const actualizarLiquidacion = async (req, res) => {
       salario_promedio_mensual: body.salario_promedio_mensual,
       salario_promedio_diario: body.salario_promedio_diario,
       salario_acumulado: body.salario_acumulado,
-      dias_trabajados_aguinaldo: body.dias_trabajados_aguinaldo,
       dias_pendientes_vacaciones: body.dias_pendientes_vacaciones,
       dias_preaviso: body.dias_preaviso,
       dias_cesantia: body.dias_cesantia,

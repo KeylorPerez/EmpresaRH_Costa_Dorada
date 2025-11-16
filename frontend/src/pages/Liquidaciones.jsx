@@ -57,8 +57,6 @@ const mapResumenEditable = (encabezado = {}) => ({
     encabezado.salario_promedio_diario !== undefined ? encabezado.salario_promedio_diario : "",
   salario_acumulado:
     encabezado.salario_acumulado !== undefined ? encabezado.salario_acumulado : "",
-  dias_trabajados_aguinaldo:
-    encabezado.dias_trabajados_aguinaldo !== undefined ? encabezado.dias_trabajados_aguinaldo : "",
   dias_pendientes_vacaciones:
     encabezado.dias_pendientes_vacaciones !== undefined ? encabezado.dias_pendientes_vacaciones : "",
   dias_preaviso: encabezado.dias_preaviso !== undefined ? encabezado.dias_preaviso : "",
@@ -185,7 +183,6 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
     salario_promedio_mensual,
     salario_promedio_diario,
     salario_acumulado,
-    dias_trabajados_aguinaldo,
     dias_pendientes_vacaciones,
     dias_preaviso,
     dias_cesantia,
@@ -198,7 +195,6 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
   ].some((valor) => valor !== null && valor !== undefined);
 
   const mostrarDias = [
-    dias_trabajados_aguinaldo,
     dias_pendientes_vacaciones,
     dias_preaviso,
     dias_cesantia,
@@ -237,7 +233,6 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
             Días considerados
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            {renderDiasField("Aguinaldo", "dias_trabajados_aguinaldo")}
             {renderDiasField("Vacaciones", "dias_pendientes_vacaciones")}
             {renderDiasField("Preaviso", "dias_preaviso")}
             {renderDiasField("Cesantía", "dias_cesantia")}
@@ -364,7 +359,6 @@ PanelResumenLiquidacion.propTypes = {
     salario_promedio_mensual: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     salario_promedio_diario: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     salario_acumulado: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    dias_trabajados_aguinaldo: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_pendientes_vacaciones: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_preaviso: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_cesantia: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
