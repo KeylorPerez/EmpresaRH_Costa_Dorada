@@ -76,14 +76,15 @@ const Puestos = () => {
             <p>Cargando puestos...</p>
           ) : (
             <div className="overflow-x-auto shadow-sm border border-gray-200 rounded-lg">
-              <table className="min-w-full bg-white text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
-                    <th className="px-4 py-3">Nombre del puesto</th>
-                    <th className="px-4 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="max-h-[70vh] overflow-y-auto">
+                <table className="min-w-full bg-white text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-4 py-3">Nombre del puesto</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {puestos.length === 0 ? (
                     <tr>
                       <td colSpan="2" className="px-4 py-6 text-center text-gray-500">
@@ -120,8 +121,9 @@ const Puestos = () => {
                       </tr>
                     ))
                   )}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
