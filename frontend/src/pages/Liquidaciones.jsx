@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -36,8 +36,90 @@ const formatDiasLabel = (value) => {
   return `${diasFormatter.format(numero)} días`;
 };
 
-const PanelResumenLiquidacion = ({ encabezado }) => {
+const mapResumenEditable = (encabezado = {}) => ({
+  salario_promedio_mensual:
+    encabezado.salario_promedio_mensual !== undefined ? encabezado.salario_promedio_mensual : "",
+  salario_promedio_diario:
+    encabezado.salario_promedio_diario !== undefined ? encabezado.salario_promedio_diario : "",
+  salario_acumulado_6_meses:
+    encabezado.salario_acumulado_6_meses !== undefined ? encabezado.salario_acumulado_6_meses : "",
+  dias_trabajados_aguinaldo:
+    encabezado.dias_trabajados_aguinaldo !== undefined ? encabezado.dias_trabajados_aguinaldo : "",
+  dias_pendientes_vacaciones:
+    encabezado.dias_pendientes_vacaciones !== undefined ? encabezado.dias_pendientes_vacaciones : "",
+  dias_preaviso: encabezado.dias_preaviso !== undefined ? encabezado.dias_preaviso : "",
+  dias_cesantia: encabezado.dias_cesantia !== undefined ? encabezado.dias_cesantia : "",
+});
+
+const mapHistoricoEditable = (historicos = []) => {
+  if (!Array.isArray(historicos)) return [];
+  return historicos.map((registro) => ({
+    periodo: registro.periodo || "",
+    monto: registro.monto ?? "",
+  }));
+};
+
+const numberInputBaseClasses =
+  "w-full border border-transparent rounded-md bg-white/70 text-right text-sm font-semibold text-gray-900 focus:border-blue-300 focus:ring-2 focus:ring-blue-200 px-2 py-1";
+
+const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onReset }) => {
   if (!encabezado) return null;
+
+  const handleValueChange = (campo, valor) => {
+    if (typeof onChange === "function") {
+      onChange(campo, valor);
+    }
+  };
+
+  const renderMontoField = (label, campo) => {
+    const value = encabezado[campo];
+    if (!editable) {
+      return (
+        <div className="flex items-center justify-between">
+          <span>{label}</span>
+          <span className="font-semibold">{formatearMontoCRC(value)}</span>
+        </div>
+      );
+    }
+
+    return (
+      <label className="flex flex-col gap-1 text-sm text-blue-900">
+        <span className="text-xs font-medium uppercase tracking-wide text-blue-600">{label}</span>
+        <input
+          type="number"
+          step="0.01"
+          className={numberInputBaseClasses}
+          value={value ?? ""}
+          onChange={(event) => handleValueChange(campo, event.target.value)}
+        />
+      </label>
+    );
+  };
+
+  const renderDiasField = (label, campo) => {
+    const value = encabezado[campo];
+    if (!editable) {
+      return (
+        <div>
+          <p className="text-xs uppercase text-amber-500">{label}</p>
+          <p className="font-semibold">{formatDiasLabel(value)}</p>
+        </div>
+      );
+    }
+
+    return (
+      <label className="flex flex-col gap-1 text-xs text-amber-800">
+        <span className="font-semibold tracking-wide">{label}</span>
+        <input
+          type="number"
+          step="1"
+          className={`${numberInputBaseClasses} text-amber-900 border-amber-100 focus:border-amber-200 focus:ring-amber-100`}
+          value={value ?? ""}
+          onChange={(event) => handleValueChange(campo, event.target.value)}
+        />
+      </label>
+    );
+  };
 
   const {
     salario_promedio_mensual,
@@ -68,22 +150,24 @@ const PanelResumenLiquidacion = ({ encabezado }) => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {mostrarMontos && (
         <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-900">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-            Resumen salarial
-          </p>
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span>Promedio mensual</span>
-              <span className="font-semibold">{formatearMontoCRC(salario_promedio_mensual)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Promedio diario</span>
-              <span className="font-semibold">{formatearMontoCRC(salario_promedio_diario)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Acumulado últimos 6 meses</span>
-              <span className="font-semibold">{formatearMontoCRC(salario_acumulado_6_meses)}</span>
-            </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+              Resumen salarial
+            </p>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => onReset && onReset()}
+                className="text-[11px] font-semibold text-blue-700 hover:text-blue-900"
+              >
+                Restablecer
+              </button>
+            )}
+          </div>
+          <div className="mt-3 space-y-3">
+            {renderMontoField("Promedio mensual", "salario_promedio_mensual")}
+            {renderMontoField("Promedio diario", "salario_promedio_diario")}
+            {renderMontoField("Acumulado últimos 6 meses", "salario_acumulado_6_meses")}
           </div>
         </div>
       )}
@@ -93,22 +177,10 @@ const PanelResumenLiquidacion = ({ encabezado }) => {
             Días considerados
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs uppercase text-amber-500">Aguinaldo</p>
-              <p className="font-semibold">{formatDiasLabel(dias_trabajados_aguinaldo)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-amber-500">Vacaciones</p>
-              <p className="font-semibold">{formatDiasLabel(dias_pendientes_vacaciones)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-amber-500">Preaviso</p>
-              <p className="font-semibold">{formatDiasLabel(dias_preaviso)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-amber-500">Cesantía</p>
-              <p className="font-semibold">{formatDiasLabel(dias_cesantia)}</p>
-            </div>
+            {renderDiasField("Aguinaldo", "dias_trabajados_aguinaldo")}
+            {renderDiasField("Vacaciones", "dias_pendientes_vacaciones")}
+            {renderDiasField("Preaviso", "dias_preaviso")}
+            {renderDiasField("Cesantía", "dias_cesantia")}
           </div>
         </div>
       )}
@@ -116,14 +188,46 @@ const PanelResumenLiquidacion = ({ encabezado }) => {
   );
 };
 
-const TablaHistoricoSalarios = ({ registros }) => {
+const TablaHistoricoSalarios = ({
+  registros,
+  editable = false,
+  onChange,
+  onAddRow,
+  onRemoveRow,
+  onReset,
+}) => {
   const filas = Array.isArray(registros) ? registros : [];
-  if (filas.length === 0) return null;
+  const mostrarTabla = filas.length > 0 || editable;
+  if (!mostrarTabla) return null;
+
+  const handleFieldChange = (index, campo, valor) => {
+    if (typeof onChange === "function") {
+      onChange(index, campo, valor);
+    }
+  };
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="px-4 py-3 border-b border-gray-200">
+      <div className="px-4 py-3 border-b border-gray-200 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-sm font-semibold text-gray-800">Desglose de salarios por mes</p>
+        {editable && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => onReset && onReset()}
+              className="rounded border border-gray-200 px-3 py-1 font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Restablecer
+            </button>
+            <button
+              type="button"
+              onClick={() => onAddRow && onAddRow()}
+              className="rounded border border-blue-200 px-3 py-1 font-semibold text-blue-600 hover:bg-blue-50"
+            >
+              Agregar mes
+            </button>
+          </div>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -131,18 +235,66 @@ const TablaHistoricoSalarios = ({ registros }) => {
             <tr>
               <th className="px-4 py-2 text-left">Periodo</th>
               <th className="px-4 py-2 text-right">Monto</th>
+              {editable && <th className="px-4 py-2 text-right">Acciones</th>}
             </tr>
           </thead>
           <tbody>
-            {filas.map((fila, index) => (
-              <tr key={`${fila.periodo || index}-${index}`} className="border-b border-gray-100">
-                <td className="px-4 py-2 text-gray-800">{formatPeriodoMensual(fila.periodo)}</td>
-                <td className="px-4 py-2 text-right text-gray-800">{formatearMontoCRC(fila.monto)}</td>
+            {filas.length === 0 && editable ? (
+              <tr>
+                <td className="px-4 py-4 text-center text-gray-500" colSpan={editable ? 3 : 2}>
+                  Añade los montos de los últimos seis meses para personalizar el cálculo.
+                </td>
               </tr>
-            ))}
+            ) : (
+              filas.map((fila, index) => (
+                <tr key={`${fila.periodo || index}-${index}`} className="border-b border-gray-100">
+                  <td className="px-4 py-2 text-gray-800">
+                    {editable ? (
+                      <input
+                        type="month"
+                        className="w-full rounded-md border border-gray-200 px-2 py-1 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                        value={fila.periodo || ""}
+                        onChange={(event) => handleFieldChange(index, "periodo", event.target.value)}
+                      />
+                    ) : (
+                      formatPeriodoMensual(fila.periodo)
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-800">
+                    {editable ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full rounded-md border border-gray-200 px-2 py-1 text-right text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                        value={fila.monto ?? ""}
+                        onChange={(event) => handleFieldChange(index, "monto", event.target.value)}
+                      />
+                    ) : (
+                      formatearMontoCRC(fila.monto)
+                    )}
+                  </td>
+                  {editable && (
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onRemoveRow && onRemoveRow(index)}
+                        className="text-xs font-semibold text-red-600 hover:text-red-800"
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+      {editable && (
+        <div className="border-t border-gray-100 px-4 py-3 text-xs text-gray-500">
+          Procura mantener al menos los últimos seis meses para reflejar el comportamiento salarial real.
+        </div>
+      )}
     </div>
   );
 };
@@ -157,10 +309,16 @@ PanelResumenLiquidacion.propTypes = {
     dias_preaviso: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_cesantia: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   }),
+  editable: PropTypes.bool,
+  onChange: PropTypes.func,
+  onReset: PropTypes.func,
 };
 
 PanelResumenLiquidacion.defaultProps = {
   encabezado: null,
+  editable: false,
+  onChange: null,
+  onReset: null,
 };
 
 TablaHistoricoSalarios.propTypes = {
@@ -170,10 +328,20 @@ TablaHistoricoSalarios.propTypes = {
       monto: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     }),
   ),
+  editable: PropTypes.bool,
+  onChange: PropTypes.func,
+  onAddRow: PropTypes.func,
+  onRemoveRow: PropTypes.func,
+  onReset: PropTypes.func,
 };
 
 TablaHistoricoSalarios.defaultProps = {
   registros: [],
+  editable: false,
+  onChange: null,
+  onAddRow: null,
+  onRemoveRow: null,
+  onReset: null,
 };
 
 const Liquidaciones = ({ mode }) => {
@@ -210,6 +378,11 @@ const Liquidaciones = ({ mode }) => {
     exportingId,
     sharingId,
   } = useLiquidaciones();
+
+  const [resumenEditable, setResumenEditable] = useState(null);
+  const [resumenDirty, setResumenDirty] = useState(false);
+  const [historicoEditable, setHistoricoEditable] = useState([]);
+  const [historicoDirty, setHistoricoDirty] = useState(false);
 
   const isAdmin = mode === "admin";
 
@@ -250,6 +423,72 @@ const Liquidaciones = ({ mode }) => {
   }, [draftForm.id_empleado, empleados]);
 
   const disableFechaInicio = Boolean(empleadoSeleccionado?.fecha_ingreso);
+
+  useEffect(() => {
+    if (previewData?.encabezado) {
+      setResumenEditable(mapResumenEditable(previewData.encabezado));
+    } else {
+      setResumenEditable(null);
+    }
+    setResumenDirty(false);
+
+    if (previewData?.salarios_historicos) {
+      setHistoricoEditable(mapHistoricoEditable(previewData.salarios_historicos));
+    } else {
+      setHistoricoEditable([]);
+    }
+    setHistoricoDirty(false);
+  }, [previewData]);
+
+  const handleResumenManualChange = (campo, valor) => {
+    setResumenDirty(true);
+    setResumenEditable((prev) => ({ ...(prev || {}), [campo]: valor }));
+  };
+
+  const handleResetResumenManual = () => {
+    if (previewData?.encabezado) {
+      setResumenEditable(mapResumenEditable(previewData.encabezado));
+    } else {
+      setResumenEditable(null);
+    }
+    setResumenDirty(false);
+  };
+
+  const handleHistoricoChange = (index, campo, valor) => {
+    setHistoricoDirty(true);
+    setHistoricoEditable((prev) => {
+      const copia = [...prev];
+      copia[index] = { ...(copia[index] || {}), [campo]: valor };
+      return copia;
+    });
+  };
+
+  const handleAgregarHistorico = () => {
+    setHistoricoDirty(true);
+    setHistoricoEditable((prev) => [...prev, { periodo: "", monto: "" }]);
+  };
+
+  const handleEliminarHistorico = (index) => {
+    setHistoricoDirty(true);
+    setHistoricoEditable((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleResetHistorico = () => {
+    if (previewData?.salarios_historicos) {
+      setHistoricoEditable(mapHistoricoEditable(previewData.salarios_historicos));
+    } else {
+      setHistoricoEditable([]);
+    }
+    setHistoricoDirty(false);
+  };
+
+  const handleGuardarLiquidacion = (options = {}) => {
+    guardarLiquidacion({
+      ...options,
+      encabezadoOverrides: resumenDirty ? resumenEditable : null,
+      salariosHistoricos: historicoDirty ? historicoEditable : null,
+    });
+  };
 
   const limpiarMensajes = () => {
     if (error) setError("");
@@ -634,7 +873,7 @@ const Liquidaciones = ({ mode }) => {
                 <Button
                   type="button"
                   variant="success"
-                  onClick={() => guardarLiquidacion({ confirmar: false })}
+                  onClick={() => handleGuardarLiquidacion({ confirmar: false })}
                   disabled={submitting || draftDetalles.length === 0}
                 >
                   {submitting ? "Guardando..." : "Guardar como borrador"}
@@ -642,7 +881,7 @@ const Liquidaciones = ({ mode }) => {
                 <Button
                   type="button"
                   variant="success"
-                  onClick={() => guardarLiquidacion({ confirmar: true })}
+                  onClick={() => handleGuardarLiquidacion({ confirmar: true })}
                   disabled={submitting || draftDetalles.length === 0}
                 >
                   {submitting ? "Confirmando..." : "Confirmar liquidación"}
@@ -752,9 +991,29 @@ const Liquidaciones = ({ mode }) => {
                   </div>
                 </div>
 
-                <PanelResumenLiquidacion encabezado={previewData?.encabezado} />
+                {previewData && (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-xs text-blue-800">
+                      Ajusta los promedios y el historial tal como lo harías en una hoja de cálculo. Los cambios se guardarán en
+                      el documento final.
+                    </div>
+                    <PanelResumenLiquidacion
+                      encabezado={resumenEditable || previewData.encabezado}
+                      editable
+                      onChange={handleResumenManualChange}
+                      onReset={handleResetResumenManual}
+                    />
 
-                <TablaHistoricoSalarios registros={previewData?.salarios_historicos} />
+                    <TablaHistoricoSalarios
+                      registros={historicoEditable.length > 0 ? historicoEditable : previewData.salarios_historicos}
+                      editable
+                      onChange={handleHistoricoChange}
+                      onAddRow={handleAgregarHistorico}
+                      onRemoveRow={handleEliminarHistorico}
+                      onReset={handleResetHistorico}
+                    />
+                  </div>
+                )}
 
                 {previewData?.encabezado?.observaciones && (
                   <div className="border border-dashed border-gray-300 rounded-lg p-3 text-sm text-gray-600">

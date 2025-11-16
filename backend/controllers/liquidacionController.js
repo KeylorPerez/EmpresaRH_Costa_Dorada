@@ -3,6 +3,7 @@ const path = require('path');
 const Liquidacion = require('../models/Liquidacion');
 const Empleado = require('../models/Empleado');
 const LiquidacionDetalle = require('../models/LiquidacionDetalle');
+const LiquidacionSalarioHistorico = require('../models/LiquidacionSalarioHistorico');
 const Usuario = require('../models/Usuario');
 
 const { calcularDetallesAutomaticos, calcularContextoLiquidacion, agruparPlanillaHistoricoPorMes } = require('../utils/liquidacionCalculations');
@@ -120,6 +121,71 @@ const escapePdfText = (text = '') =>
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)');
+
+const parseManualDecimal = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Number(numeric.toFixed(2));
+};
+
+const parseManualInteger = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(numeric);
+};
+
+const mergeEncabezadoManual = (encabezado, overrides) => {
+  if (!encabezado || !overrides || typeof overrides !== 'object') {
+    return encabezado;
+  }
+
+  const result = { ...encabezado };
+
+  const decimalFields = [
+    'salario_promedio_mensual',
+    'salario_promedio_diario',
+    'salario_acumulado_6_meses',
+    'salario_acumulado',
+    'total_pagar',
+  ];
+
+  decimalFields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(overrides, field)) {
+      const parsed = parseManualDecimal(overrides[field]);
+      if (parsed !== null) {
+        result[field] = parsed;
+      }
+    }
+  });
+
+  const integerFields = [
+    'dias_trabajados_aguinaldo',
+    'dias_pendientes_vacaciones',
+    'dias_preaviso',
+    'dias_cesantia',
+  ];
+
+  integerFields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(overrides, field)) {
+      const parsed = parseManualInteger(overrides[field]);
+      if (parsed !== null) {
+        result[field] = parsed;
+      }
+    }
+  });
+
+  return result;
+};
+
+const mergeHistoricoManual = (historico, overrides) => {
+  if (!overrides || !Array.isArray(overrides) || overrides.length === 0) {
+    return historico;
+  }
+  const sanitized = LiquidacionSalarioHistorico.sanitizeHistorico(overrides);
+  return sanitized.length > 0 ? sanitized : historico;
+};
 
 const wrapText = (text, maxLength = 95) => {
   if (!text) return [''];
@@ -745,30 +811,36 @@ const crearLiquidacion = async (req, res) => {
       detalles: req.body.detalles,
     });
 
+    const encabezadoAplicado = mergeEncabezadoManual(preview.encabezado, req.body.encabezado_manual);
+    const historicosAplicados = mergeHistoricoManual(
+      preview.salarios_historicos,
+      req.body.salarios_historicos_manual,
+    );
+
     const confirmar = Boolean(req.body.confirmar);
     const id_estado = parseId(req.body.id_estado) || (confirmar ? 2 : 1);
     const aprobado_por = confirmar ? user.id_usuario : null;
 
     const resultado = await Liquidacion.create({
       id_empleado,
-      fecha_liquidacion: preview.encabezado.fecha_liquidacion,
-      fecha_inicio_periodo: preview.encabezado.fecha_inicio_periodo,
-      fecha_fin_periodo: preview.encabezado.fecha_fin_periodo,
-      motivo_liquidacion: preview.encabezado.motivo_liquidacion,
-      observaciones: preview.encabezado.observaciones,
+      fecha_liquidacion: encabezadoAplicado.fecha_liquidacion,
+      fecha_inicio_periodo: encabezadoAplicado.fecha_inicio_periodo,
+      fecha_fin_periodo: encabezadoAplicado.fecha_fin_periodo,
+      motivo_liquidacion: encabezadoAplicado.motivo_liquidacion,
+      observaciones: encabezadoAplicado.observaciones,
       id_estado,
       aprobado_por,
-      salario_promedio_mensual: preview.encabezado.salario_promedio_mensual,
-      salario_promedio_diario: preview.encabezado.salario_promedio_diario,
-      salario_acumulado: preview.encabezado.salario_acumulado,
-      salario_acumulado_6_meses: preview.encabezado.salario_acumulado_6_meses,
-      dias_trabajados_aguinaldo: preview.encabezado.dias_trabajados_aguinaldo,
-      dias_pendientes_vacaciones: preview.encabezado.dias_pendientes_vacaciones,
-      dias_preaviso: preview.encabezado.dias_preaviso,
-      dias_cesantia: preview.encabezado.dias_cesantia,
-      total_pagar: preview.encabezado.total_pagar,
+      salario_promedio_mensual: encabezadoAplicado.salario_promedio_mensual,
+      salario_promedio_diario: encabezadoAplicado.salario_promedio_diario,
+      salario_acumulado: encabezadoAplicado.salario_acumulado,
+      salario_acumulado_6_meses: encabezadoAplicado.salario_acumulado_6_meses,
+      dias_trabajados_aguinaldo: encabezadoAplicado.dias_trabajados_aguinaldo,
+      dias_pendientes_vacaciones: encabezadoAplicado.dias_pendientes_vacaciones,
+      dias_preaviso: encabezadoAplicado.dias_preaviso,
+      dias_cesantia: encabezadoAplicado.dias_cesantia,
+      total_pagar: encabezadoAplicado.total_pagar,
       detalles: preview.detalles,
-      salarios_historicos: preview.salarios_historicos,
+      salarios_historicos: historicosAplicados,
     });
 
     return res.status(201).json({

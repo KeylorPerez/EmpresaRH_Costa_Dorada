@@ -295,7 +295,7 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
   }, []);
 
   const guardarLiquidacion = useCallback(
-    async ({ confirmar = false } = {}) => {
+    async ({ confirmar = false, encabezadoOverrides = null, salariosHistoricos = null } = {}) => {
       try {
         setSubmitting(true);
         setSuccessMessage("");
@@ -311,6 +311,14 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
           detalles: draftDetalles,
           confirmar,
         };
+
+        if (encabezadoOverrides) {
+          payload.encabezado_manual = encabezadoOverrides;
+        }
+
+        if (salariosHistoricos) {
+          payload.salarios_historicos_manual = salariosHistoricos;
+        }
 
         await liquidacionesService.create(payload);
         setSuccessMessage(confirmar ? "Liquidación confirmada" : "Borrador guardado");
