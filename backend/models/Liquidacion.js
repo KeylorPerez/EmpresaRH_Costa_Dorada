@@ -1,11 +1,19 @@
 const { poolPromise, sql } = require('../db/db');
 const LiquidacionDetalle = require('./LiquidacionDetalle');
+const LiquidacionSalarioHistorico = require('./LiquidacionSalarioHistorico');
 
 const toDecimalOrNull = (value) => {
   if (value === null || value === undefined) return null;
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return null;
   return Number(numeric.toFixed(2));
+};
+
+const toIntegerOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(numeric);
 };
 
 const toDateOrNull = (value) => {
@@ -37,6 +45,12 @@ class Liquidacion {
         l.fecha_fin_periodo,
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
+        l.salario_acumulado_6_meses,
+        l.salario_promedio_diario,
+        l.dias_trabajados_aguinaldo,
+        l.dias_pendientes_vacaciones,
+        l.dias_preaviso,
+        l.dias_cesantia,
         l.observaciones,
         e.nombre,
         e.apellido,
@@ -61,6 +75,12 @@ class Liquidacion {
         l.fecha_fin_periodo,
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
+        l.salario_acumulado_6_meses,
+        l.salario_promedio_diario,
+        l.dias_trabajados_aguinaldo,
+        l.dias_pendientes_vacaciones,
+        l.dias_preaviso,
+        l.dias_cesantia,
         l.observaciones,
         e.nombre,
         e.apellido,
@@ -90,6 +110,12 @@ class Liquidacion {
           l.fecha_fin_periodo,
           l.motivo_liquidacion,
           l.salario_promedio_mensual,
+          l.salario_acumulado_6_meses,
+          l.salario_promedio_diario,
+          l.dias_trabajados_aguinaldo,
+          l.dias_pendientes_vacaciones,
+          l.dias_preaviso,
+          l.dias_cesantia,
           l.observaciones,
           e.nombre,
           e.apellido,
@@ -105,7 +131,8 @@ class Liquidacion {
     }
 
     const detalles = await LiquidacionDetalle.getByLiquidacion(pool, id_liquidacion);
-    return { ...header, detalles };
+    const salariosHistoricos = await LiquidacionSalarioHistorico.getByLiquidacion(pool, id_liquidacion);
+    return { ...header, detalles, salarios_historicos: salariosHistoricos };
   }
 
   static async calcularPromedioSalario(id_empleado, { meses = 6, fechaReferencia = new Date() } = {}) {
@@ -165,6 +192,13 @@ class Liquidacion {
     detalles = [],
     salario_acumulado = null,
     total_pagar = null,
+    salario_acumulado_6_meses = null,
+    salario_promedio_diario = null,
+    dias_trabajados_aguinaldo = null,
+    dias_pendientes_vacaciones = null,
+    dias_preaviso = null,
+    dias_cesantia = null,
+    salarios_historicos = [],
   }) {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -173,6 +207,9 @@ class Liquidacion {
     try {
       const detallesSanitizados = LiquidacionDetalle.sanitizeDetalles(detalles);
       const totales = LiquidacionDetalle.calcularTotales(detallesSanitizados);
+      const historicosSanitizados = LiquidacionSalarioHistorico.sanitizeHistorico(
+        salarios_historicos,
+      );
 
       const salarioAcumuladoFinal =
         toDecimalOrNull(salario_acumulado) !== null
@@ -195,15 +232,25 @@ class Liquidacion {
         .input('fecha_fin_periodo', sql.Date, toDateOrNull(fecha_fin_periodo))
         .input('motivo_liquidacion', sql.VarChar(300), motivo_liquidacion || null)
         .input('salario_promedio_mensual', sql.Decimal(12, 2), toDecimalOrNull(salario_promedio_mensual))
-        .input('observaciones', sql.VarChar(500), observaciones || null);
+        .input('observaciones', sql.VarChar(500), observaciones || null)
+        .input('salario_acumulado_6_meses', sql.Decimal(18, 2), toDecimalOrNull(salario_acumulado_6_meses))
+        .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
+        .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
+        .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
+        .input('dias_preaviso', sql.Int, toIntegerOrNull(dias_preaviso))
+        .input('dias_cesantia', sql.Int, toIntegerOrNull(dias_cesantia));
 
       const insertResult = await request.query(`
         INSERT INTO Liquidaciones
           (id_empleado, salario_acumulado, total_pagar, fecha_liquidacion, aprobado_por, id_estado, created_at, updated_at,
-           fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion, salario_promedio_mensual, observaciones)
+           fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion, salario_promedio_mensual, observaciones,
+           salario_acumulado_6_meses, salario_promedio_diario, dias_trabajados_aguinaldo, dias_pendientes_vacaciones,
+           dias_preaviso, dias_cesantia)
         VALUES
           (@id_empleado, @salario_acumulado, @total_pagar, @fecha_liquidacion, @aprobado_por, @id_estado, GETDATE(), GETDATE(),
-           @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion, @salario_promedio_mensual, @observaciones);
+           @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion, @salario_promedio_mensual, @observaciones,
+           @salario_acumulado_6_meses, @salario_promedio_diario, @dias_trabajados_aguinaldo, @dias_pendientes_vacaciones,
+           @dias_preaviso, @dias_cesantia);
         SELECT SCOPE_IDENTITY() AS id_liquidacion;
       `);
 
@@ -213,6 +260,7 @@ class Liquidacion {
       }
 
       await LiquidacionDetalle.insertMany(transaction, newId, detallesSanitizados);
+      await LiquidacionSalarioHistorico.insertMany(transaction, newId, historicosSanitizados);
       await transaction.commit();
 
       return {
@@ -238,6 +286,13 @@ class Liquidacion {
     detalles = null,
     salario_acumulado = null,
     total_pagar = null,
+    salario_acumulado_6_meses = null,
+    salario_promedio_diario = null,
+    dias_trabajados_aguinaldo = null,
+    dias_pendientes_vacaciones = null,
+    dias_preaviso = null,
+    dias_cesantia = null,
+    salarios_historicos = null,
   }) {
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -252,6 +307,12 @@ class Liquidacion {
         totales = LiquidacionDetalle.calcularTotales(detallesSanitizados);
         await LiquidacionDetalle.deleteByLiquidacion(transaction, id_liquidacion);
         await LiquidacionDetalle.insertMany(transaction, id_liquidacion, detallesSanitizados);
+      }
+
+      if (Array.isArray(salarios_historicos)) {
+        const historicosSanitizados = LiquidacionSalarioHistorico.sanitizeHistorico(salarios_historicos);
+        await LiquidacionSalarioHistorico.deleteByLiquidacion(transaction, id_liquidacion);
+        await LiquidacionSalarioHistorico.insertMany(transaction, id_liquidacion, historicosSanitizados);
       }
 
       const salarioAcumuladoFinal =
@@ -280,7 +341,13 @@ class Liquidacion {
         .input('salario_promedio_mensual', sql.Decimal(12, 2), toDecimalOrNull(salario_promedio_mensual))
         .input('observaciones', sql.VarChar(500), observaciones || null)
         .input('salario_acumulado', sql.Decimal(12, 2), salarioAcumuladoFinal)
-        .input('total_pagar', sql.Decimal(12, 2), totalPagarFinal);
+        .input('total_pagar', sql.Decimal(12, 2), totalPagarFinal)
+        .input('salario_acumulado_6_meses', sql.Decimal(18, 2), toDecimalOrNull(salario_acumulado_6_meses))
+        .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
+        .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
+        .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
+        .input('dias_preaviso', sql.Int, toIntegerOrNull(dias_preaviso))
+        .input('dias_cesantia', sql.Int, toIntegerOrNull(dias_cesantia));
 
       await request.query(`
         UPDATE Liquidaciones
@@ -295,6 +362,12 @@ class Liquidacion {
           observaciones = COALESCE(@observaciones, observaciones),
           salario_acumulado = COALESCE(@salario_acumulado, salario_acumulado),
           total_pagar = COALESCE(@total_pagar, total_pagar),
+          salario_acumulado_6_meses = COALESCE(@salario_acumulado_6_meses, salario_acumulado_6_meses),
+          salario_promedio_diario = COALESCE(@salario_promedio_diario, salario_promedio_diario),
+          dias_trabajados_aguinaldo = COALESCE(@dias_trabajados_aguinaldo, dias_trabajados_aguinaldo),
+          dias_pendientes_vacaciones = COALESCE(@dias_pendientes_vacaciones, dias_pendientes_vacaciones),
+          dias_preaviso = COALESCE(@dias_preaviso, dias_preaviso),
+          dias_cesantia = COALESCE(@dias_cesantia, dias_cesantia),
           updated_at = GETDATE()
         WHERE id_liquidacion = @id_liquidacion;
       `);

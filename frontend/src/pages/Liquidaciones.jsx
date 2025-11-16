@@ -11,6 +11,171 @@ import {
   formatearFechaCorta,
 } from "../hooks/useLiquidaciones";
 
+const diasFormatter = new Intl.NumberFormat("es-CR", { maximumFractionDigits: 0 });
+
+const formatPeriodoMensual = (periodo) => {
+  if (!periodo) return "—";
+  if (typeof periodo === "string" && /^\d{4}-\d{2}$/.test(periodo)) {
+    const [year, month] = periodo.split("-").map((segment) => Number(segment));
+    if (Number.isInteger(year) && Number.isInteger(month)) {
+      const date = new Date(year, month - 1, 1);
+      return date.toLocaleDateString("es-CR", { month: "short", year: "numeric" });
+    }
+  }
+  const parsed = new Date(periodo);
+  if (Number.isNaN(parsed.getTime())) {
+    return periodo;
+  }
+  return parsed.toLocaleDateString("es-CR", { month: "short", year: "numeric" });
+};
+
+const formatDiasLabel = (value) => {
+  if (value === null || value === undefined) return "—";
+  const numero = Number(value);
+  if (Number.isNaN(numero)) return "—";
+  return `${diasFormatter.format(numero)} días`;
+};
+
+const PanelResumenLiquidacion = ({ encabezado }) => {
+  if (!encabezado) return null;
+
+  const {
+    salario_promedio_mensual,
+    salario_promedio_diario,
+    salario_acumulado_6_meses,
+    dias_trabajados_aguinaldo,
+    dias_pendientes_vacaciones,
+    dias_preaviso,
+    dias_cesantia,
+  } = encabezado;
+
+  const mostrarMontos = [
+    salario_promedio_mensual,
+    salario_promedio_diario,
+    salario_acumulado_6_meses,
+  ].some((valor) => valor !== null && valor !== undefined);
+
+  const mostrarDias = [
+    dias_trabajados_aguinaldo,
+    dias_pendientes_vacaciones,
+    dias_preaviso,
+    dias_cesantia,
+  ].some((valor) => valor !== null && valor !== undefined);
+
+  if (!mostrarMontos && !mostrarDias) return null;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {mostrarMontos && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            Resumen salarial
+          </p>
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span>Promedio mensual</span>
+              <span className="font-semibold">{formatearMontoCRC(salario_promedio_mensual)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Promedio diario</span>
+              <span className="font-semibold">{formatearMontoCRC(salario_promedio_diario)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Acumulado últimos 6 meses</span>
+              <span className="font-semibold">{formatearMontoCRC(salario_acumulado_6_meses)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {mostrarDias && (
+        <div className="rounded-lg border border-amber-100 bg-amber-50/70 p-4 text-sm text-amber-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
+            Días considerados
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs uppercase text-amber-500">Aguinaldo</p>
+              <p className="font-semibold">{formatDiasLabel(dias_trabajados_aguinaldo)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-amber-500">Vacaciones</p>
+              <p className="font-semibold">{formatDiasLabel(dias_pendientes_vacaciones)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-amber-500">Preaviso</p>
+              <p className="font-semibold">{formatDiasLabel(dias_preaviso)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-amber-500">Cesantía</p>
+              <p className="font-semibold">{formatDiasLabel(dias_cesantia)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TablaHistoricoSalarios = ({ registros }) => {
+  const filas = Array.isArray(registros) ? registros : [];
+  if (filas.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="px-4 py-3 border-b border-gray-200">
+        <p className="text-sm font-semibold text-gray-800">Desglose de salarios por mes</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+            <tr>
+              <th className="px-4 py-2 text-left">Periodo</th>
+              <th className="px-4 py-2 text-right">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((fila, index) => (
+              <tr key={`${fila.periodo || index}-${index}`} className="border-b border-gray-100">
+                <td className="px-4 py-2 text-gray-800">{formatPeriodoMensual(fila.periodo)}</td>
+                <td className="px-4 py-2 text-right text-gray-800">{formatearMontoCRC(fila.monto)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+PanelResumenLiquidacion.propTypes = {
+  encabezado: PropTypes.shape({
+    salario_promedio_mensual: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    salario_promedio_diario: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    salario_acumulado_6_meses: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    dias_trabajados_aguinaldo: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    dias_pendientes_vacaciones: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    dias_preaviso: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    dias_cesantia: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  }),
+};
+
+PanelResumenLiquidacion.defaultProps = {
+  encabezado: null,
+};
+
+TablaHistoricoSalarios.propTypes = {
+  registros: PropTypes.arrayOf(
+    PropTypes.shape({
+      periodo: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
+      monto: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    }),
+  ),
+};
+
+TablaHistoricoSalarios.defaultProps = {
+  registros: [],
+};
+
 const Liquidaciones = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const {
@@ -246,18 +411,18 @@ const Liquidaciones = ({ mode }) => {
               {formatearFechaCorta(detalleSeleccionado.fecha_fin_periodo)}
             </p>
           </div>
-         <div>
-           <p className="font-semibold text-gray-700">Motivo</p>
-           <p className="text-gray-800 whitespace-pre-line">
-             {detalleSeleccionado.motivo_liquidacion || "Sin motivo registrado"}
-           </p>
-         </div>
-         <div>
-           <p className="font-semibold text-gray-700">Promedio mensual</p>
-           <p className="text-gray-800">
-             {formatearMontoCRC(detalleSeleccionado.salario_promedio_mensual)}
-           </p>
-         </div>
+          <div>
+            <p className="font-semibold text-gray-700">Motivo</p>
+            <p className="text-gray-800 whitespace-pre-line">
+              {detalleSeleccionado.motivo_liquidacion || "Sin motivo registrado"}
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-700">Promedio mensual</p>
+            <p className="text-gray-800">
+              {formatearMontoCRC(detalleSeleccionado.salario_promedio_mensual)}
+            </p>
+          </div>
           <div className="md:col-span-2">
             <p className="font-semibold text-gray-700">Observaciones</p>
             <p className="text-gray-800 whitespace-pre-line">
@@ -266,8 +431,12 @@ const Liquidaciones = ({ mode }) => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <PanelResumenLiquidacion encabezado={detalleSeleccionado} />
+
+      <TablaHistoricoSalarios registros={detalleSeleccionado.salarios_historicos} />
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
               <tr>
                 <th className="px-4 py-2 text-left">Concepto</th>
@@ -582,6 +751,11 @@ const Liquidaciones = ({ mode }) => {
                     </p>
                   </div>
                 </div>
+
+                <PanelResumenLiquidacion encabezado={previewData?.encabezado} />
+
+                <TablaHistoricoSalarios registros={previewData?.salarios_historicos} />
+
                 {previewData?.encabezado?.observaciones && (
                   <div className="border border-dashed border-gray-300 rounded-lg p-3 text-sm text-gray-600">
                     <p className="font-semibold text-gray-700 mb-1">Observaciones previstas</p>
