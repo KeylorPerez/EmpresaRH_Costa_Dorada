@@ -603,6 +603,16 @@ const Liquidaciones = ({ mode }) => {
   }, [resumenEditable, syncDetalleMontoPorConcepto]);
 
   useEffect(() => {
+    if (!resumenEditable) return;
+    const salarioAcumulado = Number(resumenEditable.salario_acumulado);
+    const acumuladoValidado = Number.isFinite(salarioAcumulado)
+      ? Math.max(salarioAcumulado, 0)
+      : 0;
+    const montoAguinaldo = Number((acumuladoValidado / 12).toFixed(2));
+    syncDetalleMontoPorConcepto("Aguinaldo proporcional", montoAguinaldo);
+  }, [resumenEditable?.salario_acumulado, syncDetalleMontoPorConcepto]);
+
+  useEffect(() => {
     if (!resumenEditable || salarioAcumuladoManual) return;
     if (!Array.isArray(historicoEditable) || historicoEditable.length === 0) return;
 
