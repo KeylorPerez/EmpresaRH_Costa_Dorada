@@ -426,6 +426,7 @@ const Liquidaciones = ({ mode }) => {
     actualizarDetalle,
     agregarDetalleManual,
     eliminarDetalle,
+    syncDetalleMontoPorConcepto,
     guardarLiquidacion,
     resetDraft,
     submitting,
@@ -558,6 +559,23 @@ const Liquidaciones = ({ mode }) => {
     setHistoricoDirty(false);
     setSalarioAcumuladoManual(false);
   };
+
+  useEffect(() => {
+    if (!resumenEditable) return;
+
+    const salarioDiario = Number(resumenEditable.salario_promedio_diario);
+    const salarioValidado = Number.isFinite(salarioDiario) ? salarioDiario : 0;
+
+    const calcularMonto = (dias) => {
+      const diasNumero = Number(dias);
+      const diasValidados = Number.isFinite(diasNumero) ? diasNumero : 0;
+      const monto = salarioValidado * diasValidados;
+      return Number(monto.toFixed(2));
+    };
+
+    syncDetalleMontoPorConcepto("Preaviso", calcularMonto(resumenEditable.dias_preaviso));
+    syncDetalleMontoPorConcepto("Cesantía", calcularMonto(resumenEditable.dias_cesantia));
+  }, [resumenEditable, syncDetalleMontoPorConcepto]);
 
   useEffect(() => {
     if (!resumenEditable || salarioAcumuladoManual) return;
