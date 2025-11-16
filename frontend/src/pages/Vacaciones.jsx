@@ -348,7 +348,7 @@ const Vacaciones = ({ mode }) => {
                   : "Aún no hay solicitudes registradas."}
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                     <tr>
