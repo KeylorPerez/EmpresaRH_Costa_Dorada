@@ -167,7 +167,7 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
           <div className="mt-3 space-y-3">
             {renderMontoField("Promedio mensual", "salario_promedio_mensual")}
             {renderMontoField("Promedio diario", "salario_promedio_diario")}
-            {renderMontoField("Acumulado últimos 6 meses", "salario_acumulado")}
+            {renderMontoField("Salario acumulado", "salario_acumulado")}
           </div>
         </div>
       )}
