@@ -509,12 +509,33 @@ const Liquidaciones = ({ mode }) => {
     setHistoricoDirty(false);
   }, [previewData]);
 
+  const calcularSalarioDiarioDesdeMensual = (valorMensual) => {
+    if (valorMensual === null || valorMensual === undefined || valorMensual === "") {
+      return "";
+    }
+    const numeroMensual = Number(valorMensual);
+    if (!Number.isFinite(numeroMensual)) {
+      return "";
+    }
+    const salarioDiario = numeroMensual / 30;
+    if (!Number.isFinite(salarioDiario)) {
+      return "";
+    }
+    return Number(salarioDiario.toFixed(2));
+  };
+
   const handleResumenManualChange = (campo, valor) => {
     setResumenDirty(true);
     if (campo === "salario_acumulado") {
       setSalarioAcumuladoManual(true);
     }
-    setResumenEditable((prev) => ({ ...(prev || {}), [campo]: valor }));
+    setResumenEditable((prev) => {
+      const base = { ...(prev || {}), [campo]: valor };
+      if (campo === "salario_promedio_mensual") {
+        base.salario_promedio_diario = calcularSalarioDiarioDesdeMensual(valor);
+      }
+      return base;
+    });
   };
 
   const handleResetResumenManual = () => {
@@ -575,6 +596,10 @@ const Liquidaciones = ({ mode }) => {
 
     syncDetalleMontoPorConcepto("Preaviso", calcularMonto(resumenEditable.dias_preaviso));
     syncDetalleMontoPorConcepto("Cesantía", calcularMonto(resumenEditable.dias_cesantia));
+    syncDetalleMontoPorConcepto(
+      "Vacaciones",
+      calcularMonto(resumenEditable.dias_pendientes_vacaciones),
+    );
   }, [resumenEditable, syncDetalleMontoPorConcepto]);
 
   useEffect(() => {
