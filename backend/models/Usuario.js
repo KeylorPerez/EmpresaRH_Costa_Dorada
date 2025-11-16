@@ -1,3 +1,7 @@
+/**
+ * Modelo de usuarios del sistema. Contiene las operaciones de lectura
+ * y persistencia sobre la tabla `Usuarios`.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 class Usuario {

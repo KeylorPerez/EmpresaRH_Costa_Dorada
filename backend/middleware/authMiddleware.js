@@ -1,3 +1,8 @@
+/**
+ * Middleware de autenticación JWT. Verifica la validez del token
+ * recibido y adjunta al request la información básica del usuario
+ * autorizado para ser utilizada en los controladores.
+ */
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/Usuario');
 

@@ -1,3 +1,8 @@
+/**
+ * Controlador de empleados. Centraliza la lógica de gestión de expedientes,
+ * exportes en PDF/Excel y formateo de datos para garantizar consistencia
+ * entre las distintas salidas del sistema.
+ */
 const fs = require('fs');
 const path = require('path');
 const Empleado = require('../models/Empleado');

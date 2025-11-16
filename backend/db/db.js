@@ -1,3 +1,8 @@
+/**
+ * Configuración central de la conexión a SQL Server. Expone el pool
+ * de conexiones reutilizable y el objeto `sql` para tipar parámetros
+ * en los modelos.
+ */
 const sql = require('mssql');
 require('dotenv').config();
 

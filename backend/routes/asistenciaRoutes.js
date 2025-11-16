@@ -1,3 +1,7 @@
+/**
+ * Rutas de asistencia. Definen los puntos de entrada para registrar marcas,
+ * consultar periodos y gestionar justificaciones, siempre protegidos por JWT.
+ */
 const express = require('express');
 const router = express.Router();
 const {

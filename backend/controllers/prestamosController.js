@@ -1,3 +1,8 @@
+/**
+ * Controlador de préstamos. Maneja la creación de adelantos, cálculo
+ * de saldos pendientes y generación de reportes descargables para
+ * mantener trazabilidad de cada solicitud.
+ */
 const fs = require('fs');
 const path = require('path');
 const Prestamos = require('../models/Prestamos');

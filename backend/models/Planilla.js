@@ -1,3 +1,7 @@
+/**
+ * Modelo de planillas. Orquesta las consultas de periodos de pago y
+ * guarda los montos calculados para cada colaborador.
+ */
 const { poolPromise, sql } = require('../db/db');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');

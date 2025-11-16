@@ -1,3 +1,7 @@
+/**
+ * Modelo de asistencias. Provee consultas y modificaciones sobre las
+ * marcas diarias y sus justificaciones.
+ */
 const { poolPromise, sql } = require('../db/db');
 const JustificacionAsistencia = require('./JustificacionAsistencia');
 

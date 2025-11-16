@@ -1,4 +1,7 @@
-
+/**
+ * Rutas de puestos. Controlan el catálogo de cargos y lo protegen
+ * mediante autenticación y roles antes de permitir cambios.
+ */
 const express = require('express');
 const router = express.Router();
 const {

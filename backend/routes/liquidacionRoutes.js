@@ -1,3 +1,7 @@
+/**
+ * Rutas de liquidaciones. Concentran los endpoints para previsualizar,
+ * crear y exportar los finiquitos generados para cada colaborador.
+ */
 const express = require('express');
 const router = express.Router();
 const {

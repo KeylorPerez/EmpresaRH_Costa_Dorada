@@ -1,3 +1,7 @@
+/**
+ * Rutas de aguinaldo. Reúnen los endpoints para consultar, previsualizar
+ * y confirmar el pago anual de cada colaborador.
+ */
 const express = require('express');
 const router = express.Router();
 const {

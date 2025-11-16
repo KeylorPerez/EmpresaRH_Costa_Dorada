@@ -1,3 +1,7 @@
+/**
+ * Rutas de planillas. Controlan la generación, consulta y exportación
+ * de cada periodo de pago, protegiendo la información sensible con JWT.
+ */
 const express = require('express');
 const router = express.Router();
 const {

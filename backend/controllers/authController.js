@@ -1,8 +1,15 @@
+/**
+ * Controlador de autenticación. Se encarga de validar credenciales
+ * y emitir el token JWT que respalda las sesiones dentro del sistema.
+ */
 const Usuario = require('../models/Usuario');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Login
+/**
+ * Valida las credenciales del usuario y genera un JWT con los datos
+ * esenciales para la autorización posterior.
+ */
 const login = async (req, res) => {
     try {
         const { username, password } = req.body;

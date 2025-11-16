@@ -1,3 +1,7 @@
+/**
+ * Modelo de justificaciones de asistencia. Permite registrar motivos y
+ * resoluciones asociadas a las marcas de entrada y salida.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 const TIPOS_JUSTIFICACION = [

@@ -1,3 +1,8 @@
+/**
+ * Controlador de planillas. Calcula los montos de pago periódicos,
+ * construye archivos exportables y centraliza la lógica de consulta
+ * y regeneración de planillas históricas.
+ */
 const fs = require('fs');
 const path = require('path');
 const Planilla = require('../models/Planilla');

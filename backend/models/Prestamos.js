@@ -1,3 +1,7 @@
+/**
+ * Modelo de préstamos. Maneja las solicitudes de adelantos y los
+ * movimientos de saldo asociados.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 class Prestamos {

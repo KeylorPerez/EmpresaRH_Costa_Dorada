@@ -1,3 +1,7 @@
+/**
+ * Modelo de detalle de liquidación. Valida y normaliza los conceptos
+ * antes de persistirlos en la base de datos.
+ */
 const { sql } = require('../db/db');
 
 const toNumberOrZero = (value) => {

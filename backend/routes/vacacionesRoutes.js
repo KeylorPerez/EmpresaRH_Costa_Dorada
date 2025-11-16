@@ -1,4 +1,8 @@
 // routes/vacacionesRoutes.js
+/**
+ * Rutas de vacaciones. Encapsulan las operaciones de solicitud,
+ * aprobación y rechazo, además de ofrecer exportes en PDF.
+ */
 const express = require('express');
 const router = express.Router();
 const {

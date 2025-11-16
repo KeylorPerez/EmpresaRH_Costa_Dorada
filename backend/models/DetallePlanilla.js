@@ -1,3 +1,7 @@
+/**
+ * Modelo de detalle de planilla. Separa la información diaria y
+ * facilita los cálculos de asistencia asociados a cada pago.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 const schemaState = {

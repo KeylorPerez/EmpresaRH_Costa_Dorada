@@ -1,3 +1,8 @@
+/**
+ * Controlador de liquidaciones finales. Coordina la obtención de datos
+ * de empleados, genera los comprobantes y exporta la información en
+ * múltiples formatos para auditoría y entrega al colaborador.
+ */
 const fs = require('fs');
 const path = require('path');
 const Liquidacion = require('../models/Liquidacion');
