@@ -597,7 +597,7 @@ const Liquidaciones = ({ mode }) => {
     syncDetalleMontoPorConcepto("Preaviso", calcularMonto(resumenEditable.dias_preaviso));
     syncDetalleMontoPorConcepto("Cesantía", calcularMonto(resumenEditable.dias_cesantia));
     syncDetalleMontoPorConcepto(
-      "Vacaciones",
+      "Vacaciones no gozadas",
       calcularMonto(resumenEditable.dias_pendientes_vacaciones),
     );
   }, [resumenEditable, syncDetalleMontoPorConcepto]);
