@@ -41,8 +41,8 @@ const mapResumenEditable = (encabezado = {}) => ({
     encabezado.salario_promedio_mensual !== undefined ? encabezado.salario_promedio_mensual : "",
   salario_promedio_diario:
     encabezado.salario_promedio_diario !== undefined ? encabezado.salario_promedio_diario : "",
-  salario_acumulado_6_meses:
-    encabezado.salario_acumulado_6_meses !== undefined ? encabezado.salario_acumulado_6_meses : "",
+  salario_acumulado:
+    encabezado.salario_acumulado !== undefined ? encabezado.salario_acumulado : "",
   dias_trabajados_aguinaldo:
     encabezado.dias_trabajados_aguinaldo !== undefined ? encabezado.dias_trabajados_aguinaldo : "",
   dias_pendientes_vacaciones:
@@ -124,7 +124,7 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
   const {
     salario_promedio_mensual,
     salario_promedio_diario,
-    salario_acumulado_6_meses,
+    salario_acumulado,
     dias_trabajados_aguinaldo,
     dias_pendientes_vacaciones,
     dias_preaviso,
@@ -134,7 +134,7 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
   const mostrarMontos = [
     salario_promedio_mensual,
     salario_promedio_diario,
-    salario_acumulado_6_meses,
+    salario_acumulado,
   ].some((valor) => valor !== null && valor !== undefined);
 
   const mostrarDias = [
@@ -167,7 +167,7 @@ const PanelResumenLiquidacion = ({ encabezado, editable = false, onChange, onRes
           <div className="mt-3 space-y-3">
             {renderMontoField("Promedio mensual", "salario_promedio_mensual")}
             {renderMontoField("Promedio diario", "salario_promedio_diario")}
-            {renderMontoField("Acumulado últimos 6 meses", "salario_acumulado_6_meses")}
+            {renderMontoField("Acumulado últimos 6 meses", "salario_acumulado")}
           </div>
         </div>
       )}
@@ -303,7 +303,7 @@ PanelResumenLiquidacion.propTypes = {
   encabezado: PropTypes.shape({
     salario_promedio_mensual: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     salario_promedio_diario: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    salario_acumulado_6_meses: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    salario_acumulado: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_trabajados_aguinaldo: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_pendientes_vacaciones: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dias_preaviso: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
