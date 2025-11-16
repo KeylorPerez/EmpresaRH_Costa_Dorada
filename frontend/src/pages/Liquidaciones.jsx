@@ -590,7 +590,7 @@ const Liquidaciones = ({ mode }) => {
                 )}
                 {previewData && (
                   <div className="border border-gray-200 rounded-lg p-4 text-xs text-gray-600 leading-relaxed bg-gray-50">
-                    <p className="font-semibold text-gray-700 mb-2">Texto legal sugerido</p>
+                    <p className="font-semibold text-gray-700 mb-2">Nota informativa</p>
                     <p>
                       El presente documento certifica la liquidación de prestaciones laborales correspondiente al periodo comprendido entre {" "}
                       {formatearFechaCorta(previewData.encabezado.fecha_inicio_periodo)} y {" "}
