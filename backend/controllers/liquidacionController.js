@@ -5,6 +5,8 @@ const Empleado = require('../models/Empleado');
 const LiquidacionDetalle = require('../models/LiquidacionDetalle');
 const Usuario = require('../models/Usuario');
 
+const { calcularDetallesAutomaticos, calcularContextoLiquidacion, agruparPlanillaHistoricoPorMes } = require('../utils/liquidacionCalculations');
+
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
 
@@ -278,6 +280,27 @@ const padNumber = (text, length) => {
   return ' '.repeat(length - sanitized.length) + sanitized;
 };
 
+const normalizeNumeroEntero = (value) => {
+  if (value === null || value === undefined) return null;
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) return null;
+  return Math.max(Math.round(numero), 0);
+};
+
+const formatPeriodoResumen = (periodo) => {
+  if (!periodo) return '';
+  if (typeof periodo === 'string' && /^\d{4}-\d{2}$/.test(periodo)) {
+    const [year, month] = periodo.split('-').map((segmento) => Number(segmento));
+    if (Number.isInteger(year) && Number.isInteger(month)) {
+      const date = new Date(year, month - 1, 1);
+      return date.toLocaleDateString('es-CR', { month: 'short', year: 'numeric' });
+    }
+  }
+  const parsed = new Date(periodo);
+  if (Number.isNaN(parsed.getTime())) return String(periodo);
+  return parsed.toLocaleDateString('es-CR', { month: 'short', year: 'numeric' });
+};
+
 const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }) => {
   const lines = [];
   const divider = '-'.repeat(110);
@@ -291,11 +314,20 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   const puesto = empleado?.puesto_nombre ? sanitizePdfText(empleado.puesto_nombre) : 'No registrado';
   const cedula = empleado?.cedula ? sanitizePdfText(empleado.cedula) : 'No registrada';
   const salarioPromedio = formatCurrencyCRC(liquidacion.salario_promedio_mensual, 'Sin dato');
+  const salarioPromedioDiario = formatCurrencyCRC(liquidacion.salario_promedio_diario, 'Sin dato');
   const salarioAcumulado = formatCurrencyCRC(liquidacion.salario_acumulado, '₡0.00');
+  const salarioAcumulado6Meses = formatCurrencyCRC(liquidacion.salario_acumulado_6_meses, '₡0.00');
   const totales = LiquidacionDetalle.calcularTotales(detalles || []);
   const totalPagar = formatCurrencyCRC(liquidacion.total_pagar ?? totales.total_pagar, '₡0.00');
   const totalIngresos = formatCurrencyCRC(totales.totalIngresos, '₡0.00');
   const totalDescuentos = formatCurrencyCRC(totales.totalDescuentos, '₡0.00');
+  const diasAguinaldo = normalizeNumeroEntero(liquidacion.dias_trabajados_aguinaldo);
+  const diasVacaciones = normalizeNumeroEntero(liquidacion.dias_pendientes_vacaciones);
+  const diasPreaviso = normalizeNumeroEntero(liquidacion.dias_preaviso);
+  const diasCesantia = normalizeNumeroEntero(liquidacion.dias_cesantia);
+  const historicoSalarios = Array.isArray(liquidacion.salarios_historicos)
+    ? liquidacion.salarios_historicos
+    : [];
 
   lines.push(titleDivider);
   lines.push('Distribuidora Astua Pirie');
@@ -327,11 +359,41 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   lines.push('');
   lines.push(divider);
   lines.push(`Salario promedio mensual: ${salarioPromedio}`);
+  lines.push(`Salario promedio diario: ${salarioPromedioDiario}`);
+  lines.push(`Salario acumulado últimos 6 meses: ${salarioAcumulado6Meses}`);
   lines.push(`Salario acumulado periodo: ${salarioAcumulado}`);
   lines.push(`Total de ingresos: ${totalIngresos}`);
   lines.push(`Total de descuentos: ${totalDescuentos}`);
   lines.push(`TOTAL A PAGAR: ${totalPagar}`);
   lines.push(divider);
+
+  if (diasAguinaldo !== null || diasVacaciones !== null || diasPreaviso !== null || diasCesantia !== null) {
+    lines.push('Días considerados en el cálculo:');
+    if (diasAguinaldo !== null) {
+      lines.push(`- Aguinaldo proporcional: ${diasAguinaldo} días`);
+    }
+    if (diasVacaciones !== null) {
+      lines.push(`- Vacaciones pendientes: ${diasVacaciones} días`);
+    }
+    if (diasPreaviso !== null) {
+      lines.push(`- Preaviso: ${diasPreaviso} días`);
+    }
+    if (diasCesantia !== null) {
+      lines.push(`- Cesantía: ${diasCesantia} días`);
+    }
+    lines.push(divider);
+  }
+
+  if (historicoSalarios.length > 0) {
+    lines.push('Histórico salarial últimos meses:');
+    lines.push(padText('Periodo', 20) + padNumber('Monto', 18));
+    historicoSalarios.forEach((registro) => {
+      const periodoLabel = formatPeriodoResumen(registro.periodo || '') || registro.periodo || '—';
+      const monto = formatCurrencyCRC(registro.monto, '₡0.00');
+      lines.push(`${padText(periodoLabel, 20)}${padNumber(monto, 18)}`);
+    });
+    lines.push(divider);
+  }
 
   lines.push('Detalle de conceptos:');
   const headerLine =
@@ -408,8 +470,6 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
 
   return lines;
 };
-const { calcularDetallesAutomaticos } = require('../utils/liquidacionCalculations');
-
 const sanitizeText = (value, maxLength) => {
   if (value === undefined || value === null) return null;
   const text = String(value).trim();
@@ -521,12 +581,45 @@ const prepararLiquidacion = async ({
       ? promedioInfo.promedio
       : Number(empleado.salario_monto || 0);
 
-  const detallesAutomaticos = calcularDetallesAutomaticos({
+  const contextoLiquidacion = calcularContextoLiquidacion({
     salarioPromedioMensual: salarioPromedio,
-    fechaInicio: fechaInicio,
-    fechaFin: fechaFin,
+    fechaInicio,
+    fechaFin,
     fechaIngresoEmpleado: empleado.fecha_ingreso,
   });
+
+  const detallesAutomaticos = calcularDetallesAutomaticos({
+    salarioPromedioMensual: salarioPromedio,
+    fechaInicio,
+    fechaFin,
+    fechaIngresoEmpleado: empleado.fecha_ingreso,
+    contexto: contextoLiquidacion,
+  });
+
+  const salariosHistoricos = agruparPlanillaHistoricoPorMes(promedioInfo.historico, { maxPeriodos: 6 });
+  const salarioAcumuladoHistorico = salariosHistoricos.reduce(
+    (acc, registro) => acc + (Number(registro.monto) || 0),
+    0,
+  );
+  const salarioAcumulado6Meses = salariosHistoricos.length
+    ? Number(salarioAcumuladoHistorico.toFixed(2))
+    : null;
+  const salarioPromedioDiario =
+    contextoLiquidacion.salarioDiario !== null && contextoLiquidacion.salarioDiario !== undefined
+      ? Number(Number(contextoLiquidacion.salarioDiario).toFixed(2))
+      : salarioPromedio > 0
+        ? Number((salarioPromedio / 30).toFixed(2))
+        : null;
+  const diasHistorico = salariosHistoricos.reduce(
+    (acc, registro) => acc + (Number(registro.dias) || 0),
+    0,
+  );
+  const diasAguinaldo = normalizeNumeroEntero(
+    diasHistorico > 0 ? diasHistorico : contextoLiquidacion.diasPeriodo,
+  );
+  const diasVacaciones = normalizeNumeroEntero(contextoLiquidacion.vacacionesDias);
+  const diasPreaviso = normalizeNumeroEntero(contextoLiquidacion.diasPreaviso);
+  const diasCesantia = normalizeNumeroEntero(contextoLiquidacion.diasCesantia);
 
   const detallesCombinados = mergeDetallesAutomaticos(detallesAutomaticos, detalles);
   const detallesSanitizados = LiquidacionDetalle.sanitizeDetalles(detallesCombinados);
@@ -544,13 +637,20 @@ const prepararLiquidacion = async ({
       motivo_liquidacion: sanitizeText(motivo_liquidacion, 300),
       observaciones: sanitizeText(observaciones, 500),
       salario_promedio_mensual: salarioPromedio,
+      salario_promedio_diario: salarioPromedioDiario,
       salario_acumulado: totales.totalIngresos,
+      salario_acumulado_6_meses: salarioAcumulado6Meses,
+      dias_trabajados_aguinaldo: diasAguinaldo,
+      dias_pendientes_vacaciones: diasVacaciones,
+      dias_preaviso: diasPreaviso,
+      dias_cesantia: diasCesantia,
       total_pagar: totales.total_pagar,
     },
     detalles: detallesSanitizados,
     totales,
     empleado,
     promedio_planilla: promedioInfo,
+    salarios_historicos: salariosHistoricos,
   };
 };
 
@@ -659,9 +759,16 @@ const crearLiquidacion = async (req, res) => {
       id_estado,
       aprobado_por,
       salario_promedio_mensual: preview.encabezado.salario_promedio_mensual,
+      salario_promedio_diario: preview.encabezado.salario_promedio_diario,
       salario_acumulado: preview.encabezado.salario_acumulado,
+      salario_acumulado_6_meses: preview.encabezado.salario_acumulado_6_meses,
+      dias_trabajados_aguinaldo: preview.encabezado.dias_trabajados_aguinaldo,
+      dias_pendientes_vacaciones: preview.encabezado.dias_pendientes_vacaciones,
+      dias_preaviso: preview.encabezado.dias_preaviso,
+      dias_cesantia: preview.encabezado.dias_cesantia,
       total_pagar: preview.encabezado.total_pagar,
       detalles: preview.detalles,
+      salarios_historicos: preview.salarios_historicos,
     });
 
     return res.status(201).json({
@@ -717,9 +824,16 @@ const actualizarLiquidacion = async (req, res) => {
       id_estado: estadoParsed,
       aprobado_por: aprobadoPorParsed,
       salario_promedio_mensual: body.salario_promedio_mensual,
+      salario_promedio_diario: body.salario_promedio_diario,
       salario_acumulado: body.salario_acumulado,
+      salario_acumulado_6_meses: body.salario_acumulado_6_meses,
+      dias_trabajados_aguinaldo: body.dias_trabajados_aguinaldo,
+      dias_pendientes_vacaciones: body.dias_pendientes_vacaciones,
+      dias_preaviso: body.dias_preaviso,
+      dias_cesantia: body.dias_cesantia,
       total_pagar: body.total_pagar,
       detalles: detallesActualizados,
+      salarios_historicos: body.salarios_historicos,
     });
 
     return res.json({ message: 'Liquidación actualizada correctamente', ...resultado });
