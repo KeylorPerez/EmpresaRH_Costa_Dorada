@@ -1,3 +1,8 @@
+/**
+ * Punto de arranque del API de recursos humanos. Configura la aplicación
+ * Express, registra los middlewares comunes y expone todas las rutas
+ * especializadas que atienden los módulos del sistema.
+ */
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -18,6 +23,8 @@ const aguinaldoRoutes = require('./routes/aguinaldoRoutes');
 
 const app = express();
 
+// Directorio donde se almacenan los archivos generados (PDF, Excel, etc.)
+// y que será expuesto estáticamente.
 const EXPORTS_DIR = path.join(__dirname, 'exports');
 if (!fs.existsSync(EXPORTS_DIR)) {
   fs.mkdirSync(EXPORTS_DIR, { recursive: true });

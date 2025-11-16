@@ -1,3 +1,7 @@
+/**
+ * Controlador de vacaciones. Permite crear, aprobar y reportar solicitudes
+ * de disfrute, conectando la información del usuario con su expediente de empleado.
+ */
 const fs = require('fs');
 const path = require('path');
 const Vacaciones = require('../models/Vacaciones');

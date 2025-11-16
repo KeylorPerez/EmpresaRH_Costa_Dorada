@@ -1,3 +1,7 @@
+/**
+ * Modelo de puestos. Gestiona el catálogo de cargos disponibles y sus
+ * atributos salariales base.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 class Puesto {

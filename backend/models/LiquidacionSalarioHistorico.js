@@ -1,3 +1,7 @@
+/**
+ * Modelo de historial salarial. Guarda los valores base usados para
+ * el cálculo de liquidaciones en fechas anteriores.
+ */
 const { sql } = require('../db/db');
 
 const toDecimalOrNull = (value) => {

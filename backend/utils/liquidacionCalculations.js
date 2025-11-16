@@ -1,3 +1,7 @@
+/**
+ * Utilidades para cálculo de liquidaciones laborales. Incluye helpers
+ * de fechas y funciones matemáticas reutilizadas por los controladores.
+ */
 const differenceInDays = (a, b) => {
   const dateA = new Date(a);
   const dateB = new Date(b);

@@ -1,3 +1,7 @@
+/**
+ * Controlador de asistencia. Gestiona las marcas de entrada y salida,
+ * la generación de reportes y la validación de horas trabajadas por empleado.
+ */
 const fs = require('fs');
 const path = require('path');
 const Asistencia = require('../models/Asistencia');

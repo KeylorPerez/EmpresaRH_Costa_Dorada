@@ -1,3 +1,7 @@
+/**
+ * Modelo de aguinaldos. Consulta y persiste la información del cálculo
+ * anual de cada colaborador.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000;

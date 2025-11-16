@@ -1,3 +1,7 @@
+/**
+ * Rutas de empleados. Define los endpoints REST que conectan las
+ * solicitudes HTTP con las acciones especializadas del controlador.
+ */
 const express = require('express');
 const router = express.Router();
 const {

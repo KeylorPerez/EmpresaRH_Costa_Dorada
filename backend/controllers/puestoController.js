@@ -1,3 +1,7 @@
+/**
+ * Controlador de puestos. Expone operaciones CRUD simples para mantener
+ * el catálogo de cargos y permitir su asociación con los empleados.
+ */
 const Puesto = require('../models/Puesto');
 
 // Obtener todos los puestos

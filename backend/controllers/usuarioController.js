@@ -1,3 +1,8 @@
+/**
+ * Controlador de usuarios. Maneja la administración de cuentas, cifrado
+ * de contraseñas y el control de estados activos/inactivos del personal
+ * que accede al sistema.
+ */
 const Usuario = require('../models/Usuario');
 const bcrypt = require('bcrypt');
 

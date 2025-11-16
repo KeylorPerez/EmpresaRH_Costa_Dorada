@@ -1,3 +1,7 @@
+/**
+ * Modelo de liquidaciones. Obtiene y almacena los datos principales
+ * de cada finiquito generado.
+ */
 const { poolPromise, sql } = require('../db/db');
 const LiquidacionDetalle = require('./LiquidacionDetalle');
 const LiquidacionSalarioHistorico = require('./LiquidacionSalarioHistorico');

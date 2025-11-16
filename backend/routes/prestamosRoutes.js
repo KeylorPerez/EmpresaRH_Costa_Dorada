@@ -1,3 +1,7 @@
+/**
+ * Rutas de préstamos. Exponen los endpoints para solicitar, actualizar
+ * y cancelar adelantos, además de permitir la exportación del detalle.
+ */
 const express = require('express');
 const router = express.Router();
 const {

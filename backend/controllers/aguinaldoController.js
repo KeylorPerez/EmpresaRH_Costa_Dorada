@@ -1,3 +1,7 @@
+/**
+ * Controlador de aguinaldos. Calcula y exporta los pagos anuales,
+ * además de exponer los listados en diferentes formatos descargables.
+ */
 const fs = require('fs');
 const path = require('path');
 const Aguinaldo = require('../models/Aguinaldo');

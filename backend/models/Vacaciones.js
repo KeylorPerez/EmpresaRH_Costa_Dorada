@@ -1,3 +1,7 @@
+/**
+ * Modelo de vacaciones. Administra las solicitudes, sus estados y el
+ * cálculo de días pendientes para cada empleado.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 class Vacaciones {

@@ -1,3 +1,7 @@
+/**
+ * Modelo de datos para empleados. Centraliza las consultas hacia SQL Server
+ * y expone operaciones CRUD así como utilidades de activación/desactivación.
+ */
 const { poolPromise, sql } = require('../db/db');
 
 class Empleado {
