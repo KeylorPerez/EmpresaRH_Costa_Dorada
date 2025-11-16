@@ -1220,77 +1220,79 @@ const Aguinaldos = ({ mode }) => {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Año</th>
-                      {isAdminView && <th className="px-4 py-3 text-left">Colaborador</th>}
-                      <th className="px-4 py-3 text-left">Salario promedio</th>
-                      <th className="px-4 py-3 text-left">Monto aguinaldo</th>
-                      <th className="px-4 py-3 text-left">Periodo</th>
-                      <th className="px-4 py-3 text-left">Fecha cálculo</th>
-                      <th className="px-4 py-3 text-left">Observación</th>
-                      <th className="px-4 py-3 text-left">Estado</th>
-                      <th className="px-4 py-3 text-left">Documento</th>
-                      {isAdminView && <th className="px-4 py-3 text-left">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrosFiltrados.map((registro) => (
-                      <tr
-                        key={registro.id_aguinaldo}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-gray-800 font-semibold">{registro.anio}</td>
-                        {isAdminView && (
-                          <td className="px-4 py-3 text-gray-700">
-                            <p className="font-semibold">
-                              {registro.nombre || "Empleado"} {registro.apellido || ""}
-                            </p>
-                            <p className="text-xs text-gray-500">ID #{registro.id_empleado}</p>
-                          </td>
-                        )}
-                        <td className="px-4 py-3 text-gray-700">
-                          {formatearMontoCRC(registro.salario_promedio)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {formatearMontoCRC(registro.monto_aguinaldo)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {registro.fecha_inicio_periodo || registro.fecha_fin_periodo
-                            ? `${formatearFechaCorta(registro.fecha_inicio_periodo)} al ${formatearFechaCorta(
-                                registro.fecha_fin_periodo
-                              )}`
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {formatearFechaCorta(registro.fecha_calculo)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {registro.observacion ? (
-                            <span>{registro.observacion}</span>
-                          ) : (
-                            <span className="text-gray-400">Sin observación</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">{estadoBadge(registro.pagado)}</td>
-                        <td className="px-4 py-3">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleDescargarDocumento(registro)}
-                            disabled={downloadingId === Number(registro.id_aguinaldo)}
-                          >
-                            {downloadingId === Number(registro.id_aguinaldo)
-                              ? 'Generando...'
-                              : 'Descargar PDF'}
-                          </Button>
-                        </td>
-                        {isAdminView && <td className="px-4 py-3">{renderAcciones(registro)}</td>}
+                <div className="max-h-[70vh] overflow-y-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Año</th>
+                        {isAdminView && <th className="px-4 py-3 text-left">Colaborador</th>}
+                        <th className="px-4 py-3 text-left">Salario promedio</th>
+                        <th className="px-4 py-3 text-left">Monto aguinaldo</th>
+                        <th className="px-4 py-3 text-left">Periodo</th>
+                        <th className="px-4 py-3 text-left">Fecha cálculo</th>
+                        <th className="px-4 py-3 text-left">Observación</th>
+                        <th className="px-4 py-3 text-left">Estado</th>
+                        <th className="px-4 py-3 text-left">Documento</th>
+                        {isAdminView && <th className="px-4 py-3 text-left">Acciones</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {registrosFiltrados.map((registro) => (
+                        <tr
+                          key={registro.id_aguinaldo}
+                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-gray-800 font-semibold">{registro.anio}</td>
+                          {isAdminView && (
+                            <td className="px-4 py-3 text-gray-700">
+                              <p className="font-semibold">
+                                {registro.nombre || "Empleado"} {registro.apellido || ""}
+                              </p>
+                              <p className="text-xs text-gray-500">ID #{registro.id_empleado}</p>
+                            </td>
+                          )}
+                          <td className="px-4 py-3 text-gray-700">
+                            {formatearMontoCRC(registro.salario_promedio)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {formatearMontoCRC(registro.monto_aguinaldo)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {registro.fecha_inicio_periodo || registro.fecha_fin_periodo
+                              ? `${formatearFechaCorta(registro.fecha_inicio_periodo)} al ${formatearFechaCorta(
+                                  registro.fecha_fin_periodo
+                                )}`
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {formatearFechaCorta(registro.fecha_calculo)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {registro.observacion ? (
+                              <span>{registro.observacion}</span>
+                            ) : (
+                              <span className="text-gray-400">Sin observación</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">{estadoBadge(registro.pagado)}</td>
+                          <td className="px-4 py-3">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleDescargarDocumento(registro)}
+                              disabled={downloadingId === Number(registro.id_aguinaldo)}
+                            >
+                              {downloadingId === Number(registro.id_aguinaldo)
+                                ? "Generando..."
+                                : "Descargar PDF"}
+                            </Button>
+                          </td>
+                          {isAdminView && <td className="px-4 py-3">{renderAcciones(registro)}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </section>

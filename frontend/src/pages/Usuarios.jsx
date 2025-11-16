@@ -97,68 +97,72 @@ const Usuarios = () => {
           {loading ? (
             <p>Cargando usuarios...</p>
           ) : (
-            <table className="w-full border-collapse border">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border px-2 py-1">Usuario</th>
-                  <th className="border px-2 py-1">Rol</th>
-                  <th className="border px-2 py-1">Empleado</th>
-                  <th className="border px-2 py-1">Estado</th>
-                  <th className="border px-2 py-1">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="text-center p-2">
-                      No hay usuarios {statusFilter === "todos" ? "disponibles" : "con el estado seleccionado"}
-                    </td>
-                  </tr>
-                )}
-                {usuarios.map((usuario) => {
-                  const empleadoRelacionado = empleados.find(
-                    (emp) => emp.id_empleado === usuario.id_empleado
-                  );
-
-                  return (
-                    <tr key={usuario.id_usuario}>
-                      <td className="border px-2 py-1">{usuario.username}</td>
-                      <td className="border px-2 py-1">{usuario.rol || usuario.id_rol}</td>
-                      <td className="border px-2 py-1">
-                        {empleadoRelacionado
-                          ? `${empleadoRelacionado.nombre} ${empleadoRelacionado.apellido}`
-                          : usuario.id_empleado}
-                      </td>
-                      <td className="border px-2 py-1">
-                        {usuario.estado ? "Activo" : "Inactivo"}
-                      </td>
-                      <td className="border px-2 py-1 space-x-1">
-                        <Button variant="warning" size="sm" onClick={() => handleEdit(usuario)}>
-                          Editar
-                        </Button>
-                        {usuario.estado ? (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleChangeStatus(usuario.id_usuario, 0)}
-                          >
-                            Desactivar
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => handleChangeStatus(usuario.id_usuario, 1)}
-                          >
-                            Activar
-                          </Button>
-                        )}
-                      </td>
+            <div className="overflow-x-auto shadow-sm border border-gray-200 rounded-lg">
+              <div className="max-h-[70vh] overflow-y-auto">
+                <table className="w-full border-collapse border">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="border px-2 py-1">Usuario</th>
+                      <th className="border px-2 py-1">Rol</th>
+                      <th className="border px-2 py-1">Empleado</th>
+                      <th className="border px-2 py-1">Estado</th>
+                      <th className="border px-2 py-1">Acciones</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {usuarios.length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="text-center p-2">
+                          No hay usuarios {statusFilter === "todos" ? "disponibles" : "con el estado seleccionado"}
+                        </td>
+                      </tr>
+                    )}
+                    {usuarios.map((usuario) => {
+                      const empleadoRelacionado = empleados.find(
+                        (emp) => emp.id_empleado === usuario.id_empleado
+                      );
+
+                      return (
+                        <tr key={usuario.id_usuario}>
+                          <td className="border px-2 py-1">{usuario.username}</td>
+                          <td className="border px-2 py-1">{usuario.rol || usuario.id_rol}</td>
+                          <td className="border px-2 py-1">
+                            {empleadoRelacionado
+                              ? `${empleadoRelacionado.nombre} ${empleadoRelacionado.apellido}`
+                              : usuario.id_empleado}
+                          </td>
+                          <td className="border px-2 py-1">
+                            {usuario.estado ? "Activo" : "Inactivo"}
+                          </td>
+                          <td className="border px-2 py-1 space-x-1">
+                            <Button variant="warning" size="sm" onClick={() => handleEdit(usuario)}>
+                              Editar
+                            </Button>
+                            {usuario.estado ? (
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleChangeStatus(usuario.id_usuario, 0)}
+                              >
+                                Desactivar
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => handleChangeStatus(usuario.id_usuario, 1)}
+                              >
+                                Activar
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           {modalOpen && (
