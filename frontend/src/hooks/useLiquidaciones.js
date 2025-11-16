@@ -11,6 +11,16 @@ const sanitizeOptionalNumber = (value) => {
   return parsed;
 };
 
+const normalizeConceptLabel = (value) => {
+  if (value === null || value === undefined) return "";
+  return value
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+};
+
 const normalizeDateForApi = (value) => {
   if (!value) return null;
 
@@ -294,6 +304,36 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     setDraftDetalles((prev) => prev.filter((_, idx) => idx !== index));
   }, []);
 
+  const syncDetalleMontoPorConcepto = useCallback((conceptoBuscado, nuevoMonto) => {
+    const conceptoNormalizado = normalizeConceptLabel(conceptoBuscado);
+    if (!conceptoNormalizado) return;
+
+    setDraftDetalles((prev) => {
+      const index = prev.findIndex(
+        (detalle) => normalizeConceptLabel(detalle?.concepto) === conceptoNormalizado,
+      );
+
+      if (index === -1) {
+        return prev;
+      }
+
+      const montoNumerico = (() => {
+        const monto = Number(nuevoMonto);
+        if (!Number.isFinite(monto)) return 0;
+        return Number(monto.toFixed(2));
+      })();
+
+      const detalleActual = prev[index];
+      const copia = [...prev];
+      copia[index] = {
+        ...detalleActual,
+        monto_calculado: montoNumerico,
+        monto_final: montoNumerico,
+      };
+      return copia;
+    });
+  }, []);
+
   const guardarLiquidacion = useCallback(
     async ({ confirmar = false, encabezadoOverrides = null, salariosHistoricos = null } = {}) => {
       try {
@@ -542,6 +582,7 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
     actualizarDetalle,
     agregarDetalleManual,
     eliminarDetalle,
+    syncDetalleMontoPorConcepto,
     guardarLiquidacion,
     resetDraft,
     submitting,
