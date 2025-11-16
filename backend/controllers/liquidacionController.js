@@ -397,7 +397,10 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   lines.push(`Colaborador: ${sanitizePdfText(nombreCompleto)} (ID ${liquidacion.id_empleado})`);
   lines.push(`Cédula: ${cedula}`);
   lines.push(`Puesto: ${puesto}`);
-  lines.push(`Fecha de liquidación: ${formatDateDisplay(liquidacion.fecha_liquidacion) || '—'}`);
+  const fechaGeneracion =
+    formatDateDisplay(liquidacion.fecha_liquidacion || liquidacion.created_at) || '—';
+
+  lines.push(`Fecha de liquidación: ${fechaGeneracion}`);
   lines.push(
     `Periodo liquidado: ${formatDateDisplay(liquidacion.fecha_inicio_periodo) || '—'} al ${
       formatDateDisplay(liquidacion.fecha_fin_periodo) || '—'
