@@ -439,6 +439,7 @@ const Liquidaciones = ({ mode }) => {
   const [historicoEditable, setHistoricoEditable] = useState([]);
   const [historicoDirty, setHistoricoDirty] = useState(false);
   const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
+  const [filtroHistorial, setFiltroHistorial] = useState("");
 
   const isAdmin = mode === "admin";
 
@@ -468,6 +469,43 @@ const Liquidaciones = ({ mode }) => {
 
   const roleColor = isAdmin ? "blue" : "green";
   const tituloPagina = isAdmin ? "Liquidaciones híbridas" : "Mis liquidaciones";
+
+  const liquidacionesFiltradas = useMemo(() => {
+    const termino = filtroHistorial.trim().toLowerCase();
+    if (!termino) return liquidaciones;
+
+    return liquidaciones.filter((registro) => {
+      const camposBusqueda = [
+        registro.nombre,
+        registro.apellido,
+        registro.id_empleado,
+        registro.id_liquidacion,
+        registro.estado,
+        registro.motivo_liquidacion,
+        registro.fecha_liquidacion,
+        registro.created_at,
+      ];
+
+      const textoCompuesto = camposBusqueda
+        .filter(Boolean)
+        .map((campo) => campo.toString().toLowerCase())
+        .join(" ");
+
+      if (textoCompuesto.includes(termino)) return true;
+
+      const montos = [
+        registro.salario_promedio_mensual,
+        registro.total_ingresos_detalle,
+        registro.total_descuentos_detalle,
+        registro.total_pagar,
+      ]
+        .filter((valor) => valor !== null && valor !== undefined)
+        .map((valor) => valor.toString().toLowerCase())
+        .join(" ");
+
+      return montos.includes(termino);
+    });
+  }, [filtroHistorial, liquidaciones]);
 
   const empleadoSeleccionado = useMemo(() => {
     if (!draftForm.id_empleado) return null;
@@ -1205,71 +1243,98 @@ const Liquidaciones = ({ mode }) => {
             {liquidaciones.length === 0 && !loading ? (
               <p className="text-gray-500 text-sm">Aún no hay liquidaciones registradas.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
-                    <tr>
-                      {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
-                      <th className="px-4 py-3 text-left">Fecha</th>
-                      <th className="px-4 py-3 text-left">Promedio mensual</th>
-                      <th className="px-4 py-3 text-left">Ingresos</th>
-                      <th className="px-4 py-3 text-left">Descuentos</th>
-                      <th className="px-4 py-3 text-left">Total</th>
-                      <th className="px-4 py-3 text-left">Estado</th>
-                      <th className="px-4 py-3 text-left">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {liquidaciones.map((registro) => (
-                      <tr
-                        key={registro.id_liquidacion}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        {isAdmin && (
-                          <td className="px-4 py-3 text-gray-800">
-                            <p className="font-semibold">
-                              {registro.nombre || "Empleado"} {registro.apellido || ""}
-                            </p>
-                            <p className="text-xs text-gray-500">ID: {registro.id_empleado}</p>
-                          </td>
-                        )}
-                        <td className="px-4 py-3 text-gray-800">
-                          {formatearFechaCorta(registro.fecha_liquidacion || registro.created_at)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {formatearMontoCRC(registro.salario_promedio_mensual)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {formatearMontoCRC(registro.total_ingresos_detalle)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {formatearMontoCRC(registro.total_descuentos_detalle)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {formatearMontoCRC(registro.total_pagar)}
-                        </td>
-                        <td className="px-4 py-3">{renderEstado(registro)}</td>
-                        <td className="px-4 py-3 space-y-2">
-                          {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion && (
-                            <span className="block text-xs text-blue-600 font-medium">
-                              Detalle abierto
-                            </span>
-                          )}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => openLiquidacion(registro.id_liquidacion)}
-                          >
-                            {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion
-                              ? "Ocultar detalle"
-                              : "Ver detalle"}
-                          </Button>
-                          {renderAcciones(registro)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <label className="w-full md:w-72">
+                    <span className="text-sm font-medium text-gray-700">Filtrar historial</span>
+                    <input
+                      type="text"
+                      value={filtroHistorial}
+                      onChange={(e) => setFiltroHistorial(e.target.value)}
+                      placeholder={
+                        isAdmin
+                          ? "Buscar por colaborador, estado o montos"
+                          : "Buscar por fecha, estado o montos"
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                    />
+                  </label>
+                </div>
+
+                {liquidacionesFiltradas.length === 0 ? (
+                  <p className="text-gray-500 text-sm">
+                    No se encontraron liquidaciones que coincidan con el filtro aplicado.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="max-h-[420px] overflow-y-auto rounded-lg border border-gray-100">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+                          <tr>
+                            {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
+                            <th className="px-4 py-3 text-left">Fecha</th>
+                            <th className="px-4 py-3 text-left">Promedio mensual</th>
+                            <th className="px-4 py-3 text-left">Ingresos</th>
+                            <th className="px-4 py-3 text-left">Descuentos</th>
+                            <th className="px-4 py-3 text-left">Total</th>
+                            <th className="px-4 py-3 text-left">Estado</th>
+                            <th className="px-4 py-3 text-left">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {liquidacionesFiltradas.map((registro) => (
+                            <tr
+                              key={registro.id_liquidacion}
+                              className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                            >
+                              {isAdmin && (
+                                <td className="px-4 py-3 text-gray-800">
+                                  <p className="font-semibold">
+                                    {registro.nombre || "Empleado"} {registro.apellido || ""}
+                                  </p>
+                                  <p className="text-xs text-gray-500">ID: {registro.id_empleado}</p>
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-gray-800">
+                                {formatearFechaCorta(registro.fecha_liquidacion || registro.created_at)}
+                              </td>
+                              <td className="px-4 py-3 text-gray-800">
+                                {formatearMontoCRC(registro.salario_promedio_mensual)}
+                              </td>
+                              <td className="px-4 py-3 text-gray-800">
+                                {formatearMontoCRC(registro.total_ingresos_detalle)}
+                              </td>
+                              <td className="px-4 py-3 text-gray-800">
+                                {formatearMontoCRC(registro.total_descuentos_detalle)}
+                              </td>
+                              <td className="px-4 py-3 text-gray-800">
+                                {formatearMontoCRC(registro.total_pagar)}
+                              </td>
+                              <td className="px-4 py-3">{renderEstado(registro)}</td>
+                              <td className="px-4 py-3 space-y-2">
+                                {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion && (
+                                  <span className="block text-xs text-blue-600 font-medium">
+                                    Detalle abierto
+                                  </span>
+                                )}
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => openLiquidacion(registro.id_liquidacion)}
+                                >
+                                  {detalleSeleccionado?.id_liquidacion === registro.id_liquidacion
+                                    ? "Ocultar detalle"
+                                    : "Ver detalle"}
+                                </Button>
+                                {renderAcciones(registro)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
