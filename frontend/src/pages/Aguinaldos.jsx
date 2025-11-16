@@ -505,6 +505,12 @@ const Aguinaldos = ({ mode }) => {
     if (!id) return null;
     const isProcessing = Boolean(actionLoading[id]);
     const pagado = Boolean(registro.pagado);
+    const accionPagoLabel = isProcessing
+      ? "Actualizando..."
+      : pagado
+        ? "Marcar pendiente"
+        : "Marcar pagado";
+    const accionPagoVariant = pagado ? "secondary" : "success";
 
     return (
       <div className="flex flex-wrap gap-2">
@@ -518,8 +524,9 @@ const Aguinaldos = ({ mode }) => {
         </Button>
         <Button
           size="sm"
-          variant={pagado ? "secondary" : "success"}
+          variant={accionPagoVariant}
           disabled={isProcessing}
+          className="min-w-[150px] whitespace-normal"
           onClick={async () => {
             try {
               await markAsPaid(id, !pagado);
@@ -528,7 +535,7 @@ const Aguinaldos = ({ mode }) => {
             }
           }}
         >
-          {isProcessing ? "Actualizando..." : pagado ? "Marcar como pendiente" : "Marcar como pagado"}
+          {accionPagoLabel}
         </Button>
       </div>
     );
