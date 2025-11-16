@@ -45,7 +45,6 @@ class Liquidacion {
         l.fecha_fin_periodo,
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
-        l.salario_acumulado_6_meses,
         l.salario_promedio_diario,
         l.dias_trabajados_aguinaldo,
         l.dias_pendientes_vacaciones,
@@ -75,7 +74,6 @@ class Liquidacion {
         l.fecha_fin_periodo,
         l.motivo_liquidacion,
         l.salario_promedio_mensual,
-        l.salario_acumulado_6_meses,
         l.salario_promedio_diario,
         l.dias_trabajados_aguinaldo,
         l.dias_pendientes_vacaciones,
@@ -110,7 +108,6 @@ class Liquidacion {
           l.fecha_fin_periodo,
           l.motivo_liquidacion,
           l.salario_promedio_mensual,
-          l.salario_acumulado_6_meses,
           l.salario_promedio_diario,
           l.dias_trabajados_aguinaldo,
           l.dias_pendientes_vacaciones,
@@ -192,7 +189,6 @@ class Liquidacion {
     detalles = [],
     salario_acumulado = null,
     total_pagar = null,
-    salario_acumulado_6_meses = null,
     salario_promedio_diario = null,
     dias_trabajados_aguinaldo = null,
     dias_pendientes_vacaciones = null,
@@ -211,10 +207,7 @@ class Liquidacion {
         salarios_historicos,
       );
 
-      const salarioAcumuladoFinal =
-        toDecimalOrNull(salario_acumulado) !== null
-          ? toDecimalOrNull(salario_acumulado)
-          : totales.totalIngresos;
+      const salarioAcumuladoFinal = toDecimalOrNull(salario_acumulado);
       const totalPagarFinal =
         toDecimalOrNull(total_pagar) !== null
           ? toDecimalOrNull(total_pagar)
@@ -233,7 +226,6 @@ class Liquidacion {
         .input('motivo_liquidacion', sql.VarChar(300), motivo_liquidacion || null)
         .input('salario_promedio_mensual', sql.Decimal(12, 2), toDecimalOrNull(salario_promedio_mensual))
         .input('observaciones', sql.VarChar(500), observaciones || null)
-        .input('salario_acumulado_6_meses', sql.Decimal(18, 2), toDecimalOrNull(salario_acumulado_6_meses))
         .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
         .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
         .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
@@ -244,12 +236,12 @@ class Liquidacion {
         INSERT INTO Liquidaciones
           (id_empleado, salario_acumulado, total_pagar, fecha_liquidacion, aprobado_por, id_estado, created_at, updated_at,
            fecha_inicio_periodo, fecha_fin_periodo, motivo_liquidacion, salario_promedio_mensual, observaciones,
-           salario_acumulado_6_meses, salario_promedio_diario, dias_trabajados_aguinaldo, dias_pendientes_vacaciones,
+           salario_promedio_diario, dias_trabajados_aguinaldo, dias_pendientes_vacaciones,
            dias_preaviso, dias_cesantia)
         VALUES
           (@id_empleado, @salario_acumulado, @total_pagar, @fecha_liquidacion, @aprobado_por, @id_estado, GETDATE(), GETDATE(),
            @fecha_inicio_periodo, @fecha_fin_periodo, @motivo_liquidacion, @salario_promedio_mensual, @observaciones,
-           @salario_acumulado_6_meses, @salario_promedio_diario, @dias_trabajados_aguinaldo, @dias_pendientes_vacaciones,
+           @salario_promedio_diario, @dias_trabajados_aguinaldo, @dias_pendientes_vacaciones,
            @dias_preaviso, @dias_cesantia);
         SELECT SCOPE_IDENTITY() AS id_liquidacion;
       `);
@@ -286,7 +278,6 @@ class Liquidacion {
     detalles = null,
     salario_acumulado = null,
     total_pagar = null,
-    salario_acumulado_6_meses = null,
     salario_promedio_diario = null,
     dias_trabajados_aguinaldo = null,
     dias_pendientes_vacaciones = null,
@@ -318,9 +309,7 @@ class Liquidacion {
       const salarioAcumuladoFinal =
         toDecimalOrNull(salario_acumulado) !== null
           ? toDecimalOrNull(salario_acumulado)
-          : totales
-            ? totales.totalIngresos
-            : null;
+          : null;
 
       const totalPagarFinal =
         toDecimalOrNull(total_pagar) !== null
@@ -342,7 +331,6 @@ class Liquidacion {
         .input('observaciones', sql.VarChar(500), observaciones || null)
         .input('salario_acumulado', sql.Decimal(12, 2), salarioAcumuladoFinal)
         .input('total_pagar', sql.Decimal(12, 2), totalPagarFinal)
-        .input('salario_acumulado_6_meses', sql.Decimal(18, 2), toDecimalOrNull(salario_acumulado_6_meses))
         .input('salario_promedio_diario', sql.Decimal(18, 2), toDecimalOrNull(salario_promedio_diario))
         .input('dias_trabajados_aguinaldo', sql.Int, toIntegerOrNull(dias_trabajados_aguinaldo))
         .input('dias_pendientes_vacaciones', sql.Int, toIntegerOrNull(dias_pendientes_vacaciones))
@@ -362,7 +350,6 @@ class Liquidacion {
           observaciones = COALESCE(@observaciones, observaciones),
           salario_acumulado = COALESCE(@salario_acumulado, salario_acumulado),
           total_pagar = COALESCE(@total_pagar, total_pagar),
-          salario_acumulado_6_meses = COALESCE(@salario_acumulado_6_meses, salario_acumulado_6_meses),
           salario_promedio_diario = COALESCE(@salario_promedio_diario, salario_promedio_diario),
           dias_trabajados_aguinaldo = COALESCE(@dias_trabajados_aguinaldo, dias_trabajados_aguinaldo),
           dias_pendientes_vacaciones = COALESCE(@dias_pendientes_vacaciones, dias_pendientes_vacaciones),

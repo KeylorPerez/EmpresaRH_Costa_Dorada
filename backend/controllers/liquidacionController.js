@@ -146,7 +146,6 @@ const mergeEncabezadoManual = (encabezado, overrides) => {
   const decimalFields = [
     'salario_promedio_mensual',
     'salario_promedio_diario',
-    'salario_acumulado_6_meses',
     'salario_acumulado',
     'total_pagar',
   ];
@@ -382,7 +381,6 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   const salarioPromedio = formatCurrencyCRC(liquidacion.salario_promedio_mensual, 'Sin dato');
   const salarioPromedioDiario = formatCurrencyCRC(liquidacion.salario_promedio_diario, 'Sin dato');
   const salarioAcumulado = formatCurrencyCRC(liquidacion.salario_acumulado, '₡0.00');
-  const salarioAcumulado6Meses = formatCurrencyCRC(liquidacion.salario_acumulado_6_meses, '₡0.00');
   const totales = LiquidacionDetalle.calcularTotales(detalles || []);
   const totalPagar = formatCurrencyCRC(liquidacion.total_pagar ?? totales.total_pagar, '₡0.00');
   const totalIngresos = formatCurrencyCRC(totales.totalIngresos, '₡0.00');
@@ -426,8 +424,7 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
   lines.push(divider);
   lines.push(`Salario promedio mensual: ${salarioPromedio}`);
   lines.push(`Salario promedio diario: ${salarioPromedioDiario}`);
-  lines.push(`Salario acumulado últimos 6 meses: ${salarioAcumulado6Meses}`);
-  lines.push(`Salario acumulado periodo: ${salarioAcumulado}`);
+  lines.push(`Salario acumulado últimos 6 meses: ${salarioAcumulado}`);
   lines.push(`Total de ingresos: ${totalIngresos}`);
   lines.push(`Total de descuentos: ${totalDescuentos}`);
   lines.push(`TOTAL A PAGAR: ${totalPagar}`);
@@ -667,7 +664,7 @@ const prepararLiquidacion = async ({
     (acc, registro) => acc + (Number(registro.monto) || 0),
     0,
   );
-  const salarioAcumulado6Meses = salariosHistoricos.length
+  const salarioAcumulado = salariosHistoricos.length
     ? Number(salarioAcumuladoHistorico.toFixed(2))
     : null;
   const salarioPromedioDiario =
@@ -704,8 +701,7 @@ const prepararLiquidacion = async ({
       observaciones: sanitizeText(observaciones, 500),
       salario_promedio_mensual: salarioPromedio,
       salario_promedio_diario: salarioPromedioDiario,
-      salario_acumulado: totales.totalIngresos,
-      salario_acumulado_6_meses: salarioAcumulado6Meses,
+      salario_acumulado: salarioAcumulado,
       dias_trabajados_aguinaldo: diasAguinaldo,
       dias_pendientes_vacaciones: diasVacaciones,
       dias_preaviso: diasPreaviso,
@@ -833,7 +829,6 @@ const crearLiquidacion = async (req, res) => {
       salario_promedio_mensual: encabezadoAplicado.salario_promedio_mensual,
       salario_promedio_diario: encabezadoAplicado.salario_promedio_diario,
       salario_acumulado: encabezadoAplicado.salario_acumulado,
-      salario_acumulado_6_meses: encabezadoAplicado.salario_acumulado_6_meses,
       dias_trabajados_aguinaldo: encabezadoAplicado.dias_trabajados_aguinaldo,
       dias_pendientes_vacaciones: encabezadoAplicado.dias_pendientes_vacaciones,
       dias_preaviso: encabezadoAplicado.dias_preaviso,
@@ -898,7 +893,6 @@ const actualizarLiquidacion = async (req, res) => {
       salario_promedio_mensual: body.salario_promedio_mensual,
       salario_promedio_diario: body.salario_promedio_diario,
       salario_acumulado: body.salario_acumulado,
-      salario_acumulado_6_meses: body.salario_acumulado_6_meses,
       dias_trabajados_aguinaldo: body.dias_trabajados_aguinaldo,
       dias_pendientes_vacaciones: body.dias_pendientes_vacaciones,
       dias_preaviso: body.dias_preaviso,
