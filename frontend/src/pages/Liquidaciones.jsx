@@ -700,6 +700,7 @@ const Liquidaciones = ({ mode }) => {
     const isExporting = exportingId === detalleSeleccionado.id_liquidacion;
     const isSharing = sharingId === detalleSeleccionado.id_liquidacion;
     const supportsShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+    const fechaGeneracion = detalleSeleccionado.fecha_liquidacion || detalleSeleccionado.created_at;
     const resumen = (detalleSeleccionado.detalles || []).reduce(
       (acc, detalle) => {
         const montoBase =
@@ -730,7 +731,7 @@ const Liquidaciones = ({ mode }) => {
               {formatearMontoCRC(detalleSeleccionado.total_pagar)}
             </p>
             <p className="text-xs text-gray-500">
-              Generada el {formatearFechaCorta(detalleSeleccionado.fecha_liquidacion)} · Estado: {" "}
+              Generada el {formatearFechaCorta(fechaGeneracion)} · Estado: {" "}
               {estadosLiquidacion[detalleSeleccionado.id_estado]?.label || "Pendiente"}
             </p>
           </div>
