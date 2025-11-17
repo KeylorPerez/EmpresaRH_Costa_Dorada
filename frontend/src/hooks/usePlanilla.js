@@ -506,13 +506,7 @@ export const usePlanilla = () => {
     [salarioDetalleReferencia],
   );
 
-  useEffect(() => {
-    fetchPlanillas();
-    fetchEmpleados();
-    fetchPrestamos();
-  }, []);
-
-  const fetchPlanillas = async () => {
+  const fetchPlanillas = useCallback(async () => {
     try {
       setLoading(true);
       const data = await planillaService.getAll();
@@ -524,25 +518,31 @@ export const usePlanilla = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchEmpleados = async () => {
+  const fetchEmpleados = useCallback(async () => {
     try {
       const data = await empleadoService.getAll();
       setEmpleados(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
-  const fetchPrestamos = async () => {
+  const fetchPrestamos = useCallback(async () => {
     try {
       const data = await prestamosService.getAll();
       setPrestamos(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPlanillas();
+    fetchEmpleados();
+    fetchPrestamos();
+  }, [fetchPlanillas, fetchEmpleados, fetchPrestamos]);
 
   const handleChange = useCallback((event) => {
     const { name, value } = event.target;
@@ -790,6 +790,7 @@ export const usePlanilla = () => {
   }, [
     modalOpen,
     editingPlanilla,
+    formData,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
@@ -991,6 +992,7 @@ export const usePlanilla = () => {
   }, [
     modalOpen,
     editingPlanilla,
+    formData,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
@@ -1492,6 +1494,7 @@ export const usePlanilla = () => {
     formData.periodo_fin,
     empleados,
     attendanceReloadKey,
+    syncDetalleWithAttendance,
   ]);
 
   useEffect(() => {
