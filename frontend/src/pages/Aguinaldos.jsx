@@ -213,24 +213,6 @@ const Aguinaldos = ({ mode }) => {
     }
   }, [tipoPagoSeleccionado]);
 
-  const periodoCalculo = useMemo(() => {
-    const anioNumero = Number(formData.anio);
-    const anioValido = Number.isInteger(anioNumero) ? anioNumero : new Date().getFullYear();
-    const inicioDefecto = new Date(anioValido - 1, 11, 1);
-    inicioDefecto.setHours(0, 0, 0, 0);
-    const finDefecto = new Date(anioValido, 10, 30);
-    finDefecto.setHours(0, 0, 0, 0);
-    const inicio = parseDateOnly(formData.fecha_inicio_periodo) || inicioDefecto;
-    const fin = parseDateOnly(formData.fecha_fin_periodo) || finDefecto;
-    const inicioTexto = formatearFechaLarga(inicio) || formatearFechaInput(inicio);
-    const finTexto = formatearFechaLarga(fin) || formatearFechaInput(fin);
-    return {
-      inicio,
-      fin,
-      etiqueta: `${inicioTexto} al ${finTexto}`,
-    };
-  }, [formData.anio, formData.fecha_inicio_periodo, formData.fecha_fin_periodo]);
-
   const detalleCalculoPreview = useMemo(() => {
     if (!previewData || typeof previewData !== "object") return null;
     const detalle = previewData.detalle_calculo;

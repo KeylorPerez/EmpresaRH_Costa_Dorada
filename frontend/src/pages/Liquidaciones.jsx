@@ -642,7 +642,7 @@ const Liquidaciones = ({ mode }) => {
       : 0;
     const montoAguinaldo = Number((acumuladoValidado / 12).toFixed(2));
     syncDetalleMontoPorConcepto("Aguinaldo proporcional", montoAguinaldo);
-  }, [resumenEditable?.salario_acumulado, syncDetalleMontoPorConcepto]);
+  }, [resumenEditable, syncDetalleMontoPorConcepto]);
 
   useEffect(() => {
     if (!resumenEditable || salarioAcumuladoManual) return;
