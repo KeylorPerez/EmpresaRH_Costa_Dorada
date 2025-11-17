@@ -1,4 +1,9 @@
 // src/components/Sidebar.jsx
+/**
+ * Barra lateral reutilizable para admin y empleados. Recibe la lista de enlaces
+ * desde el contenedor para mantener la navegación desacoplada y permite ajustar
+ * la paleta (`roleColor`) según el rol, facilitando la diferenciación visual.
+ */
 import React from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";

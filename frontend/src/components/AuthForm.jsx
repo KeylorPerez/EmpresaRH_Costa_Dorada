@@ -1,3 +1,9 @@
+/**
+ * Formulario de autenticación que maneja la lógica de login y redirección por
+ * rol. Encapsula la experiencia de acceso (estado local, comunicación con la
+ * API y manejo de errores) de forma aislada para poder reutilizarlo en
+ * cualquier vista pública.
+ */
 import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { login } from "../services/authService";
@@ -11,6 +17,7 @@ const AuthForm = () => {
   const { loginUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Envía las credenciales al backend y redirige según el rol recibido.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");

@@ -1,3 +1,11 @@
+/**
+ * Vista de gestión de asistencia. Combina funciones administrativas y de
+ * autoservicio según el `mode` recibido, reutilizando el hook `useAsistencia`
+ * para centralizar la lógica de negocio (peticiones HTTP, validaciones,
+ * geolocalización, exportaciones y flujos de justificaciones). Este archivo se
+ * enfoca en la presentación y en orquestar los handlers proporcionados por el
+ * hook.
+ */
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
@@ -20,6 +28,10 @@ const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
 
+  // El hook devuelve tanto el estado como los handlers para cada subsección
+  // (marcación, filtros, exportación, edición y justificaciones). Mantener el
+  // destructuring explícito aquí hace visible qué capacidades se exponen a la
+  // vista y evita dependencias implícitas.
   const {
     registros,
     loading,
@@ -75,6 +87,8 @@ const Asistencia = ({ mode }) => {
     tipoJustificacionOptions,
   } = useAsistencia({ mode });
 
+  // Construye el menú según el rol para reutilizar el mismo componente de
+  // página tanto en modo admin como empleado.
   const sidebarLinks = useMemo(() => {
     if (isAdmin) {
       return [
@@ -140,6 +154,8 @@ const Asistencia = ({ mode }) => {
     }
   };
 
+  // Solicita un motivo opcional antes de rechazar una solicitud de
+  // justificación; evita cerrar el flujo sin contexto para el colaborador.
   const handleRechazarSolicitud = (solicitud) => {
     if (!solicitud) return;
     const respuesta =
@@ -161,6 +177,8 @@ const Asistencia = ({ mode }) => {
     return <p className="p-6">No tienes permisos para ver esta página.</p>;
   }
 
+  // Restablece el estado del formulario de edición y limpia mensajes previos
+  // para evitar retroalimentación desactualizada entre operaciones.
   const closeEditForm = () => {
     cancelEdit();
     setError("");

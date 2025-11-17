@@ -1,4 +1,9 @@
 // src/components/Navbar.jsx
+/**
+ * Barra superior que muestra el título del módulo y la identidad del usuario.
+ * Centraliza el botón de logout para que cada página solo tenga que pasar el
+ * handler y no duplicar estilos.
+ */
 import React from "react";
 import PropTypes from "prop-types";
 
