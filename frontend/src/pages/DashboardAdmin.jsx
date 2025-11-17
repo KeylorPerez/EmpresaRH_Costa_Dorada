@@ -1,3 +1,10 @@
+/**
+ * Panel principal para administradores. Coordina la validación de rol, la
+ * navegación a los módulos clave y la presentación de acciones rápidas en la
+ * pantalla inicial. Mantener las colecciones `adminLinks` y `quickActions`
+ * aquí permite que el resto de componentes (Navbar, Sidebar, tarjetas) sean
+ * puramente presentacionales.
+ */
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,7 +29,8 @@ const DashboardAdmin = () => {
   const navigate = useNavigate();
   const { user, logoutUser } = useContext(AuthContext);
 
-  // Redirigir si no hay usuario o no es admin
+  // Guard de navegación: si no hay usuario o su rol no es admin, se reubica
+  // al login o al dashboard de empleado según corresponda.
   React.useEffect(() => {
     if (!user) {
       navigate("/login");

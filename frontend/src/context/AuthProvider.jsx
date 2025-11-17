@@ -1,3 +1,9 @@
+/**
+ * Proveedor de autenticación. Persiste el token en `localStorage`, expone los
+ * datos del usuario y ofrece helpers para login/logout. El decode del JWT se
+ * encapsula aquí para que el resto de la app consuma siempre un `user` ya
+ * procesado.
+ */
 import React, { useState, useEffect } from "react";
 import AuthContext from "./AuthContext";
 import { decodeJwtPayload } from "../utils/jwt";
@@ -7,6 +13,8 @@ const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Al montar el proveedor, intenta rehidratar la sesión guardada en el
+  // almacenamiento local para mantener al usuario autenticado tras recargas.
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {

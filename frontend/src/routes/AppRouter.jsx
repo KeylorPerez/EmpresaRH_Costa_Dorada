@@ -1,3 +1,9 @@
+/**
+ * Router principal del frontend. Se encarga de definir todas las rutas de la
+ * aplicación y encapsularlas con `PrivateRoute` para protegerlas según el rol
+ * del usuario autenticado. Centralizar la navegación aquí facilita mantener
+ * las redirecciones y las autorizaciones en un solo lugar.
+ */
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./PrivateRoute";
