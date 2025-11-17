@@ -24,13 +24,6 @@ const currencyFormatter = new Intl.NumberFormat("es-CR", {
 
 const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
-const numberFormatter = new Intl.NumberFormat("es-CR", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
-const formatAttendanceNumber = (value) => numberFormatter.format(Number(value) || 0);
-
 const formatDate = (value) => {
   if (!value) return "-";
   if (typeof value === "string") {
@@ -369,7 +362,7 @@ const Planilla = () => {
       clearTimeout(detalleHighlightTimeoutRef.current);
       detalleHighlightTimeoutRef.current = null;
     }
-  }, [detalleOverlayOpen, modalOpen]);
+  }, [detalleOverlayOpen, detalleHighlighted, modalOpen]);
 
   useEffect(() => () => {
     if (detalleHighlightTimeoutRef.current) {
@@ -534,7 +527,7 @@ const Planilla = () => {
       ) {
         try {
           element.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
-        } catch (err) {
+        } catch {
           // Some input types (e.g. "number") may not support setSelectionRange in every browser.
         }
       }
@@ -828,46 +821,6 @@ const Planilla = () => {
     return usaDoblesManual ? base + pagoExtraDiasDobles : base;
   })();
 
-  const collaboratorSummaryContent = selectedEmpleado ? (
-    <div className="space-y-3 text-sm text-gray-600">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500">Nombre</p>
-        <p className="font-semibold text-gray-800">
-          {obtenerNombreCompletoEmpleado(selectedEmpleado)}
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">Identificación</p>
-          <p className="font-medium text-gray-700">
-            {selectedEmpleado.cedula || selectedEmpleado.id_empleado}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">Tipo de pago</p>
-          <p className="font-medium text-gray-700">{tipoPago}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">Días estimados</p>
-          <p className="font-medium text-gray-700">
-            {formatAttendanceNumber(detalleDiasResumen.diasAsistidos)} días
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">Ausencias</p>
-          <p className="font-medium text-gray-700">
-            {formatAttendanceNumber(detalleDiasResumen.diasFaltantes)} días
-          </p>
-        </div>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500">Monto estimado</p>
-        <p className="font-semibold text-gray-800">{formatCurrency(salarioBasePeriodo)}</p>
-      </div>
-    </div>
-  ) : (
-    <p className="text-sm text-gray-500">Selecciona un colaborador para ver su resumen.</p>
-  );
   let deduccionDiasCalculada = 0;
   if (tipoPago === "Quincenal") {
     if (usaDetalleParaCalculos) {
