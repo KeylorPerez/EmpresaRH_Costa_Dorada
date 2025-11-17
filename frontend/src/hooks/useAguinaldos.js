@@ -582,10 +582,11 @@ export const useAguinaldos = ({ autoFetch = true } = {}) => {
         return null;
       }
 
+      const requestId = previewRequestIdRef.current + 1;
+      previewRequestIdRef.current = requestId;
+      setPreviewLoading(true);
+
       try {
-        const requestId = previewRequestIdRef.current + 1;
-        previewRequestIdRef.current = requestId;
-        setPreviewLoading(true);
         const response = await aguinaldoService.previsualizar(resultado.payload);
         const data = response?.preview || response?.aguinaldo || null;
         if (!data) {
