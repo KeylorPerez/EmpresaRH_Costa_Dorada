@@ -6,13 +6,13 @@ import {
   FaFileSignature,
   FaGift,
   FaHandHoldingDollar,
-  FaHouseChimney,
   FaUmbrellaBeach,
 } from "react-icons/fa6";
 import AuthContext from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
+import { empleadoLinks } from "../utils/navigationLinks";
 
 
 const DashboardEmpleado = () => {
@@ -32,16 +32,6 @@ const DashboardEmpleado = () => {
     logoutUser();
     navigate("/login");
   };
-
-  // Links del Sidebar para empleado
-  const empleadoLinks = [
-    { path: "/empleado", label: "Inicio", icon: FaHouseChimney },
-    { path: "/empleado/asistencia", label: "Asistencia", icon: FaCalendarCheck },
-    { path: "/empleado/vacaciones", label: "Vacaciones", icon: FaUmbrellaBeach },
-    { path: "/empleado/prestamos", label: "Préstamos", icon: FaHandHoldingDollar },
-    { path: "/empleado/liquidaciones", label: "Liquidaciones", icon: FaFileSignature },
-    { path: "/empleado/aguinaldos", label: "Aguinaldos", icon: FaGift },
-  ];
 
   const quickActions = [
     {

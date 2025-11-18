@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
+import { adminLinks, empleadoLinks } from "../utils/navigationLinks";
 import {
   useAguinaldos,
   formatearMontoCRC,
@@ -330,26 +331,9 @@ const Aguinaldos = ({ mode }) => {
 
   const sidebarLinks = useMemo(() => {
     if (isAdminView) {
-      return [
-        { path: "/admin", label: "Inicio" },
-        { path: "/admin/asistencia", label: "Asistencia" },
-        { path: "/admin/usuarios", label: "Usuarios" },
-        { path: "/admin/empleados", label: "Empleados" },
-        { path: "/admin/puestos", label: "Puestos" },
-        { path: "/admin/planilla", label: "Planilla" },
-        { path: "/admin/vacaciones", label: "Vacaciones" },
-        { path: "/admin/prestamos", label: "Préstamos" },
-        { path: "/admin/liquidaciones", label: "Liquidaciones" },
-        { path: "/admin/aguinaldos", label: "Aguinaldos" },
-      ];
+      return adminLinks;
     }
-    return [
-      { path: "/empleado/asistencia", label: "Asistencia" },
-      { path: "/empleado/vacaciones", label: "Vacaciones" },
-      { path: "/empleado/prestamos", label: "Préstamos" },
-      { path: "/empleado/liquidaciones", label: "Liquidaciones" },
-      { path: "/empleado/aguinaldos", label: "Aguinaldos" },
-    ];
+    return empleadoLinks;
   }, [isAdminView]);
 
   const limpiarMensajes = () => {

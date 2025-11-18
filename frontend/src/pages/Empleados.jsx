@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
+import { adminLinks } from "../utils/navigationLinks";
 
 const Empleados = () => {
   const { user, logoutUser } = useAuth();
@@ -37,19 +38,6 @@ const Empleados = () => {
     const shouldBeActive = statusFilter === "active";
     return empleados.filter((emp) => isActive(emp.estado) === shouldBeActive);
   }, [empleados, statusFilter]);
-
-  const adminLinks = [
-    { path: "/admin", label: "Inicio" },
-    { path: "/admin/asistencia", label: "Asistencia" },
-    { path: "/admin/usuarios", label: "Usuarios" },
-    { path: "/admin/empleados", label: "Empleados" },
-    { path: "/admin/puestos", label: "Puestos" },
-  { path: "/admin/planilla", label: "Planilla" },
-  { path: "/admin/vacaciones", label: "Vacaciones" },
-  { path: "/admin/prestamos", label: "Préstamos" },
-  { path: "/admin/liquidaciones", label: "Liquidaciones" },
-  { path: "/admin/aguinaldos", label: "Aguinaldos" },
-  ];
 
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
