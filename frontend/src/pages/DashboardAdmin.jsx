@@ -15,7 +15,6 @@ import {
   FaFileSignature,
   FaGift,
   FaHandHoldingDollar,
-  FaHouseChimney,
   FaUmbrellaBeach,
   FaUserGear,
   FaUserGroup,
@@ -24,6 +23,7 @@ import AuthContext from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
+import { adminLinks } from "../utils/navigationLinks";
 
 const DashboardAdmin = () => {
   const navigate = useNavigate();
@@ -43,20 +43,6 @@ const DashboardAdmin = () => {
     logoutUser();
     navigate("/login");
   };
-
-  // Links del Sidebar con iconos
-  const adminLinks = [
-    { path: "/admin", label: "Inicio", icon: FaHouseChimney },
-    { path: "/admin/asistencia", label: "Asistencia", icon: FaCalendarCheck },
-    { path: "/admin/usuarios", label: "Usuarios", icon: FaUserGear },
-    { path: "/admin/empleados", label: "Empleados", icon: FaUserGroup },
-    { path: "/admin/puestos", label: "Puestos", icon: FaBriefcase },
-    { path: "/admin/planilla", label: "Planilla", icon: FaFileInvoiceDollar },
-    { path: "/admin/vacaciones", label: "Vacaciones", icon: FaUmbrellaBeach },
-    { path: "/admin/prestamos", label: "Préstamos", icon: FaHandHoldingDollar },
-    { path: "/admin/liquidaciones", label: "Liquidaciones", icon: FaFileSignature },
-    { path: "/admin/aguinaldos", label: "Aguinaldos", icon: FaGift },
-  ];
 
   // Acciones rápidas para el panel principal
   const quickActions = [
