@@ -80,7 +80,7 @@ const insertMany = async (transaction, id_liquidacion, historicos) => {
       .input('periodo', sql.Char(7), registro.periodo)
       .input('monto', sql.Decimal(18, 2), registro.monto)
       .query(`
-        INSERT INTO Liquidacion_Salarios_Historicos (id_liquidacion, periodo, monto)
+        INSERT INTO LiquidacionSalariosHistoricos (id_liquidacion, periodo, monto)
         VALUES (@id_liquidacion, @periodo, @monto)
       `);
   }
@@ -92,7 +92,7 @@ const getByLiquidacion = async (pool, id_liquidacion) => {
     .input('id_liquidacion', sql.Int, id_liquidacion)
     .query(`
       SELECT id_historial, id_liquidacion, periodo, monto
-      FROM Liquidacion_Salarios_Historicos
+      FROM LiquidacionSalariosHistoricos
       WHERE id_liquidacion = @id_liquidacion
       ORDER BY periodo DESC, id_historial DESC
     `);
@@ -105,7 +105,7 @@ const deleteByLiquidacion = async (transaction, id_liquidacion) => {
   await request
     .input('id_liquidacion', sql.Int, id_liquidacion)
     .query(`
-      DELETE FROM Liquidacion_Salarios_Historicos
+      DELETE FROM LiquidacionSalariosHistoricos
       WHERE id_liquidacion = @id_liquidacion
     `);
 };
