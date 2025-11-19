@@ -13,6 +13,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { empleadoLinks } from "../utils/navigationLinks";
+import { getRoleLabel } from "../utils/roles";
 
 
 const DashboardEmpleado = () => {
@@ -120,7 +121,7 @@ const DashboardEmpleado = () => {
                             Rol
                           </span>
                           <p className="mt-3 text-xl font-semibold leading-tight text-white break-words">
-                            {user.rol || "Empleado"}
+                            {getRoleLabel(user)}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">

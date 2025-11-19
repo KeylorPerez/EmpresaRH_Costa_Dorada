@@ -6,6 +6,7 @@
  */
 import React from "react";
 import PropTypes from "prop-types";
+import { getRoleLabel } from "../utils/roles";
 
 const Navbar = ({ title, user, roleColor = "blue", onLogout }) => {
   const accent = {
@@ -45,9 +46,7 @@ const Navbar = ({ title, user, roleColor = "blue", onLogout }) => {
             </div>
             <div className="text-left text-xs leading-tight">
               <p className="font-semibold text-slate-700">{user.username}</p>
-              <p className="text-slate-400">
-                Rol: {user.rol || "Administrador"}
-              </p>
+              <p className="text-slate-400">Rol: {getRoleLabel(user)}</p>
             </div>
           </div>
         )}

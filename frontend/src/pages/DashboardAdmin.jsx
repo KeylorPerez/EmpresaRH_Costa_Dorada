@@ -24,6 +24,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { adminLinks } from "../utils/navigationLinks";
+import { getRoleLabel } from "../utils/roles";
 
 const DashboardAdmin = () => {
   const navigate = useNavigate();
@@ -160,7 +161,7 @@ const DashboardAdmin = () => {
                             Rol
                           </span>
                           <p className="mt-3 text-xl font-semibold leading-tight text-white break-words">
-                            {user.rol || "Administrador"}
+                            {getRoleLabel(user)}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
