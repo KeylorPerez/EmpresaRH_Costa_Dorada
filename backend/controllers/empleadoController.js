@@ -68,6 +68,16 @@ const sanitizePdfText = (text = '') =>
     .replace(/\u2007/g, ' ')
     .replace(/\s+/g, ' ');
 
+const padAndTruncate = (text, length) => {
+  const sanitized = sanitizePdfText(text || '');
+  if (sanitized.length <= length) {
+    return sanitized.padEnd(length, ' ');
+  }
+
+  const trimmed = sanitized.slice(0, Math.max(0, length - 3));
+  return `${trimmed}...`;
+};
+
 const stripDiacritics = (text = '') => {
   if (!text) return '';
   if (typeof text.normalize !== 'function') return String(text);
@@ -292,8 +302,8 @@ const formatEmployeeStatus = (estado) => (Number(estado) === 1 ? 'Activo' : 'Ina
 
 const buildEmployeesPdfLines = (rows, { statusLabel }) => {
   const lines = [];
-  const divider = '-'.repeat(120);
-  const titleDivider = '='.repeat(120);
+  const divider = '-'.repeat(110);
+  const titleDivider = '='.repeat(110);
   const totalEmpleados = Array.isArray(rows) ? rows.length : 0;
 
   lines.push(titleDivider);
@@ -305,14 +315,14 @@ const buildEmployeesPdfLines = (rows, { statusLabel }) => {
   lines.push('');
 
   const header = [
-    'ID'.padEnd(6, ' '),
-    'Nombre completo'.padEnd(30, ' '),
-    'Cédula'.padEnd(18, ' '),
-    'Puesto'.padEnd(26, ' '),
-    'Ingreso'.padEnd(12, ' '),
-    'Tipo pago'.padEnd(12, ' '),
-    'Salario'.padEnd(16, ' '),
-    'Estado'.padEnd(10, ' '),
+    padAndTruncate('ID', 6),
+    padAndTruncate('Nombre completo', 22),
+    padAndTruncate('Cédula', 14),
+    padAndTruncate('Puesto', 18),
+    padAndTruncate('Ingreso', 10),
+    padAndTruncate('Tipo pago', 10),
+    padAndTruncate('Salario', 14),
+    padAndTruncate('Estado', 8),
   ].join(' ');
   lines.push(header);
   lines.push(divider);
@@ -329,14 +339,14 @@ const buildEmployeesPdfLines = (rows, { statusLabel }) => {
       .trim() || `ID ${empleado.id_empleado}`;
 
     const baseLine = [
-      String(empleado.id_empleado || '').padEnd(6, ' '),
-      sanitizePdfText(nombreCompleto).padEnd(30, ' '),
-      sanitizePdfText(empleado.cedula || '—').padEnd(18, ' '),
-      sanitizePdfText(empleado.puesto_nombre || '—').padEnd(26, ' '),
-      formatDateDisplay(empleado.fecha_ingreso).padEnd(12, ' '),
-      sanitizePdfText(empleado.tipo_pago || '—').padEnd(12, ' '),
-      sanitizePdfText(formatCurrency(empleado.salario_monto)).padEnd(16, ' '),
-      formatEmployeeStatus(empleado.estado).padEnd(10, ' '),
+      padAndTruncate(String(empleado.id_empleado || ''), 6),
+      padAndTruncate(nombreCompleto, 22),
+      padAndTruncate(empleado.cedula || '—', 14),
+      padAndTruncate(empleado.puesto_nombre || '—', 18),
+      padAndTruncate(formatDateDisplay(empleado.fecha_ingreso), 10),
+      padAndTruncate(empleado.tipo_pago || '—', 10),
+      padAndTruncate(formatCurrency(empleado.salario_monto), 14),
+      padAndTruncate(formatEmployeeStatus(empleado.estado), 8),
     ].join(' ');
 
     lines.push(baseLine);
