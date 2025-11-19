@@ -62,7 +62,7 @@ class Liquidacion {
         COUNT(d.id_detalle) AS cantidad_detalles
       FROM Liquidaciones l
       LEFT JOIN Empleados e ON l.id_empleado = e.id_empleado
-      LEFT JOIN Liquidacion_Detalles d ON l.id_liquidacion = d.id_liquidacion
+      LEFT JOIN LiquidacionDetalles d ON l.id_liquidacion = d.id_liquidacion
       GROUP BY
         l.id_liquidacion,
         l.id_empleado,

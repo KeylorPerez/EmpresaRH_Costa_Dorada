@@ -111,7 +111,7 @@ const insertMany = async (transaction, id_liquidacion, detalles) => {
       .input('id_prestamo', sql.Int, detalle.id_prestamo);
 
     await request.query(`
-      INSERT INTO Liquidacion_Detalles
+      INSERT INTO LiquidacionDetalles
       (id_liquidacion, concepto, tipo, monto_calculado, monto_final, editable, formula_usada, comentario, id_prestamo, created_at)
       VALUES (@id_liquidacion, @concepto, @tipo, @monto_calculado, @monto_final, @editable, @formula_usada, @comentario, @id_prestamo, GETDATE())
     `);
@@ -125,7 +125,7 @@ const getByLiquidacion = async (pool, id_liquidacion) => {
     .query(`
       SELECT id_detalle, id_liquidacion, concepto, tipo, monto_calculado, monto_final, editable,
              formula_usada, comentario, id_prestamo, created_at
-      FROM Liquidacion_Detalles
+      FROM LiquidacionDetalles
       WHERE id_liquidacion = @id_liquidacion
       ORDER BY id_detalle ASC
     `);
@@ -138,7 +138,7 @@ const deleteByLiquidacion = async (transaction, id_liquidacion) => {
   await request
     .input('id_liquidacion', sql.Int, id_liquidacion)
     .query(`
-      DELETE FROM Liquidacion_Detalles
+      DELETE FROM LiquidacionDetalles
       WHERE id_liquidacion = @id_liquidacion
     `);
 };
