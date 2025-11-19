@@ -12,6 +12,8 @@ El proyecto se divide en dos aplicaciones:
   - `PORT` (puerto del API, por defecto 3000).
   - `DB_USER`, `DB_PASSWORD`, `DB_SERVER`, `DB_DATABASE`, `DB_PORT` para la conexión SQL Server.
   - `JWT_SECRET` para firmar tokens.
+  - `OFFICE_LATITUDE`, `OFFICE_LONGITUDE` y `OFFICE_RADIUS_METERS` definen la geocerca para las
+    marcaciones. Actualmente se utiliza `9.934739`, `-84.087502` y un radio de 120 m.
 - **Conexión a BD:** `backend/db/db.js` crea un `ConnectionPool` reutilizable (`poolPromise`) y exporta el objeto `sql` para tipar parámetros. El cifrado se desactiva por defecto y se confía en certificados locales.
 - **Middleware global:** CORS, `express.json()` y exposición estática de `/files` apuntando a `backend/exports`.
 
@@ -47,6 +49,9 @@ El proyecto se divide en dos aplicaciones:
 ## 3. Frontend
 ### 3.1 Arranque y build
 - **Scripts:** `npm run dev` (servidor Vite), `npm run build` (bundle de producción), `npm run preview` (servido del build) y `npm run lint`.
+- **Variables de entorno:** además de `VITE_API_URL`, la app lee `VITE_BUSINESS_LATITUDE`,
+  `VITE_BUSINESS_LONGITUDE` y `VITE_BUSINESS_RADIUS_METERS` para mostrar al usuario la zona de
+  marcación configurada en el backend.
 - **Stack:** React 19 con React Router 7, Axios para HTTP, Tailwind 4 para estilos.
 
 ### 3.2 Ruteo y autorización

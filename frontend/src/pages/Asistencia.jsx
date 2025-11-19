@@ -14,6 +14,7 @@ import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import { adminLinks, empleadoLinks } from "../utils/navigationLinks";
 import {
+  businessLocationInfo,
   formatearFecha,
   formatearHora,
   obtenerEtiquetaEstado,
@@ -25,9 +26,44 @@ import {
   useAsistencia,
 } from "../hooks/useAsistencia";
 
+const formatBusinessCoordinate = (numericValue, fallback) => {
+  if (Number.isFinite(numericValue)) {
+    return numericValue.toFixed(6);
+  }
+  const fallbackString = fallback?.toString().trim();
+  return fallbackString && fallbackString.length > 0 ? fallbackString : null;
+};
+
+const formatBusinessRadius = (numericValue, fallback) => {
+  if (Number.isFinite(numericValue) && numericValue > 0) {
+    return Math.round(numericValue);
+  }
+  const fallbackString = fallback?.toString().trim();
+  if (!fallbackString) return null;
+  const parsed = Number(fallbackString);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.round(parsed);
+  }
+  return null;
+};
+
 const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
+  const officeLatDisplay = formatBusinessCoordinate(
+    businessLocationInfo.latitudNumero,
+    businessLocationInfo.latitud
+  );
+  const officeLonDisplay = formatBusinessCoordinate(
+    businessLocationInfo.longitudNumero,
+    businessLocationInfo.longitud
+  );
+  const officeRadiusDisplay = formatBusinessRadius(
+    businessLocationInfo.radioNumero,
+    businessLocationInfo.radio
+  );
+  const geofenceConfigured =
+    officeLatDisplay !== null && officeLonDisplay !== null && officeRadiusDisplay !== null;
 
   // El hook devuelve tanto el estado como los handlers para cada subsección
   // (marcación, filtros, exportación, edición y justificaciones). Mantener el
@@ -407,6 +443,22 @@ const Asistencia = ({ mode }) => {
                 <p className="text-xs text-gray-500">
                   La latitud y longitud registradas se almacenarán junto con la marca de asistencia.
                 </p>
+                {geofenceConfigured && (
+                  <p className="text-xs text-gray-500">
+                    Solo puedes registrar la asistencia dentro de un radio aproximado de
+                    {" "}
+                    <span className="font-semibold">{officeRadiusDisplay} m</span> alrededor de las
+                    coordenadas
+                    {" "}
+                    <span className="font-semibold">
+                      {officeLatDisplay}, {officeLonDisplay}
+                    </span>
+                    . Si Recursos Humanos marca la casilla
+                    {" "}
+                    <span className="font-semibold">“Permitir marcación fuera de la oficina”</span>, la
+                    restricción no aplicará para tu usuario.
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2 flex flex-col">

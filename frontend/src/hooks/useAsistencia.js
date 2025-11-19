@@ -76,11 +76,16 @@ const createDefaultRange = () => {
 const DEFAULT_LATITUDE =
   import.meta.env.VITE_BUSINESS_LATITUDE ??
   import.meta.env.VITE_OFFICE_LATITUDE ??
-  "10.372951";
+  "9.934739";
 const DEFAULT_LONGITUDE =
   import.meta.env.VITE_BUSINESS_LONGITUDE ??
   import.meta.env.VITE_OFFICE_LONGITUDE ??
-  "-83.728955";
+  "-84.087502";
+const DEFAULT_RADIUS_METERS =
+  import.meta.env.VITE_BUSINESS_RADIUS_METERS ??
+  import.meta.env.VITE_OFFICE_RADIUS_METERS ??
+  import.meta.env.VITE_OFFICE_RADIUS_MTS ??
+  "120";
 
 const parseCoordinateInput = (value) => {
   if (value === undefined || value === null) return null;
@@ -89,6 +94,23 @@ const parseCoordinateInput = (value) => {
   const parsed = Number(asString);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const parseMetersInput = (value) => {
+  if (value === undefined || value === null) return null;
+  const asString = value.toString().trim();
+  if (!asString) return null;
+  const parsed = Number(asString);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+export const businessLocationInfo = Object.freeze({
+  latitud: DEFAULT_LATITUDE,
+  longitud: DEFAULT_LONGITUDE,
+  radio: DEFAULT_RADIUS_METERS,
+  latitudNumero: parseCoordinateInput(DEFAULT_LATITUDE),
+  longitudNumero: parseCoordinateInput(DEFAULT_LONGITUDE),
+  radioNumero: parseMetersInput(DEFAULT_RADIUS_METERS),
+});
 
 const createInitialForm = (isAdmin) => {
   const now = new Date();
