@@ -256,22 +256,31 @@ const buildPdfLines = (planilla, detalles) => {
   lines.push('Detalle diario');
   lines.push(sectionDivider);
   const columnWidths = {
-    fecha: 12,
-    dia: 13,
-    asistencia: 13,
-    tipo: 12,
-    estado: 13,
-    justificado: 12,
-    salario: 16,
+    fecha: 10,
+    dia: 10,
+    asistencia: 10,
+    tipo: 10,
+    estado: 9,
+    justificado: 10,
+    salario: 12,
+  };
+
+  const padColumn = (text, width) => {
+    const sanitized = sanitizePdfText(text || '');
+    if (sanitized.length > width) {
+      const available = Math.max(width - 3, 0);
+      return `${sanitized.slice(0, available)}...`.padEnd(width, ' ');
+    }
+    return sanitized.padEnd(width, ' ');
   };
   const headerLine = [
-    'Fecha'.padEnd(columnWidths.fecha, ' '),
-    'Día'.padEnd(columnWidths.dia, ' '),
-    'Asistencia'.padEnd(columnWidths.asistencia, ' '),
-    'Tipo'.padEnd(columnWidths.tipo, ' '),
-    'Estado'.padEnd(columnWidths.estado, ' '),
-    'Justificado'.padEnd(columnWidths.justificado, ' '),
-    'Salario día'.padEnd(columnWidths.salario, ' '),
+    padColumn('Fecha', columnWidths.fecha),
+    padColumn('Día', columnWidths.dia),
+    padColumn('Asistencia', columnWidths.asistencia),
+    padColumn('Tipo', columnWidths.tipo),
+    padColumn('Estado', columnWidths.estado),
+    padColumn('Justificado', columnWidths.justificado),
+    padColumn('Salario día', columnWidths.salario),
     'Notas',
   ].join(' | ');
   lines.push(headerLine);
@@ -283,36 +292,24 @@ const buildPdfLines = (planilla, detalles) => {
   }
 
   detalles.forEach((detalle) => {
-    const fecha = formatDateDisplay(detalle.fecha).padEnd(columnWidths.fecha, ' ');
-    const dia = capitalize(detalle.dia_semana || '').padEnd(columnWidths.dia, ' ');
+    const fecha = padColumn(formatDateDisplay(detalle.fecha), columnWidths.fecha);
+    const dia = padColumn(capitalize(detalle.dia_semana || ''), columnWidths.dia);
     const asistenciaBase = (() => {
       const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
       if (texto) return texto;
       return detalle.asistio ? 'Asistió' : 'Faltó';
     })();
-    const asistencia = sanitizePdfText(asistenciaBase).padEnd(
-      columnWidths.asistencia,
-      ' ',
-    );
+    const asistencia = padColumn(asistenciaBase, columnWidths.asistencia);
     const tipoBase = (() => {
       const texto = detalle.tipo ? String(detalle.tipo).trim() : '';
       if (texto) return texto;
       return detalle.es_dia_doble ? 'Día doble' : 'Normal';
     })();
-    const tipo = sanitizePdfText(tipoBase).padEnd(
-      columnWidths.tipo,
-      ' ',
-    );
+    const tipo = padColumn(tipoBase, columnWidths.tipo);
     const estadoBase = detalle.estado ? String(detalle.estado).trim() : '';
-    const estado = sanitizePdfText(estadoBase || 'Presente').padEnd(
-      columnWidths.estado,
-      ' ',
-    );
-    const justificado = (detalle.justificado ? 'Sí' : 'No').padEnd(
-      columnWidths.justificado,
-      ' ',
-    );
-    const salario = formatCurrency(detalle.salario_dia).padEnd(columnWidths.salario, ' ');
+    const estado = padColumn(estadoBase || 'Presente', columnWidths.estado);
+    const justificado = padColumn(detalle.justificado ? 'Sí' : 'No', columnWidths.justificado);
+    const salario = padColumn(formatCurrency(detalle.salario_dia), columnWidths.salario);
     const justificacion = sanitizePdfText(
       detalle.justificacion ? detalle.justificacion.trim() : '',
     );
