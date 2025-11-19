@@ -194,8 +194,8 @@ const buildPdfLines = (planilla, detalles) => {
     .join(' ')
     .trim() || `ID ${planilla.id_empleado}`;
 
-  const sectionDivider = '-'.repeat(100);
-  const titleDivider = '='.repeat(100);
+  const sectionDivider = '-'.repeat(120);
+  const titleDivider = '='.repeat(120);
   const labelWidth = 22;
 
   lines.push(titleDivider);
@@ -255,15 +255,89 @@ const buildPdfLines = (planilla, detalles) => {
   lines.push('');
   lines.push('Detalle diario');
   lines.push(sectionDivider);
-  const columnWidths = {
+  const defaultColumnWidths = {
     fecha: 10,
     dia: 10,
     asistencia: 10,
     tipo: 10,
     estado: 9,
     justificado: 10,
-    salario: 12,
+    salario: 14,
   };
+
+  const maxColumnWidths = {
+    fecha: 10,
+    dia: 12,
+    asistencia: 12,
+    tipo: 12,
+    estado: 12,
+    justificado: 11,
+    salario: 18,
+  };
+
+  const computeColumnWidths = () => {
+    if (!Array.isArray(detalles) || detalles.length === 0) return defaultColumnWidths;
+
+    const longestByColumn = {
+      fecha: 'Fecha',
+      dia: 'Día',
+      asistencia: 'Asistencia',
+      tipo: 'Tipo',
+      estado: 'Estado',
+      justificado: 'Justificado',
+      salario: 'Salario día',
+    };
+
+    detalles.forEach((detalle) => {
+      longestByColumn.fecha = Math.max(
+        longestByColumn.fecha.length,
+        formatDateDisplay(detalle.fecha || '').length,
+      );
+      longestByColumn.dia = Math.max(
+        longestByColumn.dia.length,
+        sanitizePdfText(capitalize(detalle.dia_semana || '')).length,
+      );
+      const asistenciaBase = (() => {
+        const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
+        return texto || (detalle.asistio ? 'Asistió' : 'Faltó');
+      })();
+      longestByColumn.asistencia = Math.max(
+        longestByColumn.asistencia.length,
+        sanitizePdfText(asistenciaBase).length,
+      );
+      const tipoBase = (() => {
+        const texto = detalle.tipo ? String(detalle.tipo).trim() : '';
+        return texto || (detalle.es_dia_doble ? 'Día doble' : 'Normal');
+      })();
+      longestByColumn.tipo = Math.max(
+        longestByColumn.tipo.length,
+        sanitizePdfText(tipoBase).length,
+      );
+      const estadoBase = detalle.estado ? String(detalle.estado).trim() : '';
+      longestByColumn.estado = Math.max(
+        longestByColumn.estado.length,
+        sanitizePdfText(estadoBase || 'Presente').length,
+      );
+      longestByColumn.justificado = Math.max(
+        longestByColumn.justificado.length,
+        sanitizePdfText(detalle.justificado ? 'Sí' : 'No').length,
+      );
+      longestByColumn.salario = Math.max(
+        longestByColumn.salario.length,
+        formatCurrency(detalle.salario_dia || 0).length,
+      );
+    });
+
+    return Object.fromEntries(
+      Object.entries(defaultColumnWidths).map(([key, fallback]) => {
+        const longest = longestByColumn[key];
+        const capped = Math.min(maxColumnWidths[key], Math.max(fallback, longest));
+        return [key, capped];
+      }),
+    );
+  };
+
+  const columnWidths = computeColumnWidths();
 
   const padColumn = (text, width) => {
     const sanitized = sanitizePdfText(text || '');
@@ -321,7 +395,7 @@ const buildPdfLines = (planilla, detalles) => {
       .filter(Boolean)
       .join(' | ');
     const basePrefix = [fecha, dia, asistencia, tipo, estado, justificado, salario].join(' | ');
-    const maxNotesWidth = Math.max(0, 95 - (basePrefix.length + 3));
+    const maxNotesWidth = Math.max(0, 115 - (basePrefix.length + 3));
     const notesLines =
       notas && maxNotesWidth > 0 ? wrapText(notas, maxNotesWidth) : [notas];
 
