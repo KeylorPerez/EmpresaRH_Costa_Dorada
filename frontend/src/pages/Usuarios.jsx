@@ -29,6 +29,9 @@ const Usuarios = () => {
     setStatusFilter,
   } = useUsuario();
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isEmpleadoRole = formData.id_rol === "2";
+
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
 
@@ -36,8 +39,6 @@ const Usuarios = () => {
     setModalOpen(false);
     resetForm();
   };
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -230,9 +231,13 @@ const Usuarios = () => {
                       value={formData.id_empleado}
                       onChange={handleChange}
                       className="w-full border px-2 py-1 rounded"
-                      required
+                      required={isEmpleadoRole}
                     >
-                      <option value="">Seleccione un empleado</option>
+                      <option value="">
+                        {isEmpleadoRole
+                          ? "Seleccione un empleado"
+                          : "Opcional para administradores"}
+                      </option>
                       {availableEmpleados.map((empleado) => (
                         <option key={empleado.id_empleado} value={empleado.id_empleado}>
                           {empleado.nombre} {empleado.apellido}
