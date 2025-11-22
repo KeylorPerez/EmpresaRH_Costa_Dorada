@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaArrowRightLong,
@@ -19,6 +19,7 @@ import { getRoleLabel } from "../utils/roles";
 const DashboardEmpleado = () => {
   const navigate = useNavigate();
   const { user, logoutUser } = useContext(AuthContext);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Redirigir si no hay usuario o no es empleado
   useEffect(() => {
@@ -77,13 +78,20 @@ const DashboardEmpleado = () => {
 
   return (
     <div className="flex min-h-screen bg-emerald-50">
-      <Sidebar links={empleadoLinks} roleColor="green" />
+      <Sidebar
+        links={empleadoLinks}
+        roleColor="green"
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-1 flex-col">
         <Navbar
           title="Panel del Empleado"
           user={user}
           roleColor="green"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={handleLogout}
         />
 

@@ -148,6 +148,7 @@ const Planilla = () => {
   const [activeEmpleadoIndex, setActiveEmpleadoIndex] = useState(0);
   const [wizardSearch, setWizardSearch] = useState("");
   const [tipoPagoFiltro, setTipoPagoFiltro] = useState("todos");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [wizardTipoPagoFiltro, setWizardTipoPagoFiltro] = useState("todos");
   const defaultDateRangeRef = useRef(obtenerRangoFechaPorDefecto());
   const [empleadoFiltro, setEmpleadoFiltro] = useState("todos");
@@ -880,12 +881,19 @@ const Planilla = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={adminLinks} roleColor="blue" />
+      <Sidebar
+        links={adminLinks}
+        roleColor="blue"
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       <div className="flex flex-col flex-grow">
         <Navbar
           title="Panel de Administración"
           user={user}
           roleColor="blue"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
         />
 

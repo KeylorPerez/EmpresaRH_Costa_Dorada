@@ -36,6 +36,7 @@ const Vacaciones = ({ mode }) => {
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState("");
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const hayFiltrosActivos =
     estadoFiltro !== estadoDefault ||
@@ -169,13 +170,20 @@ const Vacaciones = ({ mode }) => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={sidebarLinks} roleColor={roleColor} />
+      <Sidebar
+        links={sidebarLinks}
+        roleColor={roleColor}
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-col flex-grow">
         <Navbar
           title={tituloPagina}
           user={user}
           roleColor={roleColor}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
         />
 

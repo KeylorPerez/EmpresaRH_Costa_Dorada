@@ -6,7 +6,7 @@
  * enfoca en la presentación y en orquestar los handlers proporcionados por el
  * hook.
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -50,6 +50,7 @@ const formatBusinessRadius = (numericValue, fallback) => {
 const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const officeLatDisplay = formatBusinessCoordinate(
     businessLocationInfo.latitudNumero,
     businessLocationInfo.latitud
@@ -207,13 +208,20 @@ const Asistencia = ({ mode }) => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={sidebarLinks} roleColor={roleColor} />
+      <Sidebar
+        links={sidebarLinks}
+        roleColor={roleColor}
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-col flex-grow">
         <Navbar
           title={tituloPagina}
           user={user}
           roleColor={roleColor}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
         />
 

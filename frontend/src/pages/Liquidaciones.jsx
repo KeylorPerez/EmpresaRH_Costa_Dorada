@@ -441,6 +441,7 @@ const Liquidaciones = ({ mode }) => {
   const [historicoDirty, setHistoricoDirty] = useState(false);
   const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
   const [filtroHistorial, setFiltroHistorial] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const isAdmin = mode === "admin";
 
@@ -890,13 +891,20 @@ const Liquidaciones = ({ mode }) => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={sidebarLinks} roleColor={roleColor} />
+      <Sidebar
+        links={sidebarLinks}
+        roleColor={roleColor}
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-col flex-grow">
         <Navbar
           title={tituloPagina}
           user={user}
           roleColor={roleColor}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={() => {
             limpiarMensajes();
             logoutUser();
