@@ -108,6 +108,7 @@ const Aguinaldos = ({ mode }) => {
   const [editFormData, setEditFormData] = useState(() => ({
     ...initialEditFormState,
   }));
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [editFormError, setEditFormError] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -532,13 +533,20 @@ const Aguinaldos = ({ mode }) => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={sidebarLinks} roleColor={roleColor} />
+      <Sidebar
+        links={sidebarLinks}
+        roleColor={roleColor}
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-col flex-grow">
         <Navbar
           title={tituloPagina}
           user={user}
           roleColor={roleColor}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={() => {
             limpiarMensajes();
             logoutUser();

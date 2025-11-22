@@ -130,6 +130,7 @@ const PlanillaDetalle = () => {
   const [exportingFormat, setExportingFormat] = useState(null);
   const [exportMessage, setExportMessage] = useState("");
   const [exportErrorMessage, setExportErrorMessage] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const adminLinks = useMemo(() => adminNavigationLinks, []);
 
@@ -427,12 +428,19 @@ const PlanillaDetalle = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
-      <Sidebar links={adminLinks} roleColor="blue" />
+      <Sidebar
+        links={adminLinks}
+        roleColor="blue"
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       <div className="flex flex-col flex-grow overflow-hidden">
         <Navbar
           title="Panel de Administración"
           user={user}
           roleColor="blue"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
         />
 

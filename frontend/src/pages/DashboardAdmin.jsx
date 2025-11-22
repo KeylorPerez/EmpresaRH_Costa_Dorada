@@ -5,7 +5,7 @@
  * aquí permite que el resto de componentes (Navbar, Sidebar, tarjetas) sean
  * puramente presentacionales.
  */
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaArrowRightLong,
@@ -29,6 +29,7 @@ import { getRoleLabel } from "../utils/roles";
 const DashboardAdmin = () => {
   const navigate = useNavigate();
   const { user, logoutUser } = useContext(AuthContext);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Guard de navegación: si no hay usuario o su rol no es admin, se reubica
   // al login o al dashboard de empleado según corresponda.
@@ -117,13 +118,20 @@ const DashboardAdmin = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-100/60">
-      <Sidebar links={adminLinks} roleColor="blue" />
+      <Sidebar
+        links={adminLinks}
+        roleColor="blue"
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <div className="flex flex-1 flex-col">
         <Navbar
           title="Panel de Administración"
           user={user}
           roleColor="blue"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={handleLogout}
         />
 

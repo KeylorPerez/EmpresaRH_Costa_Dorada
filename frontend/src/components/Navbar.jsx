@@ -6,9 +6,17 @@
  */
 import React from "react";
 import PropTypes from "prop-types";
+import { FaBars, FaXmark } from "react-icons/fa6";
 import { getRoleLabel } from "../utils/roles";
 
-const Navbar = ({ title, user, roleColor = "blue", onLogout }) => {
+const Navbar = ({
+  title,
+  user,
+  roleColor = "blue",
+  onLogout,
+  onToggleSidebar,
+  isSidebarOpen = false,
+}) => {
   const accent = {
     blue: {
       text: "text-blue-600",
@@ -29,11 +37,24 @@ const Navbar = ({ title, user, roleColor = "blue", onLogout }) => {
 
   return (
     <nav className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-4 text-slate-700 shadow-sm backdrop-blur">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
-          Administración
-        </p>
-        <h1 className={`text-xl font-semibold ${accent.text}`}>{title}</h1>
+      <div className="flex flex-1 items-center gap-3">
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-lg text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300 lg:hidden"
+            aria-label={isSidebarOpen ? "Cerrar menú" : "Abrir menú"}
+          >
+            {isSidebarOpen ? <FaXmark /> : <FaBars />}
+          </button>
+        )}
+
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
+            Administración
+          </p>
+          <h1 className={`text-xl font-semibold ${accent.text}`}>{title}</h1>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
@@ -67,6 +88,8 @@ Navbar.propTypes = {
   user: PropTypes.object,
   roleColor: PropTypes.string,
   onLogout: PropTypes.func.isRequired,
+  onToggleSidebar: PropTypes.func,
+  isSidebarOpen: PropTypes.bool,
 };
 
 export default Navbar;

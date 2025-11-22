@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
@@ -35,14 +35,23 @@ const Puestos = () => {
     }
   };
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar links={adminLinks} roleColor="blue" />
+      <Sidebar
+        links={adminLinks}
+        roleColor="blue"
+        isMobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       <div className="flex flex-col flex-grow">
         <Navbar
           title="Panel de Administración"
           user={user}
           roleColor="blue"
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
         />
         <main className="flex-grow p-6">
