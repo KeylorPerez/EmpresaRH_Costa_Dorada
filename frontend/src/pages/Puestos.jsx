@@ -23,6 +23,8 @@ const Puestos = () => {
     closeModal,
   } = usePuesto();
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
 
@@ -34,8 +36,6 @@ const Puestos = () => {
       handleDelete(puesto);
     }
   };
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-gray-100">

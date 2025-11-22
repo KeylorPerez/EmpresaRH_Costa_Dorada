@@ -84,20 +84,29 @@ export const useUsuario = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (!formData.username || !formData.id_rol || !formData.id_empleado) {
+      if (!formData.username || !formData.id_rol) {
         setError("Por favor completa todos los campos obligatorios");
         return;
       }
 
-      const empleadoAsignado = usuarios.find(
-        (usuario) =>
-          usuario.id_empleado === Number(formData.id_empleado) &&
-          (!editingUsuario || usuario.id_usuario !== editingUsuario.id_usuario)
-      );
+      const isEmpleadoRole = Number(formData.id_rol) === 2;
 
-      if (empleadoAsignado) {
-        setError("El empleado seleccionado ya está asociado a otro usuario");
+      if (isEmpleadoRole && !formData.id_empleado) {
+        setError("Selecciona un empleado para el rol de Empleado");
         return;
+      }
+
+      if (isEmpleadoRole && formData.id_empleado) {
+        const empleadoAsignado = usuarios.find(
+          (usuario) =>
+            usuario.id_empleado === Number(formData.id_empleado) &&
+            (!editingUsuario || usuario.id_usuario !== editingUsuario.id_usuario)
+        );
+
+        if (empleadoAsignado) {
+          setError("El empleado seleccionado ya está asociado a otro usuario");
+          return;
+        }
       }
 
       const payload = buildPayload();
