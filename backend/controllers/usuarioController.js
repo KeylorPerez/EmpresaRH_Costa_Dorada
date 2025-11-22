@@ -21,15 +21,23 @@ const createUsuario = async (req, res) => {
     try {
         const { username, password, id_rol, id_empleado, estado = 1 } = req.body;
 
-        if (!username || !password || !id_rol || !id_empleado) {
+        const roleId = Number(id_rol);
+        const isAdmin = roleId === 1;
+        const empleadoId = id_empleado === undefined ? null : id_empleado;
+
+        if (!username || !password || !roleId) {
             return res.status(400).json({ error: 'Faltan datos requeridos' });
+        }
+
+        if (!isAdmin && (empleadoId === null || empleadoId === undefined)) {
+            return res.status(400).json({ error: 'Empleado asociado requerido para rol empleado' });
         }
 
         // Hashear la contraseña
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        const newUser = await Usuario.create({ username, password_hash, id_rol, id_empleado, estado });
+        const newUser = await Usuario.create({ username, password_hash, id_rol: roleId, id_empleado: empleadoId, estado });
         res.status(201).json({ message: 'Usuario creado', id_usuario: newUser.id_usuario });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -44,17 +52,28 @@ const updateUsuario = async (req, res) => {
 
         const { username, password, id_rol, id_empleado, estado } = req.body;
 
+        const existingUser = await Usuario.getById(id);
+        if (!existingUser) return res.status(404).json({ error: 'Usuario no encontrado' });
+
         let password_hash;
         if (password) {
             const salt = await bcrypt.genSalt(10);
             password_hash = await bcrypt.hash(password, salt);
         }
 
-        await Usuario.update(id, { 
-            username, 
-            password_hash: password_hash || undefined, 
-            id_rol, 
-            id_empleado,
+        const roleId = id_rol !== undefined ? Number(id_rol) : existingUser.id_rol;
+        const empleadoId = id_empleado !== undefined ? id_empleado : existingUser.id_empleado;
+        const isAdmin = roleId === 1;
+
+        if (!isAdmin && (empleadoId === null || empleadoId === undefined)) {
+            return res.status(400).json({ error: 'Empleado asociado requerido para rol empleado' });
+        }
+
+        await Usuario.update(id, {
+            username,
+            password_hash: password_hash || undefined,
+            id_rol: roleId,
+            id_empleado: empleadoId,
             estado
         });
 
