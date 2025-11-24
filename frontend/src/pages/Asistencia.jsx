@@ -27,11 +27,14 @@ import {
 } from "../hooks/useAsistencia";
 
 const formatBusinessCoordinate = (numericValue, fallback) => {
+  const fallbackString = fallback?.toString().trim();
+  if (fallbackString) {
+    return fallbackString;
+  }
   if (Number.isFinite(numericValue)) {
     return numericValue.toFixed(6);
   }
-  const fallbackString = fallback?.toString().trim();
-  return fallbackString && fallbackString.length > 0 ? fallbackString : null;
+  return null;
 };
 
 const formatBusinessRadius = (numericValue, fallback) => {
@@ -381,7 +384,7 @@ const Asistencia = ({ mode }) => {
                           value={location.latitud}
                           onChange={(event) => updateLocationField("latitud", event.target.value)}
                           className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          placeholder="Ej. 9.935000"
+                          placeholder="Ej. 10.341133"
                         />
                       </div>
                       <div className="flex flex-col">
@@ -395,7 +398,7 @@ const Asistencia = ({ mode }) => {
                           value={location.longitud}
                           onChange={(event) => updateLocationField("longitud", event.target.value)}
                           className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          placeholder="Ej. -84.091000"
+                          placeholder="Ej. -83.737750"
                         />
                       </div>
                     </div>
