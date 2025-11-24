@@ -1,11 +1,13 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, dialog } = require('electron');
 const path = require('path');
+
+const APP_NAME = 'Distribuidora Astua Pirie';
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: "Distribuidora Astua Pirie",
+    title: APP_NAME,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -21,6 +23,17 @@ function createWindow() {
     win.loadURL('http://localhost:5173') // Modo desarrollo con Vite
     win.webContents.openDevTools()
   }
+}
+
+function showAboutDialog() {
+  dialog.showMessageBox({
+    type: 'info',
+    title: APP_NAME,
+    message: APP_NAME,
+    detail: `Versión ${app.getVersion()}`,
+    buttons: ['Aceptar'],
+    defaultId: 0,
+  });
 }
 
 function createMenu() {
@@ -78,7 +91,7 @@ function createMenu() {
     {
       label: 'Ayuda',
       submenu: [
-        { role: 'about', label: 'Acerca de' },
+        { label: 'Acerca de', click: showAboutDialog },
       ],
     },
   ];
@@ -88,6 +101,7 @@ function createMenu() {
 }
 
 app.whenReady().then(() => {
+  app.setName(APP_NAME);
   createWindow();
   createMenu();
 
