@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import api from "../api/axiosConfig";
 import asistenciaService from "../services/asistenciaService";
 import empleadoService from "../services/empleadoService";
 import { formatDateValue } from "../utils/dateUtils";
@@ -869,12 +870,12 @@ export const useAsistencia = ({ mode } = {}) => {
       `asistencia-${appliedRange?.start ?? "inicio"}-${appliedRange?.end ?? "fin"}.pdf`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("No se pudo descargar el PDF generado.");
-      }
+      const response = await api.get(url, {
+        responseType: "blob",
+        headers: { Accept: "application/pdf" },
+      });
 
-      const blob = await response.blob();
+      const blob = response.data;
       const fileType = blob.type || "application/pdf";
       const fileName = fallbackName.endsWith(".pdf") ? fallbackName : `${fallbackName}.pdf`;
       const file = new File([blob], fileName, { type: fileType });
