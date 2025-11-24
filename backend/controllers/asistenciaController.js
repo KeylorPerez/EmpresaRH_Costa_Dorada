@@ -32,12 +32,18 @@ const parseEnvFloat = (value) => {
 const geofenceLatitude = parseEnvFloat(process.env.OFFICE_LATITUDE);
 const geofenceLongitude = parseEnvFloat(process.env.OFFICE_LONGITUDE);
 const geofenceRadius = parseEnvFloat(process.env.OFFICE_RADIUS_METERS || process.env.OFFICE_RADIUS_MTS || 0);
+const geofenceTolerance = Math.max(
+  0,
+  parseEnvFloat(process.env.OFFICE_RADIUS_TOLERANCE_METERS || process.env.OFFICE_RADIUS_TOLERANCE || 25) || 0
+);
 
 const geofenceConfigured =
   Number.isFinite(geofenceLatitude) &&
   Number.isFinite(geofenceLongitude) &&
   Number.isFinite(geofenceRadius) &&
   geofenceRadius > 0;
+
+const effectiveGeofenceRadius = geofenceConfigured ? geofenceRadius + geofenceTolerance : null;
 
 const toRadians = (value) => (value * Math.PI) / 180;
 
@@ -672,7 +678,7 @@ const createMarca = async (req, res) => {
     if (geofenceConfigured && latitud !== null && longitud !== null) {
       const distancia = calculateDistanceMeters(latitud, longitud, geofenceLatitude, geofenceLongitude);
       const permitirFuera = isTruthy(empleado.permitir_marcacion_fuera);
-      if (!permitirFuera && userToken.id_rol !== 1 && distancia > geofenceRadius) {
+      if (!permitirFuera && userToken.id_rol !== 1 && distancia > effectiveGeofenceRadius) {
         return res.status(403).json({ error: 'La ubicación se encuentra fuera del rango permitido para este colaborador' });
       }
     }
