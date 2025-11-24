@@ -109,6 +109,23 @@ const getFileNameFromUrl = (url) => {
   return "";
 };
 
+const normalizeFileUrl = (url) => {
+  if (!url) return "";
+
+  try {
+    const resolvedUrl = new URL(url, window.location.origin);
+
+    if (window.location.protocol === "https:" && resolvedUrl.protocol === "http:") {
+      resolvedUrl.protocol = "https:";
+    }
+
+    return resolvedUrl.toString();
+  } catch (err) {
+    console.error("No se pudo normalizar la URL del archivo", err);
+    return url;
+  }
+};
+
 const PlanillaDetalle = () => {
   const { user, logoutUser } = useAuth();
   const { id } = useParams();
@@ -248,7 +265,7 @@ const PlanillaDetalle = () => {
 
     try {
       const data = await planillaService.exportFile(planillaId, format);
-      const fileUrl = data?.url;
+      const fileUrl = normalizeFileUrl(data?.url);
       const responseFormat = data?.format || format;
       const filename = data?.filename || "";
 
