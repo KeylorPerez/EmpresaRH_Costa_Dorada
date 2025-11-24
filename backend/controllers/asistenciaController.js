@@ -29,9 +29,14 @@ const parseEnvFloat = (value) => {
   return Number.isFinite(numberValue) ? numberValue : null;
 };
 
-const geofenceLatitude = parseEnvFloat(process.env.OFFICE_LATITUDE);
-const geofenceLongitude = parseEnvFloat(process.env.OFFICE_LONGITUDE);
-const geofenceRadius = parseEnvFloat(process.env.OFFICE_RADIUS_METERS || process.env.OFFICE_RADIUS_MTS || 0);
+const DEFAULT_OFFICE_LATITUDE = 10.341132655735398;
+const DEFAULT_OFFICE_LONGITUDE = -83.73774991896687;
+const DEFAULT_OFFICE_RADIUS = 120;
+
+const geofenceLatitude = parseEnvFloat(process.env.OFFICE_LATITUDE) ?? DEFAULT_OFFICE_LATITUDE;
+const geofenceLongitude = parseEnvFloat(process.env.OFFICE_LONGITUDE) ?? DEFAULT_OFFICE_LONGITUDE;
+const geofenceRadius =
+  parseEnvFloat(process.env.OFFICE_RADIUS_METERS || process.env.OFFICE_RADIUS_MTS) ?? DEFAULT_OFFICE_RADIUS;
 // Para evitar rechazos innecesarios cuando el GPS reporta pequeñas variaciones,
 // se usa una tolerancia adicional configurable. Se incrementa el valor por
 // defecto (50 m) para cubrir imprecisiones habituales en dispositivos móviles.

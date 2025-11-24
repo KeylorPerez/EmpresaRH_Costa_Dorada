@@ -27,11 +27,14 @@ import {
 } from "../hooks/useAsistencia";
 
 const formatBusinessCoordinate = (numericValue, fallback) => {
+  const fallbackString = fallback?.toString().trim();
+  if (fallbackString) {
+    return fallbackString;
+  }
   if (Number.isFinite(numericValue)) {
     return numericValue.toFixed(6);
   }
-  const fallbackString = fallback?.toString().trim();
-  return fallbackString && fallbackString.length > 0 ? fallbackString : null;
+  return null;
 };
 
 const formatBusinessRadius = (numericValue, fallback) => {
