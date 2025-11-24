@@ -32,7 +32,7 @@ const formatBusinessCoordinate = (numericValue, fallback) => {
     return fallbackString;
   }
   if (Number.isFinite(numericValue)) {
-    return numericValue.toFixed(6);
+    return numericValue.toString();
   }
   return null;
 };
