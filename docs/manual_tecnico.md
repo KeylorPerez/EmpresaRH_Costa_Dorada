@@ -13,7 +13,8 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
   - `DB_USER`, `DB_PASSWORD`, `DB_SERVER`, `DB_DATABASE`, `DB_PORT` para la conexión SQL Server.
   - `JWT_SECRET` para firmar tokens.
   - `OFFICE_LATITUDE`, `OFFICE_LONGITUDE` y `OFFICE_RADIUS_METERS` definen la geocerca para las
-    marcaciones. Actualmente se utiliza `9.934739`, `-84.087502` y un radio de 120 m.
+    marcaciones. Actualmente se utiliza `10.34113265735398`, `-83.73774991896887` y un radio de
+    150 m (con tolerancia `OFFICE_RADIUS_TOLERANCE_METERS`, por defecto 0 m).
 - **Conexión a BD:** `backend/db/db.js` crea un `ConnectionPool` reutilizable (`poolPromise`) y exporta el objeto `sql` para tipar parámetros. El cifrado se desactiva por defecto y se confía en certificados locales.
 - **Middleware global:** CORS, `express.json()` y exposición estática de `/files` apuntando a `backend/exports`.
 
