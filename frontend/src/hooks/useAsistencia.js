@@ -228,10 +228,14 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const defaultLocation = useMemo(
     () => ({
-      latitud: isAdmin ? DEFAULT_LATITUDE || "" : "",
-      longitud: isAdmin ? DEFAULT_LONGITUDE || "" : "",
+      latitud: isAdmin
+        ? businessLocation.latitud ?? businessLocation.latitudNumero ?? DEFAULT_LATITUDE ?? ""
+        : "",
+      longitud: isAdmin
+        ? businessLocation.longitud ?? businessLocation.longitudNumero ?? DEFAULT_LONGITUDE ?? ""
+        : "",
     }),
-    [isAdmin]
+    [isAdmin, businessLocation.latitud, businessLocation.latitudNumero, businessLocation.longitud, businessLocation.longitudNumero]
   );
 
   const [location, setLocation] = useState(defaultLocation);
