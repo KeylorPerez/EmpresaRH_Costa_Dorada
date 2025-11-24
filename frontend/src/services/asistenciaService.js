@@ -15,6 +15,11 @@ const asistenciaService = {
     return response.data;
   },
 
+  getConfig: async () => {
+    const response = await api.get("/asistencia/config");
+    return response.data;
+  },
+
   exportByRange: async ({ start, end, id_empleado, format }) => {
     const params = { start, end };
     if (id_empleado) {

@@ -1136,6 +1136,16 @@ const resolverJustificacionSolicitud = async (req, res) => {
   }
 };
 
+const getGeofenceConfig = async (_req, res) =>
+  res.json({
+    geofenceConfigured,
+    latitud: geofenceLatitude,
+    longitud: geofenceLongitude,
+    radio: geofenceRadius,
+    tolerancia: geofenceTolerance,
+    radioEfectivo: effectiveGeofenceRadius,
+  });
+
 module.exports = {
   getAsistencia,
   getByRange,
@@ -1145,4 +1155,5 @@ module.exports = {
   createJustificacionManual,
   createJustificacionSolicitud,
   resolverJustificacionSolicitud,
+  getGeofenceConfig,
 };
