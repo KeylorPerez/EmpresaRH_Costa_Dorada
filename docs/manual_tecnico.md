@@ -1,9 +1,9 @@
 # Manual técnico del sistema de Recursos Humanos
 
 ## 1. Visión general
-El proyecto se divide en dos aplicaciones:
-- **Backend (Node.js/Express + SQL Server):** expone una API REST para la gestión de empleados, asistencia, planillas, vacaciones, préstamos, liquidaciones, aguinaldos y usuarios. Todas las rutas se registran en `index.js`, se sirven archivos generados desde `backend/exports` y se protege el acceso con JWT y control de roles. 
-- **Frontend (React + Vite + Tailwind):** aplica rutas protegidas por rol (administrador vs. empleado) y consume los servicios REST mediante `axios`.
+El proyecto se divide en dos aplicaciones principales y dos targets de entrega (web/PWA y escritorio):
+- **Backend (Node.js/Express + SQL Server):** expone una API REST para la gestión de empleados, asistencia, planillas, vacaciones, préstamos, liquidaciones, aguinaldos y usuarios. Todas las rutas se registran en `index.js`, se sirven archivos generados desde `backend/exports` y se protege el acceso con JWT y control de roles.
+- **Frontend (React + Vite + Tailwind):** aplica rutas protegidas por rol (administrador vs. empleado) y consume los servicios REST mediante `axios`. La misma base se usa para la aplicación web tradicional, la PWA y el empaquetado con Electron.
 
 ## 2. Backend
 ### 2.1 Arranque y configuración
@@ -53,6 +53,7 @@ El proyecto se divide en dos aplicaciones:
   `VITE_BUSINESS_LONGITUDE` y `VITE_BUSINESS_RADIUS_METERS` para mostrar al usuario la zona de
   marcación configurada en el backend.
 - **Stack:** React 19 con React Router 7, Axios para HTTP, Tailwind 4 para estilos.
+- **Router:** se utiliza `HashRouter` para mantener compatibilidad entre PWA, servidores estáticos y el empaquetado con Electron.
 
 ### 3.2 Ruteo y autorización
 - `src/routes/AppRouter.jsx` define todas las rutas y aplica `PrivateRoute`, que recibe `allowedRoles` y redirige a `/login` si no hay sesión válida. Rutas destacadas:
@@ -68,6 +69,11 @@ El proyecto se divide en dos aplicaciones:
 ### 3.4 Estilos y assets
 - Tailwind 4 se configura a través de `@tailwindcss/vite` y las hojas `App.css`/`index.css`. Los íconos provienen de `react-icons`.
 
+### 3.5 Progressive Web App (PWA)
+- **Manifest y assets:** `frontend/manifest.json` define nombre corto, colores y los íconos (`/icons/icon-192.png` y `/icons/icon-512.png`). El `start_url` y `scope` son `/` para permitir instalación en dominio raíz.
+- **Service Worker:** `public/sw.js` aplica estrategia _online-first_ y se registra en `src/main.jsx` tras el evento `load` cuando corre en navegador. La detección de `window.electron?.isElectron` evita registrar el SW dentro del empaquetado de escritorio.
+- **Instalación:** en producción, servir los assets estáticos de `dist` asegurando que `manifest.json` y `sw.js` sean accesibles en la raíz del dominio. Navegadores compatibles ofrecerán la instalación como app.
+
 ## 4. Ejecución local
 1. Crear dos archivos `.env` (en `backend` y `frontend` si se requiere una base de URL para Axios). En backend, definir variables de base de datos y `JWT_SECRET`.
 2. Instalar dependencias en cada carpeta con `npm install`.
@@ -76,10 +82,16 @@ El proyecto se divide en dos aplicaciones:
 
 ## 5. Despliegue
 - **Backend:** ejecutar `npm start` tras construir la imagen o copiar el código; configurar las variables de entorno anteriores y abrir el puerto definido en `PORT`. Asegurar conectividad segura hacia SQL Server.
-- **Frontend:** ejecutar `npm run build` y servir la carpeta `dist` con un servidor estático o CDN. Configurar la URL base de la API en las variables de entorno/servicio Axios.
+- **Frontend (web/PWA):** ejecutar `npm run build` y servir la carpeta `dist` con un servidor estático o CDN. Configurar la URL base de la API en las variables de entorno/servicio Axios y asegurarse de exponer `manifest.json`, los íconos y `sw.js` en la raíz.
 
 ## 6. Mantenimiento y troubleshooting
 - Revisar los logs de arranque del backend para confirmar conexión a SQL Server y creación del directorio `backend/exports`.
 - Si las peticiones devuelven 401/403, verificar validez del token y estado del usuario en BD.
 - Ante errores de base de datos, validar que los tipos enviados desde el frontend coincidan con los definidos en los modelos (por ejemplo, `Decimal(12,2)` para montos salariales).
 - Usar `npm run lint` en frontend para detectar problemas de código antes de compilar.
+
+## 7. Aplicación de escritorio (Electron)
+- **Propósito:** reutiliza el frontend como aplicación de escritorio empaquetada con Electron. El archivo de entrada es `frontend/electron/main.js` y expone un contexto mínimo en `preload.js` (`window.electron.isElectron`).
+- **Desarrollo:** ejecutar `npm run electron:dev` en `frontend` (lanza Vite y Electron en paralelo; requiere `wait-on`).
+- **Build de escritorio:** `npm run electron:build` genera el instalador (target `nsis` para Windows) usando `electron-builder` y empaqueta el build de Vite (`dist`) junto a los archivos de `electron/` y los recursos en `assets/`.
+- **Consideraciones:** el service worker no se registra dentro de Electron (se detecta `isElectron`), y `HashRouter` evita problemas de ruteo al cargar archivos locales.
