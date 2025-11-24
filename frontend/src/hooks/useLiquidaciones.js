@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import api from "../api/axiosConfig";
 import liquidacionesService from "../services/liquidacionesService";
 import empleadoService from "../services/empleadoService";
 import { formatDateValue, getTodayInputValue } from "../utils/dateUtils";
@@ -525,12 +526,12 @@ export const useLiquidaciones = ({ autoFetch = true } = {}) => {
         const fallbackName =
           exportData.filename || `liquidacion-${id_liquidacion}.pdf`;
 
-        const response = await fetch(exportData.url);
-        if (!response.ok) {
-          throw new Error('No se pudo descargar el PDF generado.');
-        }
+        const response = await api.get(exportData.url, {
+          responseType: 'blob',
+          headers: { Accept: 'application/pdf' },
+        });
 
-        const blob = await response.blob();
+        const blob = response.data;
         const fileType = blob.type || 'application/pdf';
         const fileName = fallbackName.endsWith('.pdf')
           ? fallbackName

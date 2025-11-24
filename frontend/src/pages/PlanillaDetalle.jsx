@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
+import api from "../api/axiosConfig";
 import planillaService from "../services/planillaService";
 import { adminLinks as adminNavigationLinks } from "../utils/navigationLinks";
 import {
@@ -290,12 +291,12 @@ const PlanillaDetalle = () => {
     const fallbackFileName = providedFileName || getFileNameFromUrl(url) || `planilla-${planillaId}.pdf`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("No se pudo descargar el PDF generado.");
-      }
+      const response = await api.get(url, {
+        responseType: "blob",
+        headers: { Accept: "application/pdf" },
+      });
 
-      const blob = await response.blob();
+      const blob = response.data;
       const fileType = blob.type || "application/pdf";
       const fileName = fallbackFileName.endsWith(".pdf")
         ? fallbackFileName
