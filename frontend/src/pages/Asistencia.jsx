@@ -63,8 +63,14 @@ const Asistencia = ({ mode }) => {
     businessLocationInfo.radioNumero,
     businessLocationInfo.radio
   );
+  const officeRadiusEffectiveDisplay = formatBusinessRadius(
+    businessLocationInfo.radioEfectivoNumero,
+    businessLocationInfo.radio
+  );
   const geofenceConfigured =
-    officeLatDisplay !== null && officeLonDisplay !== null && officeRadiusDisplay !== null;
+    officeLatDisplay !== null &&
+    officeLonDisplay !== null &&
+    (officeRadiusEffectiveDisplay !== null || officeRadiusDisplay !== null);
 
   // El hook devuelve tanto el estado como los handlers para cada subsección
   // (marcación, filtros, exportación, edición y justificaciones). Mantener el
@@ -455,7 +461,10 @@ const Asistencia = ({ mode }) => {
                   <p className="text-xs text-gray-500">
                     Solo puedes registrar la asistencia dentro de un radio aproximado de
                     {" "}
-                    <span className="font-semibold">{officeRadiusDisplay} m</span> alrededor de las
+                    <span className="font-semibold">
+                      {officeRadiusEffectiveDisplay || officeRadiusDisplay} m
+                    </span>{" "}
+                    (incluyendo tolerancia) alrededor de las
                     coordenadas
                     {" "}
                     <span className="font-semibold">

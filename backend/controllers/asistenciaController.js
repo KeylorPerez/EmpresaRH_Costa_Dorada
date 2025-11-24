@@ -32,9 +32,12 @@ const parseEnvFloat = (value) => {
 const geofenceLatitude = parseEnvFloat(process.env.OFFICE_LATITUDE);
 const geofenceLongitude = parseEnvFloat(process.env.OFFICE_LONGITUDE);
 const geofenceRadius = parseEnvFloat(process.env.OFFICE_RADIUS_METERS || process.env.OFFICE_RADIUS_MTS || 0);
+// Para evitar rechazos innecesarios cuando el GPS reporta pequeñas variaciones,
+// se usa una tolerancia adicional configurable. Se incrementa el valor por
+// defecto (50 m) para cubrir imprecisiones habituales en dispositivos móviles.
 const geofenceTolerance = Math.max(
   0,
-  parseEnvFloat(process.env.OFFICE_RADIUS_TOLERANCE_METERS || process.env.OFFICE_RADIUS_TOLERANCE || 25) || 0
+  parseEnvFloat(process.env.OFFICE_RADIUS_TOLERANCE_METERS || process.env.OFFICE_RADIUS_TOLERANCE || 50) || 0
 );
 
 const geofenceConfigured =
