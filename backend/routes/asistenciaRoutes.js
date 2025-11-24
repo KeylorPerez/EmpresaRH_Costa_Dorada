@@ -13,6 +13,7 @@ const {
   createJustificacionSolicitud,
   createJustificacionManual,
   resolverJustificacionSolicitud,
+  getGeofenceConfig,
 } = require('../controllers/asistenciaController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,9 @@ router.get('/', authenticateToken, getAsistencia);
 
 // GET /api/asistencia/range?start=YYYY-MM-DD&end=YYYY-MM-DD
 router.get('/range', authenticateToken, getByRange);
+
+// GET /api/asistencia/config -> configuración de la geocerca
+router.get('/config', authenticateToken, getGeofenceConfig);
 
 // GET /api/asistencia/export?start=&end=&id_empleado?&format?
 router.get('/export', authenticateToken, authorizeRoles(1), exportAsistencia);

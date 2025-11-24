@@ -14,7 +14,6 @@ import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import { adminLinks, empleadoLinks } from "../utils/navigationLinks";
 import {
-  businessLocationInfo,
   formatearFecha,
   formatearHora,
   obtenerEtiquetaEstado,
@@ -54,26 +53,6 @@ const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const officeLatDisplay = formatBusinessCoordinate(
-    businessLocationInfo.latitudNumero,
-    businessLocationInfo.latitud
-  );
-  const officeLonDisplay = formatBusinessCoordinate(
-    businessLocationInfo.longitudNumero,
-    businessLocationInfo.longitud
-  );
-  const officeRadiusDisplay = formatBusinessRadius(
-    businessLocationInfo.radioNumero,
-    businessLocationInfo.radio
-  );
-  const officeRadiusEffectiveDisplay = formatBusinessRadius(
-    businessLocationInfo.radioEfectivoNumero,
-    businessLocationInfo.radio
-  );
-  const geofenceConfigured =
-    officeLatDisplay !== null &&
-    officeLonDisplay !== null &&
-    (officeRadiusEffectiveDisplay !== null || officeRadiusDisplay !== null);
 
   // El hook devuelve tanto el estado como los handlers para cada subsección
   // (marcación, filtros, exportación, edición y justificaciones). Mantener el
@@ -132,7 +111,29 @@ const Asistencia = ({ mode }) => {
     updateLocationField,
     resetLocation,
     tipoJustificacionOptions,
+    businessLocation,
   } = useAsistencia({ mode });
+
+  const officeLatDisplay = useMemo(
+    () => formatBusinessCoordinate(businessLocation?.latitudNumero, businessLocation?.latitud),
+    [businessLocation]
+  );
+  const officeLonDisplay = useMemo(
+    () => formatBusinessCoordinate(businessLocation?.longitudNumero, businessLocation?.longitud),
+    [businessLocation]
+  );
+  const officeRadiusDisplay = useMemo(
+    () => formatBusinessRadius(businessLocation?.radioNumero, businessLocation?.radio),
+    [businessLocation]
+  );
+  const officeRadiusEffectiveDisplay = useMemo(
+    () => formatBusinessRadius(businessLocation?.radioEfectivoNumero, businessLocation?.radio),
+    [businessLocation]
+  );
+  const geofenceConfigured =
+    officeLatDisplay !== null &&
+    officeLonDisplay !== null &&
+    (officeRadiusEffectiveDisplay !== null || officeRadiusDisplay !== null);
 
   // Construye el menú según el rol para reutilizar el mismo componente de
   // página tanto en modo admin como empleado.

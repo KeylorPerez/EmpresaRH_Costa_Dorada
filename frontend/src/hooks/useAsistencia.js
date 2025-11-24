@@ -123,6 +123,37 @@ export const businessLocationInfo = Object.freeze({
       : parseMetersInput(DEFAULT_RADIUS_METERS),
 });
 
+const buildBusinessLocationState = (override = {}) => {
+  const latitudEntrada =
+    override.latitud ?? override.latitude ?? override.latitudNumero ?? businessLocationInfo.latitud;
+  const longitudEntrada =
+    override.longitud ?? override.longitude ?? override.longitudNumero ?? businessLocationInfo.longitud;
+  const radioEntrada =
+    override.radio ?? override.radius ?? override.radioNumero ?? businessLocationInfo.radioNumero;
+  const toleranciaEntrada =
+    override.tolerancia ?? override.tolerance ?? override.toleranciaNumero ?? businessLocationInfo.tolerancia;
+
+  const latitudNumero =
+    parseCoordinateInput(latitudEntrada) ?? parseCoordinateInput(businessLocationInfo.latitudNumero);
+  const longitudNumero =
+    parseCoordinateInput(longitudEntrada) ?? parseCoordinateInput(businessLocationInfo.longitudNumero);
+  const radioNumero = parseMetersInput(radioEntrada) ?? businessLocationInfo.radioNumero;
+  const toleranciaNumero = parseMetersInput(toleranciaEntrada) ?? businessLocationInfo.toleranciaNumero;
+
+  return {
+    latitud: latitudEntrada ?? businessLocationInfo.latitud,
+    longitud: longitudEntrada ?? businessLocationInfo.longitud,
+    radio: radioEntrada ?? businessLocationInfo.radio,
+    tolerancia: toleranciaEntrada ?? businessLocationInfo.tolerancia,
+    latitudNumero,
+    longitudNumero,
+    radioNumero,
+    toleranciaNumero,
+    radioEfectivoNumero:
+      radioNumero !== null ? radioNumero + (toleranciaNumero && toleranciaNumero > 0 ? toleranciaNumero : 0) : null,
+  };
+};
+
 const createInitialForm = (isAdmin) => {
   const now = new Date();
   const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
@@ -193,6 +224,8 @@ export const useAsistencia = ({ mode } = {}) => {
   );
   const [manualJustificacionSubmitting, setManualJustificacionSubmitting] = useState(false);
 
+  const [businessLocation, setBusinessLocation] = useState(() => buildBusinessLocationState());
+
   const defaultLocation = useMemo(
     () => ({
       latitud: isAdmin ? DEFAULT_LATITUDE || "" : "",
@@ -206,6 +239,19 @@ export const useAsistencia = ({ mode } = {}) => {
   const [supportsGeolocation] = useState(
     () => typeof window !== "undefined" && typeof navigator !== "undefined" && "geolocation" in navigator
   );
+
+  useEffect(() => {
+    asistenciaService
+      .getConfig()
+      .then((config) => {
+        if (config) {
+          setBusinessLocation(buildBusinessLocationState(config));
+        }
+      })
+      .catch((err) => {
+        console.warn("No se pudo obtener la configuración de geocerca", err);
+      });
+  }, []);
 
   useEffect(() => {
     setLocation(defaultLocation);
@@ -968,6 +1014,7 @@ export const useAsistencia = ({ mode } = {}) => {
     handleManualJustificacionChange,
     submitManualJustificacion,
     manualJustificacionSubmitting,
+    businessLocation,
     location,
     locationStatus,
     supportsGeolocation,
