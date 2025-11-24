@@ -59,7 +59,7 @@ const Puestos = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Puestos</h1>
               <p className="text-sm text-gray-500">
-                Gestiona y organiza los puestos disponibles en la empresa de forma sencilla.
+                Gestiona y organiza los puestos disponibles en la empresa.
               </p>
             </div>
             <Button variant="primary" size="md" onClick={openCreateModal}>
