@@ -13,6 +13,8 @@ export default defineConfig({
     tailwindcss(),
   ],
 
- 
+
   publicDir: "public",
+  // Usamos rutas relativas para que el build funcione desde file:// en Electron
+  base: './',
 })
