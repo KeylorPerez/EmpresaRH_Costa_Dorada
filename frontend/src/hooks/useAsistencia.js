@@ -86,6 +86,11 @@ const DEFAULT_RADIUS_METERS =
   import.meta.env.VITE_OFFICE_RADIUS_METERS ??
   import.meta.env.VITE_OFFICE_RADIUS_MTS ??
   "120";
+const DEFAULT_RADIUS_TOLERANCE_METERS =
+  import.meta.env.VITE_BUSINESS_RADIUS_TOLERANCE_METERS ??
+  import.meta.env.VITE_OFFICE_RADIUS_TOLERANCE_METERS ??
+  import.meta.env.VITE_OFFICE_RADIUS_TOLERANCE ??
+  "50";
 
 const parseCoordinateInput = (value) => {
   if (value === undefined || value === null) return null;
@@ -107,9 +112,15 @@ export const businessLocationInfo = Object.freeze({
   latitud: DEFAULT_LATITUDE,
   longitud: DEFAULT_LONGITUDE,
   radio: DEFAULT_RADIUS_METERS,
+  tolerancia: DEFAULT_RADIUS_TOLERANCE_METERS,
   latitudNumero: parseCoordinateInput(DEFAULT_LATITUDE),
   longitudNumero: parseCoordinateInput(DEFAULT_LONGITUDE),
   radioNumero: parseMetersInput(DEFAULT_RADIUS_METERS),
+  toleranciaNumero: parseMetersInput(DEFAULT_RADIUS_TOLERANCE_METERS),
+  radioEfectivoNumero:
+    parseMetersInput(DEFAULT_RADIUS_METERS) && parseMetersInput(DEFAULT_RADIUS_TOLERANCE_METERS)
+      ? parseMetersInput(DEFAULT_RADIUS_METERS) + parseMetersInput(DEFAULT_RADIUS_TOLERANCE_METERS)
+      : parseMetersInput(DEFAULT_RADIUS_METERS),
 });
 
 const createInitialForm = (isAdmin) => {
