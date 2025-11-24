@@ -76,16 +76,16 @@ const createDefaultRange = () => {
 const DEFAULT_LATITUDE =
   import.meta.env.VITE_BUSINESS_LATITUDE ??
   import.meta.env.VITE_OFFICE_LATITUDE ??
-  "9.934739";
+  "10.3413265753598";
 const DEFAULT_LONGITUDE =
   import.meta.env.VITE_BUSINESS_LONGITUDE ??
   import.meta.env.VITE_OFFICE_LONGITUDE ??
-  "-84.087502";
+  "-83.73774491869887";
 const DEFAULT_RADIUS_METERS =
   import.meta.env.VITE_BUSINESS_RADIUS_METERS ??
   import.meta.env.VITE_OFFICE_RADIUS_METERS ??
   import.meta.env.VITE_OFFICE_RADIUS_MTS ??
-  "150";
+  "120";
 const DEFAULT_RADIUS_TOLERANCE_METERS =
   import.meta.env.VITE_BUSINESS_RADIUS_TOLERANCE_METERS ??
   import.meta.env.VITE_OFFICE_RADIUS_TOLERANCE_METERS ??

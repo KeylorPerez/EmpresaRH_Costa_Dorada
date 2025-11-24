@@ -458,23 +458,53 @@ const Asistencia = ({ mode }) => {
                   La latitud y longitud registradas se almacenarán junto con la marca de asistencia.
                 </p>
                 {geofenceConfigured && (
-                  <p className="text-xs text-gray-500">
-                    Solo puedes registrar la asistencia dentro de un radio aproximado de
-                    {" "}
-                    <span className="font-semibold">
-                      {officeRadiusEffectiveDisplay || officeRadiusDisplay} m
-                    </span>{" "}
-                    (incluyendo tolerancia) alrededor de las
-                    coordenadas
-                    {" "}
-                    <span className="font-semibold">
-                      {officeLatDisplay}, {officeLonDisplay}
-                    </span>
-                    . Si Recursos Humanos marca la casilla
-                    {" "}
-                    <span className="font-semibold">“Permitir marcación fuera de la oficina”</span>, la
-                    restricción no aplicará para tu usuario.
-                  </p>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                      <div className="bg-blue-50 text-blue-900 border border-blue-100 rounded-lg px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-800">
+                          Latitud de referencia
+                        </p>
+                        <p className="text-sm font-bold">{officeLatDisplay}</p>
+                      </div>
+                      <div className="bg-blue-50 text-blue-900 border border-blue-100 rounded-lg px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-800">
+                          Longitud de referencia
+                        </p>
+                        <p className="text-sm font-bold">{officeLonDisplay}</p>
+                      </div>
+                      <div className="bg-blue-50 text-blue-900 border border-blue-100 rounded-lg px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-800">
+                          Radio permitido
+                        </p>
+                        <p className="text-sm font-bold">{officeRadiusDisplay ?? officeRadiusEffectiveDisplay} m</p>
+                      </div>
+                      <div className="bg-blue-50 text-blue-900 border border-blue-100 rounded-lg px-3 py-2">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-800">
+                          Radio con tolerancia
+                        </p>
+                        <p className="text-sm font-bold">
+                          {officeRadiusEffectiveDisplay ?? officeRadiusDisplay} m
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-500">
+                      Solo puedes registrar la asistencia dentro de un radio aproximado de
+                      {" "}
+                      <span className="font-semibold">
+                        {officeRadiusEffectiveDisplay || officeRadiusDisplay} m
+                      </span>{" "}
+                      (incluyendo tolerancia) alrededor de las coordenadas
+                      {" "}
+                      <span className="font-semibold">
+                        {officeLatDisplay}, {officeLonDisplay}
+                      </span>
+                      . Si Recursos Humanos marca la casilla
+                      {" "}
+                      <span className="font-semibold">“Permitir marcación fuera de la oficina”</span>, la
+                      restricción no aplicará para tu usuario.
+                    </p>
+                  </div>
                 )}
               </div>
 
