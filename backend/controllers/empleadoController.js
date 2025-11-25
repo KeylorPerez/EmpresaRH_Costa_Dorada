@@ -467,16 +467,21 @@ const createEmpleado = async (req, res) => {
       permitir_marcacion_fuera,
     } = req.body;
 
+    const puestoId = Number(id_puesto);
+    const salarioValue = Number(salario_monto);
+
     if (
       !nombre ||
       !apellido ||
-      !id_puesto ||
+      Number.isNaN(puestoId) ||
+      puestoId <= 0 ||
       !cedula ||
       !fecha_ingreso ||
-      !salario_monto ||
+      Number.isNaN(salarioValue) ||
+      salarioValue <= 0 ||
       !tipo_pago
     ) {
-      return res.status(400).json({ error: 'Faltan datos requeridos' });
+      return res.status(400).json({ error: 'Faltan datos requeridos o valores inválidos' });
     }
 
     if (!['Diario', 'Quincenal'].includes(tipo_pago)) {
@@ -521,13 +526,13 @@ const createEmpleado = async (req, res) => {
     const empleado = await Empleado.create({
       nombre,
       apellido,
-      id_puesto,
+      id_puesto: puestoId,
       cedula,
       fecha_nacimiento: fecha_nacimiento || null,
       telefono: telefono || null,
       email: email || null,
       fecha_ingreso,
-      salario_monto,
+      salario_monto: salarioValue,
       tipo_pago,
       bonificacion_fija: bonificacionValue,
       porcentaje_ccss: porcentajeValue,
@@ -541,6 +546,11 @@ const createEmpleado = async (req, res) => {
       id_empleado: empleado.id_empleado
     });
   } catch (err) {
+    const sqlErrorCode = err?.number || err?.originalError?.info?.number;
+    if (sqlErrorCode === 2627 || sqlErrorCode === 2601) {
+      return res.status(409).json({ error: 'Ya existe un empleado con esta cédula' });
+    }
+
     res.status(500).json({ error: err.message });
   }
 };

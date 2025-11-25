@@ -89,6 +89,12 @@ export const useEmpleado = () => {
         return;
       }
 
+      const salarioValue = Number(formData.salario_monto);
+      if (Number.isNaN(salarioValue) || salarioValue <= 0) {
+        setError("El salario base debe ser un número mayor a cero");
+        return;
+      }
+
       const bonificacionValue = Number(formData.bonificacion_fija || 0);
       if (Number.isNaN(bonificacionValue)) {
         setError("La bonificación fija debe ser un número válido");
@@ -106,6 +112,11 @@ export const useEmpleado = () => {
       }
 
       const usaDeduccionFija = formData.usa_deduccion_fija === "1";
+      if (usaDeduccionFija && formData.deduccion_fija === "") {
+        setError("Ingresa la deducción fija cuando está habilitada");
+        return;
+      }
+
       const deduccionFijaValue = Number(formData.deduccion_fija || 0);
       if (Number.isNaN(deduccionFijaValue) || deduccionFijaValue < 0) {
         setError("La deducción fija debe ser un número válido");
@@ -118,7 +129,7 @@ export const useEmpleado = () => {
         id_puesto: Number(formData.id_puesto),
         cedula: formData.cedula.trim(),
         fecha_ingreso: formData.fecha_ingreso,
-        salario_monto: Number(formData.salario_monto),
+        salario_monto: salarioValue,
         tipo_pago: formData.tipo_pago,
         bonificacion_fija: bonificacionValue,
         porcentaje_ccss: porcentajeValue,
@@ -145,7 +156,8 @@ export const useEmpleado = () => {
       fetchEmpleados();
     } catch (err) {
       console.error(err);
-      setError("Error al guardar empleado");
+      const message = err.response?.data?.error || "Error al guardar empleado";
+      setError(message);
     }
   };
 
