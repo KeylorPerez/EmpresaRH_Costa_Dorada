@@ -32,13 +32,24 @@ const Empleados = () => {
   } = useEmpleado();
 
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filteredEmpleados = useMemo(() => {
-    if (statusFilter === "all") return empleados;
-    const shouldBeActive = statusFilter === "active";
-    return empleados.filter((emp) => isActive(emp.estado) === shouldBeActive);
-  }, [empleados, statusFilter]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return empleados
+      .filter((emp) => {
+        if (statusFilter === "all") return true;
+        const shouldBeActive = statusFilter === "active";
+        return isActive(emp.estado) === shouldBeActive;
+      })
+      .filter((emp) => {
+        if (!normalizedSearch) return true;
+        const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
+        return fullName.includes(normalizedSearch);
+      });
+  }, [empleados, searchTerm, statusFilter]);
 
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
@@ -84,6 +95,16 @@ const Empleados = () => {
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
                 </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nombre"
+                    className="pl-9 pr-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                </div>
                 <Button
                   variant="primary"
                   size="md"
