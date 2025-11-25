@@ -1023,7 +1023,7 @@ const Asistencia = ({ mode }) => {
               onClick={closeEditForm}
             >
               <div
-                className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl"
+                className="relative flex w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl max-h-[90vh]"
                 onClick={(event) => event.stopPropagation()}
               >
                 <header className="flex flex-col gap-2 border-b px-6 py-4 md:flex-row md:items-start md:justify-between">
@@ -1050,7 +1050,10 @@ const Asistencia = ({ mode }) => {
                   </div>
                 </header>
 
-                <form onSubmit={handleEditSubmit} className="grid gap-4 px-6 py-4 md:grid-cols-2">
+                <form
+                  onSubmit={handleEditSubmit}
+                  className="grid flex-1 gap-4 overflow-y-auto px-6 py-4 md:grid-cols-2"
+                >
                   <div className="flex flex-col">
                     <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_fecha">
                       Fecha
