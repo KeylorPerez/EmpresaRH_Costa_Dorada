@@ -376,7 +376,7 @@ const Empleados = () => {
                     />
                     <div className="flex flex-col">
                       <label className="text-sm font-medium text-gray-700 mb-1">
-                        Puesto
+                        Puesto<span className="text-red-500"> *</span>
                       </label>
                       <select
                         name="id_puesto"
@@ -436,7 +436,13 @@ const Empleados = () => {
                       value={formData.porcentaje_ccss}
                       onChange={handleChange}
                       disabled={formData.usa_deduccion_fija === "1"}
+                      required={formData.usa_deduccion_fija !== "1"}
                     />
+                    <div className="md:col-span-2 -mt-2">
+                      <p className="text-xs text-gray-500">
+                        Usa el porcentaje estándar si no aplicas una deducción fija.
+                      </p>
+                    </div>
                     <div className="flex flex-col">
                       <label className="text-sm font-medium text-gray-700 mb-1">
                         Usa deducción fija CCSS
@@ -460,7 +466,13 @@ const Empleados = () => {
                       value={formData.deduccion_fija}
                       onChange={handleChange}
                       disabled={formData.usa_deduccion_fija !== "1"}
+                      required={formData.usa_deduccion_fija === "1"}
                     />
+                    <div className="md:col-span-2 -mt-2">
+                      <p className="text-xs text-gray-500">
+                        Solo obligatorio cuando seleccionas una deducción fija.
+                      </p>
+                    </div>
                     <div className="flex flex-col">
                       <label className="text-sm font-medium text-gray-700 mb-1">
                         Permitir marcación fuera de la oficina
