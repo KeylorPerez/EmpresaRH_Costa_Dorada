@@ -27,6 +27,8 @@ const Usuarios = () => {
     setError,
     statusFilter,
     setStatusFilter,
+    searchTerm,
+    setSearchTerm,
   } = useUsuario();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -75,6 +77,19 @@ const Usuarios = () => {
                   <option value="0">Inactivos</option>
                   <option value="todos">Todos</option>
                 </select>
+              </div>
+              <div className="flex flex-col">
+                <label htmlFor="searchUser" className="text-sm font-semibold text-gray-700">
+                  Buscar por nombre
+                </label>
+                <input
+                  id="searchUser"
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nombre o usuario"
+                  className="border px-2 py-1 rounded"
+                />
               </div>
               <Button
                 variant="primary"

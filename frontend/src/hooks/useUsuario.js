@@ -20,6 +20,7 @@ export const useUsuario = () => {
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [formData, setFormData] = useState(() => createInitialFormState());
   const [statusFilter, setStatusFilter] = useState("1");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchUsuarios();
@@ -183,13 +184,32 @@ export const useUsuario = () => {
   }, [empleados, usuarios, editingUsuario]);
 
   const filteredUsuarios = useMemo(() => {
-    if (statusFilter === "todos") {
-      return usuarios;
-    }
+    const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    const estadoObjetivo = Number(statusFilter);
-    return usuarios.filter((usuario) => Number(usuario.estado) === estadoObjetivo);
-  }, [usuarios, statusFilter]);
+    return usuarios
+      .filter((usuario) => {
+        if (statusFilter === "todos") return true;
+        const estadoObjetivo = Number(statusFilter);
+        return Number(usuario.estado) === estadoObjetivo;
+      })
+      .filter((usuario) => {
+        if (!normalizedSearch) return true;
+
+        const usernameMatches = usuario.username
+          ?.toLowerCase()
+          .includes(normalizedSearch);
+
+        const empleadoRelacionado = empleados.find(
+          (emp) => emp.id_empleado === usuario.id_empleado
+        );
+        const fullName = empleadoRelacionado
+          ? `${empleadoRelacionado.nombre} ${empleadoRelacionado.apellido}`.toLowerCase()
+          : "";
+        const empleadoMatches = fullName.includes(normalizedSearch);
+
+        return usernameMatches || empleadoMatches;
+      });
+  }, [empleados, searchTerm, statusFilter, usuarios]);
 
   // === Retorno del hook ===
   return {
@@ -211,6 +231,8 @@ export const useUsuario = () => {
     setError,
     statusFilter,
     setStatusFilter,
+    searchTerm,
+    setSearchTerm,
   };
 };
 
