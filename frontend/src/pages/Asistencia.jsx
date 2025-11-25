@@ -112,7 +112,7 @@ const Asistencia = ({ mode }) => {
     resetLocation,
     tipoJustificacionOptions,
     businessLocation,
-  } = useAsistencia({ mode });
+  } = useAsistencia({ mode, user });
 
   const officeLatDisplay = useMemo(
     () => formatBusinessCoordinate(businessLocation?.latitudNumero, businessLocation?.latitud),
@@ -1032,7 +1032,7 @@ const Asistencia = ({ mode }) => {
                       Editar marca #{editingRegistro.id_asistencia}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Actualiza el tipo de marca u observaciones del registro seleccionado.
+                      Actualiza el tipo de marca, la fecha, la hora u observaciones del registro seleccionado.
                     </p>
                   </div>
                   <div className="flex items-center gap-3 self-end md:self-start">
@@ -1051,6 +1051,36 @@ const Asistencia = ({ mode }) => {
                 </header>
 
                 <form onSubmit={handleEditSubmit} className="grid gap-4 px-6 py-4 md:grid-cols-2">
+                  <div className="flex flex-col">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_fecha">
+                      Fecha
+                    </label>
+                    <input
+                      id="edit_fecha"
+                      name="fecha"
+                      type="date"
+                      value={editForm.fecha}
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_hora">
+                      Hora
+                    </label>
+                    <input
+                      id="edit_hora"
+                      name="hora"
+                      type="time"
+                      value={editForm.hora}
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
                   <div className="flex flex-col">
                     <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_tipo_marca">
                       Tipo de marca
