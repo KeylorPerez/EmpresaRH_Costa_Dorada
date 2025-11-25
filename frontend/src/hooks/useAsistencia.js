@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../api/axiosConfig";
 import asistenciaService from "../services/asistenciaService";
 import empleadoService from "../services/empleadoService";
-import { formatDateValue } from "../utils/dateUtils";
+import { formatDateValue, parseDateValue } from "../utils/dateUtils";
 
 export const tipoMarcaOptions = [
   { value: "entrada", label: "Entrada" },
@@ -188,8 +188,41 @@ const createManualJustificacionInitial = () => {
   };
 };
 
-export const useAsistencia = ({ mode } = {}) => {
+const normalizeFechaInput = (value) => {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (trimmed.includes("T")) {
+      const [datePart] = trimmed.split("T");
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        return datePart;
+      }
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  const parsed = parseDateValue(value);
+  if (!parsed) return "";
+  const offsetMinutes = parsed.getTimezoneOffset();
+  const localDate = new Date(parsed.getTime() - offsetMinutes * 60 * 1000);
+  return localDate.toISOString().split("T")[0];
+};
+
+export const useAsistencia = ({ mode, user } = {}) => {
   const isAdmin = mode === "admin";
+  const linkedEmpleadoId = useMemo(() => {
+    const candidate =
+      user?.id_empleado ?? user?.empleado_id ?? user?.idEmpleado ?? user?.empleadoId;
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return String(parsed);
+    }
+    return "";
+  }, [user]);
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -200,11 +233,15 @@ export const useAsistencia = ({ mode } = {}) => {
   const [rangeFilters, setRangeFilters] = useState(defaultRange);
   const [appliedRange, setAppliedRange] = useState(defaultRange);
   const [employees, setEmployees] = useState([]);
-  const [selectedEmpleado, setSelectedEmpleado] = useState("");
+  const [selectedEmpleado, setSelectedEmpleado] = useState(() =>
+    isAdmin && linkedEmpleadoId ? linkedEmpleadoId : ""
+  );
   const [exportingFormat, setExportingFormat] = useState(null);
 
   const [editingRegistro, setEditingRegistro] = useState(null);
   const [editForm, setEditForm] = useState({
+    fecha: "",
+    hora: "",
     tipo_marca: "",
     observaciones: "",
     estado: "Presente",
@@ -267,6 +304,14 @@ export const useAsistencia = ({ mode } = {}) => {
     setLocationStatus({ loading: false, error: "" });
   }, [defaultLocation]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!linkedEmpleadoId) return;
+
+    setSelectedEmpleado((prev) => prev || linkedEmpleadoId);
+    setFormData((prev) => ({ ...prev, id_empleado: prev.id_empleado || linkedEmpleadoId }));
+  }, [isAdmin, linkedEmpleadoId]);
+
   const fetchRegistros = useCallback(async (range) => {
     try {
       setLoading(true);
@@ -326,8 +371,14 @@ export const useAsistencia = ({ mode } = {}) => {
   }, [isAdmin]);
 
   useEffect(() => {
-    fetchRegistros({ ...defaultRange });
-  }, [fetchRegistros, defaultRange]);
+    const baseRange = { ...defaultRange };
+    const rangeWithEmpleado = {
+      ...baseRange,
+      ...(isAdmin && selectedEmpleado ? { id_empleado: Number(selectedEmpleado) } : {}),
+    };
+    fetchRegistros(rangeWithEmpleado);
+    setAppliedRange(baseRange);
+  }, [fetchRegistros, defaultRange, isAdmin, selectedEmpleado]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -659,8 +710,11 @@ export const useAsistencia = ({ mode } = {}) => {
 
   const startEdit = (registro) => {
     if (!isAdmin) return;
+    const horaNormalizada = formatearHora(registro.hora);
     setEditingRegistro(registro);
     setEditForm({
+      fecha: normalizeFechaInput(registro.fecha),
+      hora: horaNormalizada ? horaNormalizada.slice(0, 5) : "",
       tipo_marca: registro.tipo_marca || "",
       observaciones: registro.observaciones || "",
       estado: registro.estado || "Presente",
@@ -678,6 +732,8 @@ export const useAsistencia = ({ mode } = {}) => {
   const cancelEdit = () => {
     setEditingRegistro(null);
     setEditForm({
+      fecha: "",
+      hora: "",
       tipo_marca: "",
       observaciones: "",
       estado: "Presente",
@@ -704,6 +760,8 @@ export const useAsistencia = ({ mode } = {}) => {
     try {
       setEditLoading(true);
       const payload = {
+        fecha: editForm.fecha || undefined,
+        hora: editForm.hora || undefined,
         tipo_marca: editForm.tipo_marca,
         observaciones: editForm.observaciones,
         estado: editForm.estado || "Presente",
