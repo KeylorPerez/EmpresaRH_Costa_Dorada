@@ -49,10 +49,26 @@ const login = async (req, res) => {
             .input('id_usuario', require('../db/db').sql.Int, user.id_usuario)
             .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
 
-        res.json({ token });
+        const profile = await Usuario.getProfileById(user.id_usuario);
+
+        res.json({ token, user: profile });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-module.exports = { login };
+const getCurrentUser = async (req, res) => {
+    try {
+        const profile = await Usuario.getProfileById(req.user.id_usuario);
+
+        if (!profile) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json(profile);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+module.exports = { login, getCurrentUser };

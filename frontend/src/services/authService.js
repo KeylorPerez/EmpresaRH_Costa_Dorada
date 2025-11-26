@@ -1,5 +1,4 @@
 import axios from "../api/axiosConfig";
-import { decodeJwtPayload } from "../utils/jwt";
 
 // Función para iniciar sesión
 export const login = async (username, password) => {
@@ -12,8 +11,12 @@ export const login = async (username, password) => {
     // Guardar token en localStorage
     localStorage.setItem("token", token);
 
-    // Decodificar payload del token (id_usuario, username, id_rol)
-    const user = decodeJwtPayload(token);
+    let user = response.data.user;
+
+    if (!user) {
+      const meResponse = await axios.get("/auth/me");
+      user = meResponse.data;
+    }
 
     // Retornamos ambos
     return { user, token };

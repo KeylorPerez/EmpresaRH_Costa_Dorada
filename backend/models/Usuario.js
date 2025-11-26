@@ -47,6 +47,23 @@ class Usuario {
         }
     }
 
+    // Obtener el perfil del usuario sin exponer información sensible
+    static async getProfileById(id_usuario) {
+        try {
+            const pool = await poolPromise;
+            const result = await pool.request()
+                .input('id_usuario', sql.Int, id_usuario)
+                .query(`SELECT u.id_usuario, u.username, u.id_rol, u.id_empleado, u.ultimo_login, u.estado,
+                               r.nombre AS rol
+                        FROM Usuarios u
+                        INNER JOIN CatalogoRoles r ON u.id_rol = r.id_rol
+                        WHERE u.id_usuario = @id_usuario`);
+            return result.recordset[0];
+        } catch (err) {
+            throw err;
+        }
+    }
+
     // Verificar si un username ya está en uso (opcionalmente excluyendo un usuario)
     static async isUsernameTaken(username, excludeId = null) {
         try {

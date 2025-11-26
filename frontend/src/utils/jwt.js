@@ -14,7 +14,13 @@ export const decodeJwtPayload = (token) => {
 
   try {
     const decoded = atob(padded);
-    return JSON.parse(decoded);
+    const payload = JSON.parse(decoded);
+
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      throw new Error("Token expirado");
+    }
+
+    return payload;
   } catch {
     throw new Error("No se pudo decodificar el token");
   }
