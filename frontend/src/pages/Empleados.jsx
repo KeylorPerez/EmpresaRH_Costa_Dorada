@@ -323,6 +323,14 @@ const Empleados = () => {
                     ✕
                   </button>
                 </div>
+                {error && (
+                  <div
+                    role="alert"
+                    className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                  >
+                    {error}
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField

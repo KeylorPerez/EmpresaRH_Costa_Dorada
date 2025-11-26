@@ -136,6 +136,9 @@ export const useEmpleado = () => {
         return;
       }
 
+      const normalizedTelefono = (formData.telefono || "").trim();
+      const normalizedEmail = (formData.email || "").trim();
+
       const payload = {
         nombre: formData.nombre.trim(),
         apellido: formData.apellido.trim(),
@@ -149,11 +152,11 @@ export const useEmpleado = () => {
         usa_deduccion_fija: usaDeduccionFija ? 1 : 0,
         deduccion_fija: usaDeduccionFija ? deduccionFijaValue : 0,
         permitir_marcacion_fuera: formData.permitir_marcacion_fuera === "1" ? 1 : 0,
+        telefono: normalizedTelefono === "" ? null : normalizedTelefono,
+        email: normalizedEmail === "" ? null : normalizedEmail,
       };
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
-      if (formData.telefono) payload.telefono = formData.telefono.trim();
-      if (formData.email) payload.email = formData.email.trim();
       if (editingEmpleado) payload.estado = Number(formData.estado);
 
       if (editingEmpleado) {
