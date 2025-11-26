@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { useEmpleado } from "../hooks/useEmpleado";
 import { useAuth } from "../hooks/useAuth";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
-import { adminLinks } from "../utils/navigationLinks";
+import { adminLinks, empleadoLinks } from "../utils/navigationLinks";
 
-const Empleados = () => {
+const Empleados = ({ mode = "admin" }) => {
   const { user, logoutUser } = useAuth();
   const {
     empleados,
@@ -31,14 +32,45 @@ const Empleados = () => {
     shareEmpleados,
   } = useEmpleado();
 
+  const isAdmin = mode === "admin";
+  const isReadOnly = !isAdmin;
+  const roleColor = isAdmin ? "blue" : "green";
+  const navigationLinks = isAdmin ? adminLinks : empleadoLinks;
+  const panelTitle = isAdmin ? "Panel de Administración" : "Panel del Empleado";
+  const pageTitle = isAdmin ? "Empleados" : "Mi información";
+  const pageSubtitle = isAdmin
+    ? "Administra y gestiona la información del personal registrado en el sistema."
+    : "Consulta tus datos laborales registrados en el sistema.";
+
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const currentEmpleadoId = useMemo(() => {
+    const possibleIds = [
+      user?.id_empleado,
+      user?.empleado_id,
+      user?.idEmpleado,
+      user?.empleadoId,
+    ];
+
+    const foundId = possibleIds.find((value) => value !== undefined && value !== null);
+    return foundId ? Number(foundId) : null;
+  }, [user]);
+
+  const scopedEmpleados = useMemo(() => {
+    if (isAdmin) return empleados;
+    if (!currentEmpleadoId) return [];
+
+    return empleados.filter(
+      (emp) => Number(emp.id_empleado) === Number(currentEmpleadoId)
+    );
+  }, [currentEmpleadoId, empleados, isAdmin]);
+
   const filteredEmpleados = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    return empleados
+    return scopedEmpleados
       .filter((emp) => {
         if (statusFilter === "all") return true;
         const shouldBeActive = statusFilter === "active";
@@ -49,28 +81,30 @@ const Empleados = () => {
         const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
         return fullName.includes(normalizedSearch);
       });
-  }, [empleados, searchTerm, statusFilter]);
+  }, [scopedEmpleados, searchTerm, statusFilter]);
 
   if (!user) return <p>Cargando usuario...</p>;
-  if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
+  if (isAdmin && user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
+  if (!isAdmin && user.id_rol !== 2) return <p>No tienes permisos para ver esta página.</p>;
 
   const isExportingPdf = exportingFormat === "pdf";
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
+  const columnsCount = isAdmin ? 13 : 12;
 
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
-        links={adminLinks}
-        roleColor="blue"
+        links={navigationLinks}
+        roleColor={roleColor}
         isMobileOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
       <div className="flex flex-col flex-grow">
         <Navbar
-          title="Panel de Administración"
+          title={panelTitle}
           user={user}
-          roleColor="blue"
+          roleColor={roleColor}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
@@ -78,11 +112,13 @@ const Empleados = () => {
         <main className="flex-grow p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Empleados</h1>
-              <p className="text-sm text-gray-500">
-                Administra y gestiona la información del personal registrado en el
-                sistema.
-              </p>
+              <h1 className="text-2xl font-bold text-gray-800">{pageTitle}</h1>
+              <p className="text-sm text-gray-500">{pageSubtitle}</p>
+              {isReadOnly && (
+                <p className="mt-1 text-xs font-semibold text-emerald-600">
+                  Solo lectura — puedes revisar tus datos, pero no modificarlos.
+                </p>
+              )}
             </div>
             <div className="flex flex-col md:items-end md:gap-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -105,45 +141,49 @@ const Empleados = () => {
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
                 </div>
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={() => {
-                    resetForm();
-                    setError("");
-                    setSuccessMessage("");
-                    setModalOpen(true);
-                  }}
-                >
-                  Agregar Empleado
-                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => {
+                      resetForm();
+                      setError("");
+                      setSuccessMessage("");
+                      setModalOpen(true);
+                    }}
+                  >
+                    Agregar Empleado
+                  </Button>
+                )}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 md:justify-end md:mt-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={exportDisabled}
-                  onClick={() => exportEmpleados("pdf", { status: statusFilter })}
-                >
-                  {isExportingPdf ? "Generando PDF..." : "Exportar PDF"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={exportDisabled}
-                  onClick={() => exportEmpleados("excel", { status: statusFilter })}
-                >
-                  {isExportingExcel ? "Generando Excel..." : "Exportar Excel"}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={exportDisabled}
-                  onClick={() => shareEmpleados({ status: statusFilter })}
-                >
-                  Compartir
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 md:justify-end md:mt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={exportDisabled}
+                    onClick={() => exportEmpleados("pdf", { status: statusFilter })}
+                  >
+                    {isExportingPdf ? "Generando PDF..." : "Exportar PDF"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={exportDisabled}
+                    onClick={() => exportEmpleados("excel", { status: statusFilter })}
+                  >
+                    {isExportingExcel ? "Generando Excel..." : "Exportar Excel"}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={exportDisabled}
+                    onClick={() => shareEmpleados({ status: statusFilter })}
+                  >
+                    Compartir
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -178,13 +218,13 @@ const Empleados = () => {
                           <th className="px-4 py-3">Deducción CCSS</th>
                           <th className="px-4 py-3">Marcación externa</th>
                           <th className="px-4 py-3">Estado</th>
-                          <th className="px-4 py-3">Acciones</th>
+                          {isAdmin && <th className="px-4 py-3">Acciones</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {filteredEmpleados.length === 0 ? (
                           <tr>
-                            <td colSpan="13" className="px-4 py-6 text-center text-gray-500">
+                            <td colSpan={columnsCount} className="px-4 py-6 text-center text-gray-500">
                               No hay empleados registrados con el filtro seleccionado.
                             </td>
                           </tr>
@@ -265,34 +305,36 @@ const Empleados = () => {
                                     {active ? "Activo" : "Inactivo"}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex flex-wrap gap-2">
-                                    <Button
-                                      variant="warning"
-                                      size="sm"
-                                      onClick={() => handleEdit(emp)}
-                                    >
-                                      Editar
-                                    </Button>
-                                    {active ? (
+                                {isAdmin && (
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-2">
                                       <Button
-                                        variant="danger"
+                                        variant="warning"
                                         size="sm"
-                                        onClick={() => handleDeactivate(emp.id_empleado)}
+                                        onClick={() => handleEdit(emp)}
                                       >
-                                        Desactivar
+                                        Editar
                                       </Button>
-                                    ) : (
-                                      <Button
-                                        variant="success"
-                                        size="sm"
-                                        onClick={() => handleActivate(emp.id_empleado)}
-                                      >
-                                        Activar
-                                      </Button>
-                                    )}
-                                  </div>
-                                </td>
+                                      {active ? (
+                                        <Button
+                                          variant="danger"
+                                          size="sm"
+                                          onClick={() => handleDeactivate(emp.id_empleado)}
+                                        >
+                                          Desactivar
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="success"
+                                          size="sm"
+                                          onClick={() => handleActivate(emp.id_empleado)}
+                                        >
+                                          Activar
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             );
                           })
@@ -305,7 +347,7 @@ const Empleados = () => {
             </div>
           )}
 
-          {modalOpen && (
+          {isAdmin && modalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm overflow-y-auto p-4">
               <div className="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
@@ -642,6 +684,10 @@ const calculateCCSSDeduccion = (empleado) => {
   const salarioBase = Number(empleado.salario_monto) || 0;
   const porcentaje = Number(empleado.porcentaje_ccss) || 0;
   return salarioBase * (porcentaje / 100);
+};
+
+Empleados.propTypes = {
+  mode: PropTypes.oneOf(["admin", "empleado"]),
 };
 
 export default Empleados;

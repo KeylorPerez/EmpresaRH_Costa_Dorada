@@ -6,6 +6,7 @@ import {
   FaGift,
   FaHandHoldingDollar,
   FaHouseChimney,
+  FaUser,
   FaUmbrellaBeach,
   FaUserGear,
   FaUserGroup,
@@ -26,6 +27,7 @@ export const adminLinks = Object.freeze([
 
 export const empleadoLinks = Object.freeze([
   Object.freeze({ path: "/empleado", label: "Inicio", icon: FaHouseChimney }),
+  Object.freeze({ path: "/empleado/empleados", label: "Mis datos", icon: FaUser }),
   Object.freeze({ path: "/empleado/asistencia", label: "Asistencia", icon: FaCalendarCheck }),
   Object.freeze({ path: "/empleado/vacaciones", label: "Vacaciones", icon: FaUmbrellaBeach }),
   Object.freeze({ path: "/empleado/prestamos", label: "Préstamos", icon: FaHandHoldingDollar }),
