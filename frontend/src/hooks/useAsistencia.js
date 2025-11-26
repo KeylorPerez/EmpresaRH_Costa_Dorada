@@ -233,9 +233,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
   const [rangeFilters, setRangeFilters] = useState(defaultRange);
   const [appliedRange, setAppliedRange] = useState(defaultRange);
   const [employees, setEmployees] = useState([]);
-  const [selectedEmpleado, setSelectedEmpleado] = useState(() =>
-    isAdmin && linkedEmpleadoId ? linkedEmpleadoId : ""
-  );
+  const [selectedEmpleado, setSelectedEmpleado] = useState("");
   const [exportingFormat, setExportingFormat] = useState(null);
 
   const [editingRegistro, setEditingRegistro] = useState(null);
@@ -308,7 +306,6 @@ export const useAsistencia = ({ mode, user } = {}) => {
     if (!isAdmin) return;
     if (!linkedEmpleadoId) return;
 
-    setSelectedEmpleado((prev) => prev || linkedEmpleadoId);
     setFormData((prev) => ({ ...prev, id_empleado: prev.id_empleado || linkedEmpleadoId }));
   }, [isAdmin, linkedEmpleadoId]);
 
