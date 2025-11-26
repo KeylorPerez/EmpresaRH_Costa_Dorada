@@ -351,6 +351,7 @@ const Empleados = () => {
                       name="telefono"
                       value={formData.telefono}
                       onChange={handleChange}
+                      optional
                     />
                     <FormField
                       label="Correo electrónico"
@@ -358,6 +359,7 @@ const Empleados = () => {
                       type="email"
                       value={formData.email}
                       onChange={handleChange}
+                      optional
                     />
                     <FormField
                       label="Fecha de nacimiento"
@@ -365,6 +367,7 @@ const Empleados = () => {
                       type="date"
                       value={formData.fecha_nacimiento}
                       onChange={handleChange}
+                      optional
                     />
                     <FormField
                       label="Fecha de ingreso"
@@ -535,11 +538,25 @@ const Empleados = () => {
   );
 };
 
-const FormField = ({ label, name, value, onChange, type = "text", required = false, step, min, disabled = false }) => (
+const FormField = ({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  step,
+  min,
+  disabled = false,
+  optional = false,
+}) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium text-gray-700 mb-1">
       {label}
       {required && <span className="text-red-500"> *</span>}
+      {optional && !required && (
+        <span className="text-gray-400 text-xs font-normal ml-1">(Opcional)</span>
+      )}
     </label>
     <input
       type={type}

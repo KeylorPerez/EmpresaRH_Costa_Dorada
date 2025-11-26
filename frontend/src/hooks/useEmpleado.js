@@ -3,6 +3,12 @@ import api from "../api/axiosConfig";
 import empleadoService from "../services/empleadoService";
 import puestoService from "../services/puestoService";
 
+const normalizeTipoPago = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized.startsWith("quin")) return "Quincenal";
+  return "Diario";
+};
+
 const createEmptyFormData = () => ({
   nombre: "",
   apellido: "",
@@ -13,7 +19,7 @@ const createEmptyFormData = () => ({
   email: "",
   fecha_ingreso: "",
   salario_monto: "",
-  tipo_pago: "Diario",
+  tipo_pago: normalizeTipoPago("Diario"),
   bonificacion_fija: "0",
   porcentaje_ccss: "9.34",
   usa_deduccion_fija: "0",
@@ -76,20 +82,27 @@ export const useEmpleado = () => {
     try {
       setError("");
       setSuccessMessage("");
-      if (
-        !formData.nombre ||
-        !formData.apellido ||
-        !formData.id_puesto ||
-        !formData.cedula ||
-        !formData.fecha_ingreso ||
-        !formData.salario_monto ||
-        !formData.tipo_pago
-      ) {
-        setError("Por favor completa los campos obligatorios");
+      const requiredFields = [
+        { value: formData.nombre, label: "Nombre" },
+        { value: formData.apellido, label: "Apellido" },
+        { value: formData.id_puesto, label: "Puesto" },
+        { value: formData.cedula, label: "Cédula" },
+        { value: formData.fecha_ingreso, label: "Fecha de ingreso" },
+        { value: formData.salario_monto, label: "Salario base" },
+        { value: formData.tipo_pago, label: "Tipo de pago" },
+      ];
+
+      const missingFields = requiredFields
+        .filter(({ value }) => String(value ?? "").trim() === "")
+        .map(({ label }) => label);
+
+      if (missingFields.length > 0) {
+        const fieldsList = missingFields.join(", ");
+        setError(`Completa los campos obligatorios: ${fieldsList}.`);
         return;
       }
 
-      const salarioValue = Number(formData.salario_monto);
+      const salarioValue = Number(String(formData.salario_monto).trim());
       if (Number.isNaN(salarioValue) || salarioValue <= 0) {
         setError("El salario base debe ser un número mayor a cero");
         return;
@@ -130,7 +143,7 @@ export const useEmpleado = () => {
         cedula: formData.cedula.trim(),
         fecha_ingreso: formData.fecha_ingreso,
         salario_monto: salarioValue,
-        tipo_pago: formData.tipo_pago,
+        tipo_pago: normalizeTipoPago(formData.tipo_pago),
         bonificacion_fija: bonificacionValue,
         porcentaje_ccss: porcentajeValue,
         usa_deduccion_fija: usaDeduccionFija ? 1 : 0,
@@ -176,7 +189,7 @@ export const useEmpleado = () => {
         empleado.salario_monto !== undefined && empleado.salario_monto !== null
           ? String(empleado.salario_monto)
           : "",
-      tipo_pago: empleado.tipo_pago || "Diario",
+      tipo_pago: normalizeTipoPago(empleado.tipo_pago || "Diario"),
       bonificacion_fija:
         empleado.bonificacion_fija !== undefined && empleado.bonificacion_fija !== null
           ? String(empleado.bonificacion_fija)
