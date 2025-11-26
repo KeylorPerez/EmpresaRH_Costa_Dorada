@@ -32,7 +32,7 @@ export default defineConfig([
   // ============================
   {
     files: ['**/*.{js,jsx}'],
-    excludedFiles: ['electron/**/*.js'],
+    ignores: ['electron/**/*.js'],
     extends: [
       js.configs.recommended,
       reactHooks.configs['recommended-latest'],
