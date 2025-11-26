@@ -47,6 +47,27 @@ class Usuario {
         }
     }
 
+    // Verificar si un username ya está en uso (opcionalmente excluyendo un usuario)
+    static async isUsernameTaken(username, excludeId = null) {
+        try {
+            const pool = await poolPromise;
+            const request = pool.request()
+                .input('username', sql.VarChar, username);
+
+            let query = `SELECT COUNT(*) AS total FROM Usuarios WHERE username = @username`;
+
+            if (excludeId !== null) {
+                request.input('excludeId', sql.Int, excludeId);
+                query += ' AND id_usuario <> @excludeId';
+            }
+
+            const result = await request.query(query);
+            return result.recordset[0].total > 0;
+        } catch (err) {
+            throw err;
+        }
+    }
+
     // Crear un usuario
     static async create({ username, password_hash, id_rol, id_empleado, estado = 1 }) {
         try {

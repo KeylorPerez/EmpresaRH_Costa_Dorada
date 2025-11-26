@@ -33,6 +33,11 @@ const createUsuario = async (req, res) => {
             return res.status(400).json({ error: 'Empleado asociado requerido para rol empleado' });
         }
 
+        const usernameInUse = await Usuario.isUsernameTaken(username);
+        if (usernameInUse) {
+            return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
+        }
+
         // Hashear la contraseña
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
@@ -67,6 +72,13 @@ const updateUsuario = async (req, res) => {
 
         if (!isAdmin && (empleadoId === null || empleadoId === undefined)) {
             return res.status(400).json({ error: 'Empleado asociado requerido para rol empleado' });
+        }
+
+        if (username) {
+            const usernameInUse = await Usuario.isUsernameTaken(username, id);
+            if (usernameInUse) {
+                return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
+            }
         }
 
         await Usuario.update(id, {
