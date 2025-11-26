@@ -240,9 +240,6 @@ const Empleados = ({ mode = "admin" }) => {
                                   <p className="font-semibold text-gray-900">
                                     {emp.nombre} {emp.apellido}
                                   </p>
-                                  <p className="text-xs text-gray-500">
-                                    ID: {emp.id_empleado}
-                                  </p>
                                 </td>
                                 <td className="px-4 py-3">
                                   <p className="font-medium text-gray-800">{emp.cedula}</p>
