@@ -53,7 +53,7 @@ const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
     return "Pago diario";
   }
 
-  if (tipoNormalizado === "quincenal") {
+  if (tipoNormalizado.startsWith("quin")) {
     return "Pago quincenal";
   }
 
