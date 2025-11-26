@@ -6,6 +6,7 @@
  */
 import React, { useState, useEffect } from "react";
 import AuthContext from "./AuthContext";
+import api from "../api/axiosConfig";
 import { decodeJwtPayload } from "../utils/jwt";
 
 const AuthProvider = ({ children }) => {
@@ -16,17 +17,28 @@ const AuthProvider = ({ children }) => {
   // Al montar el proveedor, intenta rehidratar la sesión guardada en el
   // almacenamiento local para mantener al usuario autenticado tras recargas.
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    if (storedToken) {
-      try {
-        const payload = decodeJwtPayload(storedToken);
-        setUser(payload);
-        setToken(storedToken);
-      } catch {
-        localStorage.removeItem("token");
+    const rehydrateSession = async () => {
+      const storedToken = localStorage.getItem("token");
+
+      if (storedToken) {
+        try {
+          decodeJwtPayload(storedToken);
+          const { data } = await api.get("/auth/me");
+
+          setUser(data);
+          setToken(storedToken);
+        } catch (error) {
+          console.error("Error rehidratando la sesión", error);
+          localStorage.removeItem("token");
+          setUser(null);
+          setToken(null);
+        }
       }
-    }
-    setLoading(false);
+
+      setLoading(false);
+    };
+
+    rehydrateSession();
   }, []);
 
   const loginUser = (userData, jwtToken) => {
