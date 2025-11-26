@@ -129,7 +129,18 @@ export const useUsuario = () => {
       await fetchUsuarios();
     } catch (err) {
       console.error(err);
-      setError("Error al guardar usuario");
+
+      if (err.response?.status === 409) {
+        setError(err.response.data?.error || "El nombre de usuario ya está en uso");
+        return;
+      }
+
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+        return;
+      }
+
+      setError("Ocurrió un error al guardar el usuario");
     }
   };
 
