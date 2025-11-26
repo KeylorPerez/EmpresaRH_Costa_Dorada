@@ -6,6 +6,7 @@ import {
   FaFileSignature,
   FaGift,
   FaHandHoldingDollar,
+  FaUser,
   FaUmbrellaBeach,
 } from "react-icons/fa6";
 import AuthContext from "../context/AuthContext";
@@ -36,6 +37,13 @@ const DashboardEmpleado = () => {
   };
 
   const quickActions = [
+    {
+      path: "/empleado/empleados",
+      label: "Ver mis datos",
+      description: "Consulta tu expediente y confirma que tu información esté al día.",
+      icon: FaUser,
+      accent: "from-sky-500 to-blue-600",
+    },
     {
       path: "/empleado/asistencia",
       label: "Revisar asistencia",

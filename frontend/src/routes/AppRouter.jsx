@@ -69,6 +69,16 @@ const AppRouter = () => {
         }
       />
 
+      {/* Módulo de empleados (empleado, solo lectura) */}
+      <Route
+        path="/empleado/empleados"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <Empleados mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+
       {/* Módulo de puestos (solo admins) */}
       <Route
         path="/admin/puestos"

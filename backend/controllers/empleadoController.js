@@ -424,8 +424,22 @@ const createEmployeesCsv = async (filePath, rows, meta) => {
 // Obtener todos los empleados (solo activos)
 const getEmpleados = async (req, res) => {
   try {
-    const empleados = await Empleado.getAll();
-    res.json(empleados);
+    if (req.user?.id_rol === 1) {
+      const empleados = await Empleado.getAll();
+      return res.json(empleados);
+    }
+
+    const empleadoId = Number(req.user?.id_empleado);
+    if (!empleadoId) {
+      return res.status(403).json({ error: 'No tienes permisos para ver otros expedientes' });
+    }
+
+    const empleado = await Empleado.getById(empleadoId);
+    if (!empleado) {
+      return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+    }
+
+    return res.json([empleado]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -436,6 +450,13 @@ const getEmpleadoById = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+
+    if (req.user?.id_rol !== 1) {
+      const empleadoId = Number(req.user?.id_empleado);
+      if (!empleadoId || empleadoId !== id) {
+        return res.status(403).json({ error: 'No tienes permisos para ver este expediente' });
+      }
+    }
 
     const empleado = await Empleado.getById(id);
     if (!empleado) return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
