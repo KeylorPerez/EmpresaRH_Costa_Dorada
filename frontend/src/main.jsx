@@ -17,6 +17,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 const isElectron = window.electron?.isElectron;
 if ("serviceWorker" in navigator && !isElectron) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((registration) => registration.update())
+      .catch((error) => {
+        console.error("No se pudo registrar el service worker", error);
+      });
   });
 }

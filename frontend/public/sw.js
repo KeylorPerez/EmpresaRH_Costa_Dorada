@@ -3,12 +3,31 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  clients.claim();
+  event.waitUntil(
+    (async () => {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      await clients.claim();
+    })()
+  );
 });
 
 self.addEventListener("fetch", (event) => {
-  // PWA online-first
+  if (event.request.method !== "GET") return;
+
+  // Fuerza a que todas las peticiones se resuelvan siempre desde la red
+  // (sin usar cache del navegador) y como respaldo intenta usar el cache
+  // solo si el request ya estaba almacenado. Esto previene que versiones
+  // viejas de archivos estáticos queden atascadas en el cliente.
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    (async () => {
+      try {
+        return await fetch(event.request, { cache: "no-store" });
+      } catch (error) {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) return cachedResponse;
+        throw error;
+      }
+    })()
   );
 });
