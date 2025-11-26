@@ -55,6 +55,7 @@ export const useUsuario = () => {
   // === Manejar cambios del formulario ===
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setError("");
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 

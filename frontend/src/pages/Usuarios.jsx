@@ -185,6 +185,11 @@ const Usuarios = () => {
                   {editingUsuario ? "Editar Usuario" : "Agregar Usuario"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-3">
+                  {error && (
+                    <div className="rounded-md bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">
+                      {error}
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-semibold mb-1" htmlFor="username">
                       Usuario
