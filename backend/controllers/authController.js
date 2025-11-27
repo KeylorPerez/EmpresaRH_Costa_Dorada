@@ -31,6 +31,8 @@ const login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(400).json({ error: 'Contraseña incorrecta' });
 
+        const tokenTtl = process.env.JWT_EXPIRES_IN || '1h';
+
         // Crear token JWT
         const token = jwt.sign(
             {
@@ -40,7 +42,7 @@ const login = async (req, res) => {
                 id_empleado: user.id_empleado,
             },
             process.env.JWT_SECRET,
-            { expiresIn: '8h' }
+            { expiresIn: tokenTtl }
         );
 
         // Actualizar último login (solo la fecha)
@@ -71,4 +73,28 @@ const getCurrentUser = async (req, res) => {
     }
 };
 
-module.exports = { login, getCurrentUser };
+const getSessionStatus = (req, res) => {
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const expiration = req.user?.exp;
+
+    if (!expiration) {
+        return res.status(400).json({ error: 'El token no incluye fecha de expiración' });
+    }
+
+    const secondsRemaining = Math.max(expiration - nowInSeconds, 0);
+
+    res.json({
+        valid: secondsRemaining > 0,
+        secondsRemaining,
+        expiresAt: new Date(expiration * 1000).toISOString(),
+        serverTime: new Date().toISOString(),
+        user: {
+            id_usuario: req.user.id_usuario,
+            username: req.user.username,
+            id_rol: req.user.id_rol,
+            id_empleado: req.user.id_empleado,
+        },
+    });
+};
+
+module.exports = { login, getCurrentUser, getSessionStatus };
