@@ -150,6 +150,7 @@ const Planilla = () => {
   const [tipoPagoFiltro, setTipoPagoFiltro] = useState("todos");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [wizardTipoPagoFiltro, setWizardTipoPagoFiltro] = useState("todos");
+  const [mobileModalSection, setMobileModalSection] = useState("selector");
   const defaultDateRangeRef = useRef(obtenerRangoFechaPorDefecto());
   const [empleadoFiltro, setEmpleadoFiltro] = useState("todos");
   const [busquedaEmpleado, setBusquedaEmpleado] = useState("");
@@ -883,6 +884,17 @@ const Planilla = () => {
     setWizardTipoPagoFiltro("todos");
   }, [modalOpen, isEditing]);
 
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    if (isEditing || formData.id_empleado) {
+      setMobileModalSection("detalle");
+      return;
+    }
+
+    setMobileModalSection("selector");
+  }, [formData.id_empleado, isEditing, modalOpen]);
+
   const handleCambiarEmpleado = (nuevoEmpleado) => {
     if (!nuevoEmpleado) return;
     selectEmpleado(nuevoEmpleado.id_empleado);
@@ -1208,8 +1220,47 @@ const Planilla = () => {
                         </p>
                       )}
 
+                      <div className="lg:hidden">
+                        <div className="mb-2 flex rounded-xl bg-gray-100 p-1 text-xs font-semibold text-gray-600">
+                          <button
+                            type="button"
+                            onClick={() => setMobileModalSection("selector")}
+                            className={`flex-1 rounded-lg px-3 py-2 transition ${
+                              mobileModalSection === "selector"
+                                ? "bg-white text-blue-700 shadow"
+                                : "hover:bg-white"
+                            }`}
+                          >
+                            Colaborador
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMobileModalSection("detalle")}
+                            disabled={!isEditing && !formData.id_empleado}
+                            className={`flex-1 rounded-lg px-3 py-2 transition ${
+                              mobileModalSection === "detalle"
+                                ? "bg-white text-blue-700 shadow"
+                                : "hover:bg-white"
+                            } ${
+                              !isEditing && !formData.id_empleado
+                                ? "cursor-not-allowed opacity-60"
+                                : ""
+                            }`}
+                          >
+                            Detalle y resumen
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-gray-500">
+                          Selecciona un colaborador y luego cambia a la pestaña de Detalle para ver el formulario completo.
+                        </p>
+                      </div>
+
                       <div className="flex flex-col gap-6 lg:flex-row">
-                        <aside className="space-y-6 lg:w-80 flex-shrink-0 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 lg:min-h-0">
+                        <aside
+                          className={`space-y-6 lg:w-80 flex-shrink-0 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 lg:min-h-0 ${
+                            mobileModalSection === "detalle" ? "hidden lg:block" : ""
+                          }`}
+                        >
                           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4 flex flex-col min-h-0 lg:max-h-[60vh]">
                             {isEditing ? (
                               <div className="space-y-4">
@@ -1308,6 +1359,7 @@ const Planilla = () => {
                                           onClick={() => {
                                             setActiveEmpleadoIndex(index);
                                             handleCambiarEmpleado(empleado);
+                                            setMobileModalSection("detalle");
                                           }}
                                           className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                                             esActivo ? estadoActivo : estadoBase
@@ -1335,7 +1387,11 @@ const Planilla = () => {
 
                         </aside>
 
-                        <div className="flex-1 min-w-0 space-y-6">
+                        <div
+                          className={`flex-1 min-w-0 space-y-6 ${
+                            mobileModalSection === "selector" ? "hidden lg:block" : ""
+                          }`}
+                        >
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:max-h-[60vh] lg:overflow-y-auto">
                             <div className="flex flex-wrap items-center justify-between gap-2 pb-4">
                               <h3 className="text-base font-semibold text-gray-800">Datos del periodo</h3>
