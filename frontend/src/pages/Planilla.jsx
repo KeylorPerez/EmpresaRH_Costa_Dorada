@@ -428,6 +428,38 @@ const Planilla = () => {
     [empleados, empleadosFiltrados, isEditing]
   );
 
+  const empleadosConPlanillaEnPeriodo = useMemo(() => {
+    const inicioSeleccionado = parseDateSafe(formData.periodo_inicio);
+    const finSeleccionado = parseDateSafe(formData.periodo_fin);
+
+    if (!inicioSeleccionado || !finSeleccionado) {
+      return new Set();
+    }
+
+    return planillas.reduce((acumulador, planillaActual) => {
+      const empleadoId = resolveEmpleadoId(planillaActual);
+
+      if (empleadoId === null || empleadoId === undefined) {
+        return acumulador;
+      }
+
+      const planillaInicio = parseDateSafe(planillaActual.periodo_inicio);
+      const planillaFin = parseDateSafe(planillaActual.periodo_fin);
+
+      if (!planillaInicio || !planillaFin) {
+        return acumulador;
+      }
+
+      const noSeTraslapan = finSeleccionado < planillaInicio || inicioSeleccionado > planillaFin;
+
+      if (!noSeTraslapan) {
+        acumulador.add(String(empleadoId));
+      }
+
+      return acumulador;
+    }, new Set());
+  }, [formData.periodo_inicio, formData.periodo_fin, planillas]);
+
   useEffect(() => {
     if (empleadosNavegables.length === 0) {
       if (activeEmpleadoIndex !== 0) {
@@ -1257,6 +1289,18 @@ const Planilla = () => {
                                   ) : (
                                     empleadosFiltrados.map((empleado, index) => {
                                       const esActivo = formData.id_empleado === String(empleado.id_empleado);
+                                      const tienePlanillaEnPeriodo = empleadosConPlanillaEnPeriodo.has(
+                                        String(empleado.id_empleado)
+                                      );
+
+                                      const estadoBase = tienePlanillaEnPeriodo
+                                        ? "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100"
+                                        : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50";
+
+                                      const estadoActivo = tienePlanillaEnPeriodo
+                                        ? "border-amber-500 bg-amber-100 text-amber-800 shadow-sm"
+                                        : "border-blue-400 bg-blue-50 text-blue-700";
+
                                       return (
                                         <button
                                           key={empleado.id_empleado}
@@ -1266,9 +1310,7 @@ const Planilla = () => {
                                             handleCambiarEmpleado(empleado);
                                           }}
                                           className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                                            esActivo
-                                              ? "border-blue-400 bg-blue-50 text-blue-700"
-                                              : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50"
+                                            esActivo ? estadoActivo : estadoBase
                                           }`}
                                         >
                                           <p className="font-semibold">
@@ -1277,6 +1319,11 @@ const Planilla = () => {
                                           <p className="text-xs text-gray-500">
                                             #{empleado.id_empleado} · {formatearTipoPago(empleado.tipo_pago)}
                                           </p>
+                                          {tienePlanillaEnPeriodo && (
+                                            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                              Planilla generada en el periodo
+                                            </span>
+                                          )}
                                         </button>
                                       );
                                     })
