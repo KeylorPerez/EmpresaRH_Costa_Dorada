@@ -148,60 +148,57 @@ const PlanillaEmpleado = () => {
                 No tienes planillas registradas todavía.
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {planillasOrdenadas.map((planilla) => {
-                  const periodo = formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin);
-                  const pagoNeto = formatCurrency(planilla.pago_neto ?? planilla.pagoNeto);
-                  const tipoPago = formatearTipoPago(planilla.tipo_pago || planilla.tipo_pago_empleado);
-                  return (
-                    <article
-                      key={planilla.id_planilla || planilla.idPlanilla}
-                      className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-white/90 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-                    >
-                      <div className="absolute -right-10 top-4 h-24 w-24 rounded-full bg-emerald-100 blur-3xl" />
-                      <div className="absolute -left-10 bottom-4 h-24 w-24 rounded-full bg-teal-100 blur-3xl" />
+              <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white/90 shadow-sm">
+                <div className="max-h-[70vh] overflow-auto">
+                  <table className="min-w-full divide-y divide-emerald-100">
+                    <thead className="bg-emerald-50 text-xs uppercase tracking-wide text-emerald-700/80">
+                      <tr>
+                        <th className="px-4 py-3 text-left">ID</th>
+                        <th className="px-4 py-3 text-left">Periodo</th>
+                        <th className="px-4 py-3 text-left">Fecha de pago</th>
+                        <th className="px-4 py-3 text-left">Tipo de pago</th>
+                        <th className="px-4 py-3 text-right">Pago neto</th>
+                        <th className="px-4 py-3 text-left">Colaborador</th>
+                        <th className="px-4 py-3 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-emerald-50 bg-white text-sm text-emerald-800">
+                      {planillasOrdenadas.map((planilla) => {
+                        const periodo = formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin);
+                        const pagoNeto = formatCurrency(planilla.pago_neto ?? planilla.pagoNeto);
+                        const tipoPago = formatearTipoPago(planilla.tipo_pago || planilla.tipo_pago_empleado);
+                        const planillaId = planilla.id_planilla || planilla.idPlanilla;
+                        const fechaPago = formatDate(planilla.fecha_pago);
+                        const colaborador = planilla.nombre
+                          ? `${planilla.nombre} ${planilla.apellido || ""}`.trim()
+                          : "Empleado";
 
-                      <div className="relative z-10 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md">
-                            <FaFileInvoiceDollar />
-                          </span>
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Periodo</p>
-                            <p className="text-base font-semibold text-emerald-900">{periodo}</p>
-                            <p className="text-xs text-emerald-700/80">Pago: {formatDate(planilla.fecha_pago)}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs uppercase tracking-wide text-emerald-700/70">Pago neto</p>
-                          <p className="text-lg font-semibold text-emerald-900">{pagoNeto}</p>
-                          <p className="text-xs text-emerald-700/80">{tipoPago}</p>
-                        </div>
-                      </div>
-
-                      <div className="relative z-10 mt-4 flex items-center justify-between text-sm text-emerald-800">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            #{planilla.id_planilla}
-                          </span>
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            {planilla.nombre ? `${planilla.nombre} ${planilla.apellido || ""}`.trim() : "Empleado"}
-                          </span>
-                        </div>
-                        <Button
-                          variant="link"
-                          className="flex items-center gap-2 text-emerald-700 hover:text-emerald-800"
-                          onClick={() =>
-                            navigate(`/empleado/planilla/${planilla.id_planilla}`, { state: { planilla } })
-                          }
-                        >
-                          Ver detalle
-                          <FaArrowRightLong className="text-base transition-transform group-hover:translate-x-1" />
-                        </Button>
-                      </div>
-                    </article>
-                  );
-                })}
+                        return (
+                          <tr key={planillaId} className="hover:bg-emerald-50/40">
+                            <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-900">
+                              #{planillaId}
+                            </td>
+                            <td className="px-4 py-3">{periodo}</td>
+                            <td className="px-4 py-3">{fechaPago}</td>
+                            <td className="px-4 py-3">{tipoPago}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-emerald-900">{pagoNeto}</td>
+                            <td className="px-4 py-3">{colaborador}</td>
+                            <td className="px-4 py-3 text-center">
+                              <Button
+                                variant="link"
+                                className="flex items-center justify-center gap-2 text-emerald-700 hover:text-emerald-800"
+                                onClick={() => navigate(`/empleado/planilla/${planillaId}`, { state: { planilla } })}
+                              >
+                                Ver detalle
+                                <FaArrowRightLong className="text-base" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
