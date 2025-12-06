@@ -1292,9 +1292,9 @@ const Liquidaciones = ({ mode }) => {
                     No se encontraron liquidaciones que coincidan con el filtro aplicado.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <div className="max-h-[420px] overflow-y-auto rounded-lg border border-gray-100">
-                      <table className="min-w-full text-sm">
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <div className="max-h-[420px] overflow-y-auto rounded-lg border border-gray-100 custom-scrollbar">
+                      <table className="min-w-[1100px] text-sm">
                         <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                           <tr>
                             {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
