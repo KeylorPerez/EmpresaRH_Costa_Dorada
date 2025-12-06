@@ -70,6 +70,8 @@ const sanitizePdfText = (text = '') =>
     .replace(/\u2007/g, ' ')
     .replace(/\s+/g, ' ');
 
+const SECTION_DIVIDER = '-'.repeat(120);
+
 const PDF_SPECIAL_CHAR_MAP = {
   '₡': 'CRC ',
   '€': 'EUR ',
@@ -194,7 +196,6 @@ const buildPdfLines = (planilla, detalles) => {
     .join(' ')
     .trim() || `ID ${planilla.id_empleado}`;
 
-  const sectionDivider = '-'.repeat(120);
   const titleDivider = '='.repeat(120);
   const labelWidth = 22;
 
@@ -222,7 +223,7 @@ const buildPdfLines = (planilla, detalles) => {
 
   lines.push('');
   lines.push('Resumen financiero');
-  lines.push(sectionDivider);
+  lines.push(SECTION_DIVIDER);
 
   const resumenFinanciero = [
     ['Salario base', formatCurrency(planilla.salario_monto)],
@@ -254,7 +255,7 @@ const buildPdfLines = (planilla, detalles) => {
 
   lines.push('');
   lines.push('Detalle diario');
-  lines.push(sectionDivider);
+  lines.push(SECTION_DIVIDER);
   const defaultColumnWidths = {
     fecha: 10,
     dia: 10,
@@ -358,7 +359,7 @@ const buildPdfLines = (planilla, detalles) => {
     'Notas',
   ].join(' | ');
   lines.push(headerLine);
-  lines.push(sectionDivider);
+  lines.push(SECTION_DIVIDER);
 
   if (!Array.isArray(detalles) || detalles.length === 0) {
     lines.push('Sin registros de detalle para esta planilla.');
@@ -407,7 +408,7 @@ const buildPdfLines = (planilla, detalles) => {
         lines.push(`${' '.repeat(basePrefix.length)} | ${continued}`.trimEnd());
       }
     });
-    lines.push(sectionDivider);
+    lines.push(SECTION_DIVIDER);
   });
 
   return lines;
@@ -612,7 +613,7 @@ const buildPlanillasResumenLines = (planillas) => {
   lines.push(`Salario bruto acumulado: ${formatCurrency(totalSalarioBruto)}`);
   lines.push(`Deducciones acumuladas: ${formatCurrency(totalDeducciones)}`);
   lines.push(`Pago neto acumulado: ${formatCurrency(totalPagoNeto)}`);
-  lines.push(sectionDivider);
+  lines.push(SECTION_DIVIDER);
 
   const headers = ['#', 'Colaborador', 'Periodo', 'Tipo', 'Bruto', 'Deducciones', 'Neto', 'Pago'];
   const longestByColumn = headers.map((header) => header.length);
@@ -659,7 +660,7 @@ const buildPlanillasResumenLines = (planillas) => {
     .map((header, index) => padValue(header, Math.min(Math.max(longestByColumn[index], 5), 25)))
     .join(' | ');
   lines.push(headerLine);
-  lines.push(sectionDivider);
+  lines.push(SECTION_DIVIDER);
 
   safePlanillas.forEach((planilla) => {
     const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
