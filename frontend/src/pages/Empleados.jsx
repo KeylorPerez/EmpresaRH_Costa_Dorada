@@ -266,16 +266,16 @@ const Empleados = ({ mode = "admin" }) => {
                                     {emp.tipo_pago || "—"}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                                   {formatCurrency(emp.salario_monto)}
                                 </td>
-                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                                   {formatCurrency(emp.bonificacion_fija)}
                                 </td>
                                 <td className="px-4 py-3 font-semibold text-gray-900">
                                   {formatPercentage(emp)}
                                 </td>
-                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                                   {formatCurrency(calculateCCSSDeduccion(emp))}
                                 </td>
                                 <td className="px-4 py-3">
