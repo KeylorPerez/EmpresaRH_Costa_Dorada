@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -38,10 +38,7 @@ const Prestamos = ({ mode }) => {
     linkedEmpleadoId,
   } = usePrestamos({ user, isAdmin });
   const estadoDefault = "todos";
-  const defaultEmpleadoFiltro = useMemo(
-    () => (linkedEmpleadoId ? String(linkedEmpleadoId) : "todos"),
-    [linkedEmpleadoId]
-  );
+  const defaultEmpleadoFiltro = "todos";
   const [estadoFiltro, setEstadoFiltro] = useState(estadoDefault);
   const [busquedaNombre, setBusquedaNombre] = useState("");
   const [empleadoFiltro, setEmpleadoFiltro] = useState(defaultEmpleadoFiltro);
@@ -52,16 +49,6 @@ const Prestamos = ({ mode }) => {
   const filtrosGridCols = isAdmin ? "md:grid-cols-5" : "md:grid-cols-3";
   const filtrosButtonColSpan = isAdmin ? "md:col-span-5" : "md:col-span-3";
   const fechaSolicitudMaxima = getTodayInputValue();
-
-  useEffect(() => {
-    setEmpleadoFiltro((prev) => {
-      if (prev === defaultEmpleadoFiltro) return prev;
-      if (prev === "todos" && defaultEmpleadoFiltro !== "todos") {
-        return defaultEmpleadoFiltro;
-      }
-      return prev;
-    });
-  }, [defaultEmpleadoFiltro]);
 
   const hayFiltrosActivos =
     estadoFiltro !== estadoDefault ||
