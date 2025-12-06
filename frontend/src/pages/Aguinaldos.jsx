@@ -14,7 +14,7 @@ import {
 const estadoBadge = (pagado) => {
   const isPaid = Boolean(pagado);
   const classes = isPaid
-    ? "bg-green-100 text-green-700"
+    ? "bg-red-100 text-red-700"
     : "bg-yellow-100 text-yellow-700";
   const label = isPaid ? "Pagado" : "Pendiente";
   return (
@@ -496,6 +496,15 @@ const Aguinaldos = ({ mode }) => {
           className="min-w-[150px] whitespace-normal"
           onClick={async () => {
             try {
+              if (
+                pagado &&
+                typeof window !== "undefined" &&
+                !window.confirm(
+                  "Este aguinaldo ya está pagado. ¿Deseas marcarlo como pendiente nuevamente?"
+                )
+              ) {
+                return;
+              }
               await markAsPaid(id, !pagado);
             } catch {
               // el hook maneja el error
