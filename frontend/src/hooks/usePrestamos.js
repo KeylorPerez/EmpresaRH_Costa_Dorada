@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import prestamosService from "../services/prestamosService";
+import empleadoService from "../services/empleadoService";
 import { formatDateValue, getTodayInputValue } from "../utils/dateUtils";
 
-const createInitialForm = () => ({
+const createInitialForm = (idEmpleadoDefault = "") => ({
+  id_empleado: idEmpleadoDefault,
   monto: "",
   cuotas: "",
   interes: "",
@@ -36,7 +38,7 @@ export const formatearPorcentaje = (value) => {
   return `${numero.toFixed(2)}%`;
 };
 
-export const usePrestamos = ({ autoFetch = true } = {}) => {
+export const usePrestamos = ({ autoFetch = true, user = null, isAdmin = false } = {}) => {
   const [prestamos, setPrestamos] = useState([]);
   const [loading, setLoading] = useState(autoFetch);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +46,18 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState(() => createInitialForm());
   const [actionLoading, setActionLoading] = useState({});
+  const [empleados, setEmpleados] = useState([]);
+  const [loadingEmpleados, setLoadingEmpleados] = useState(isAdmin);
+
+  const linkedEmpleadoId = useMemo(
+    () =>
+      user?.id_empleado ??
+      user?.empleado_id ??
+      user?.idEmpleado ??
+      user?.empleadoId ??
+      "",
+    [user]
+  );
 
   const fetchPrestamos = useCallback(async () => {
     try {
@@ -66,13 +80,40 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
     }
   }, [autoFetch, fetchPrestamos]);
 
+  useEffect(() => {
+    const defaultId = linkedEmpleadoId ? String(linkedEmpleadoId) : "";
+    setFormData((prev) => {
+      if (prev.id_empleado && prev.id_empleado !== "") return prev;
+      return createInitialForm(defaultId);
+    });
+  }, [linkedEmpleadoId]);
+
+  const fetchEmpleados = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setLoadingEmpleados(true);
+      const data = await empleadoService.getAll();
+      setEmpleados(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setError((prev) => prev || "No fue posible cargar los empleados");
+    } finally {
+      setLoadingEmpleados(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    fetchEmpleados();
+  }, [fetchEmpleados]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const resetForm = () => {
-    setFormData(createInitialForm());
+    const defaultId = linkedEmpleadoId ? String(linkedEmpleadoId) : "";
+    setFormData(createInitialForm(defaultId));
   };
 
   const handleSubmit = async (event) => {
@@ -108,9 +149,17 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
       return;
     }
 
+    const idEmpleadoNumber = Number(formData.id_empleado || linkedEmpleadoId);
+
+    if (!idEmpleadoNumber || Number.isNaN(idEmpleadoNumber)) {
+      setError("Selecciona el colaborador para el préstamo");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await prestamosService.create({
+        id_empleado: idEmpleadoNumber,
         monto: montoNumber,
         cuotas: cuotasNumber,
         interes: interesNumber,
@@ -205,6 +254,10 @@ export const usePrestamos = ({ autoFetch = true } = {}) => {
     setError,
     setSuccessMessage,
     fetchPrestamos,
+    empleados,
+    loadingEmpleados,
+    linkedEmpleadoId,
+    fetchEmpleados,
   };
 };
 
