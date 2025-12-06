@@ -477,7 +477,7 @@ const Aguinaldos = ({ mode }) => {
       : pagado
         ? "Marcar pendiente"
         : "Marcar pagado";
-    const accionPagoVariant = pagado ? "secondary" : "success";
+    const accionPagoVariant = pagado ? "warning" : "success";
 
     return (
       <div className="flex flex-wrap gap-2">
