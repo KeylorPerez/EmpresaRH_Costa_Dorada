@@ -11,6 +11,7 @@ const {
   pagarPrestamo,
   updateEstadoPrestamo,
   exportPrestamoPdf,
+  deletePrestamo,
 } = require('../controllers/prestamosController');
 
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
@@ -32,5 +33,8 @@ router.put('/:id/pagar', authenticateToken, pagarPrestamo);
 
 // PUT /api/prestamos/:id/estado -> actualizar estado (solo admin)
 router.put('/:id/estado', authenticateToken, authorizeRoles(1), updateEstadoPrestamo);
+
+// DELETE /api/prestamos/:id -> eliminar préstamo aprobado (solo admin)
+router.delete('/:id', authenticateToken, authorizeRoles(1), deletePrestamo);
 
 module.exports = router;

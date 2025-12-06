@@ -25,6 +25,11 @@ const prestamosService = {
     const response = await api.get(`/prestamos/${id}/export`);
     return response.data;
   },
+
+  delete: async (id) => {
+    const response = await api.delete(`/prestamos/${id}`);
+    return response.data;
+  },
 };
 
 export default prestamosService;

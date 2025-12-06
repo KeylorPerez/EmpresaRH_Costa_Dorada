@@ -386,6 +386,31 @@ const createPrestamoPdf = async (filePath, prestamo) => {
   await fsPromises.writeFile(filePath, pdfBuffer);
 };
 
+// DELETE /api/prestamos/:id
+// Solo administradores. Permite eliminar préstamos aprobados.
+const deletePrestamo = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const prestamo = await Prestamos.getById(id);
+    if (!prestamo) {
+      return res.status(404).json({ error: 'Préstamo no encontrado' });
+    }
+
+    if (Number(prestamo.id_estado) !== 2) {
+      return res.status(400).json({ error: 'Solo se pueden eliminar préstamos aprobados' });
+    }
+
+    await Prestamos.deleteById(id);
+    return res.json({ message: 'Préstamo eliminado correctamente' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/prestamos
 // Admin -> todos los préstamos
 // Empleado -> solo sus préstamos
@@ -610,4 +635,5 @@ module.exports = {
   pagarPrestamo,
   updateEstadoPrestamo,
   exportPrestamoPdf,
+  deletePrestamo,
 };

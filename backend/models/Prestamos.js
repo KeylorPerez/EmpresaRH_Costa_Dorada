@@ -144,6 +144,24 @@ class Prestamos {
       throw err;
     }
   }
+
+  // 🔹 Eliminar un préstamo (solo admin)
+  static async deleteById(id_prestamo) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool
+        .request()
+        .input('id_prestamo', sql.Int, id_prestamo)
+        .query(`
+          DELETE FROM Prestamos
+          WHERE id_prestamo = @id_prestamo
+        `);
+
+      return { rowsAffected: result.rowsAffected?.[0] || 0 };
+    } catch (err) {
+      throw err;
+    }
+  }
 }
 
 module.exports = Prestamos;
