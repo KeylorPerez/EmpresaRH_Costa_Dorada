@@ -14,6 +14,7 @@ import Usuarios from "../pages/Usuarios";
 import Puestos from "../pages/Puestos";
 import Planilla from "../pages/Planilla";
 import PlanillaDetalle from "../pages/PlanillaDetalle";
+import PlanillaEmpleado from "../pages/PlanillaEmpleado";
 import Vacaciones from "../pages/Vacaciones";
 import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
@@ -115,6 +116,24 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <Planilla />
+          </PrivateRoute>
+        }
+      />
+
+      {/* Planilla (empleado) */}
+      <Route
+        path="/empleado/planilla/:id"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <PlanillaDetalle mode="empleado" />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/empleado/planilla"
+        element={
+          <PrivateRoute allowedRoles={[2]}>
+            <PlanillaEmpleado />
           </PrivateRoute>
         }
       />

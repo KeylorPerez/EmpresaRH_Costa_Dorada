@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -6,7 +7,10 @@ import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import api from "../api/axiosConfig";
 import planillaService from "../services/planillaService";
-import { adminLinks as adminNavigationLinks } from "../utils/navigationLinks";
+import {
+  adminLinks as adminNavigationLinks,
+  empleadoLinks as empleadoNavigationLinks,
+} from "../utils/navigationLinks";
 import {
   buildPlanillaDisplayName,
   ensurePlanillaArrayCanonical,
@@ -126,11 +130,17 @@ const normalizeFileUrl = (url) => {
   }
 };
 
-const PlanillaDetalle = () => {
+const PlanillaDetalle = ({ mode = "admin" }) => {
   const { user, logoutUser } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isAdminMode = mode === "admin";
+  const isEmpleadoMode = mode === "empleado";
+  const roleColor = isAdminMode ? "blue" : "green";
+  const backPath = isAdminMode ? "/admin/planilla" : "/empleado/planilla";
+  const pageTitle = isAdminMode ? "Panel de Administración" : "Panel del Empleado";
 
   const locationStatePlanilla = location.state?.planilla;
   const initialPlanilla = locationStatePlanilla
@@ -150,7 +160,10 @@ const PlanillaDetalle = () => {
   const [exportErrorMessage, setExportErrorMessage] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const adminLinks = useMemo(() => adminNavigationLinks, []);
+  const sidebarLinks = useMemo(
+    () => (isAdminMode ? adminNavigationLinks : empleadoNavigationLinks),
+    [isAdminMode]
+  );
 
   useEffect(() => {
     if (Number.isNaN(planillaId)) {
@@ -442,21 +455,24 @@ const PlanillaDetalle = () => {
   const exportDisabled = Number.isNaN(planillaId) || planillaInfoLoading || detalleLoading;
 
   if (!user) return <p>Cargando usuario...</p>;
-  if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
+  if (isAdminMode && user.id_rol !== 1)
+    return <p>No tienes permisos para ver esta página.</p>;
+  if (isEmpleadoMode && user.id_rol !== 2)
+    return <p>No tienes permisos para ver esta página.</p>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar
-        links={adminLinks}
-        roleColor="blue"
+        links={sidebarLinks}
+        roleColor={roleColor}
         isMobileOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
       <div className="flex flex-col flex-grow overflow-hidden">
         <Navbar
-          title="Panel de Administración"
+          title={pageTitle}
           user={user}
-          roleColor="blue"
+          roleColor={roleColor}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={logoutUser}
@@ -497,7 +513,7 @@ const PlanillaDetalle = () => {
               >
                 {exportingFormat ? "Procesando..." : "📤 Compartir"}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => navigate("/admin/planilla")}>
+              <Button variant="secondary" size="sm" onClick={() => navigate(backPath)}>
                 Volver a planilla
               </Button>
             </div>
@@ -729,6 +745,10 @@ const PlanillaDetalle = () => {
       </div>
     </div>
   );
+};
+
+PlanillaDetalle.propTypes = {
+  mode: PropTypes.oneOf(["admin", "empleado"]),
 };
 
 export default PlanillaDetalle;

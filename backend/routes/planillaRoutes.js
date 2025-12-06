@@ -20,11 +20,11 @@ router.get('/', authenticateToken, getPlanilla);
 // GET /api/planilla/asistencia -> resumen de días laborados para colaboradores con pago diario (solo admin)
 router.get('/asistencia', authenticateToken, authorizeRoles(1), getPlanillaAttendance);
 
-// GET /api/planilla/:id/export -> exportar planilla en PDF o Excel (solo admin)
-router.get('/:id/export', authenticateToken, authorizeRoles(1), exportPlanillaArchivo);
+// GET /api/planilla/:id/export -> exportar planilla en PDF o Excel (admin o empleado dueño)
+router.get('/:id/export', authenticateToken, authorizeRoles(1, 2), exportPlanillaArchivo);
 
-// GET /api/planilla/:id/detalle -> detalle diario de una planilla (solo admin)
-router.get('/:id/detalle', authenticateToken, authorizeRoles(1), getPlanillaDetalle);
+// GET /api/planilla/:id/detalle -> detalle diario de una planilla (admin o empleado dueño)
+router.get('/:id/detalle', authenticateToken, authorizeRoles(1, 2), getPlanillaDetalle);
 
 // POST /api/planilla -> calcular o generar planilla (solo admin)
 router.post('/', authenticateToken, authorizeRoles(1), calcularPlanilla);
