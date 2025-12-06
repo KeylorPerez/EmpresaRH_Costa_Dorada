@@ -34,6 +34,13 @@ const planillaService = {
     });
     return response.data;
   },
+
+  exportResumen: async (format = 'pdf') => {
+    const response = await api.get('/planilla/export/resumen', {
+      params: { format },
+    });
+    return response.data;
+  },
 };
 
 export default planillaService;

@@ -587,6 +587,182 @@ const createCsvFile = async (filePath, planilla, detalles) => {
   await fsPromises.writeFile(filePath, content, 'utf8');
 };
 
+const buildPlanillasResumenLines = (planillas) => {
+  const safePlanillas = Array.isArray(planillas) ? planillas : [];
+  const lines = [];
+  const now = new Date();
+  const totalSalarioBruto = safePlanillas.reduce(
+    (sum, planilla) => sum + (Number(planilla.salario_bruto) || 0),
+    0,
+  );
+  const totalDeducciones = safePlanillas.reduce(
+    (sum, planilla) =>
+      sum + (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
+    0,
+  );
+  const totalPagoNeto = safePlanillas.reduce(
+    (sum, planilla) => sum + (Number(planilla.pago_neto) || 0),
+    0,
+  );
+
+  lines.push('Resumen general de planillas');
+  lines.push(`Generado el: ${formatDateDisplay(now.toISOString())}`);
+  lines.push('');
+  lines.push(`Total de planillas: ${safePlanillas.length}`);
+  lines.push(`Salario bruto acumulado: ${formatCurrency(totalSalarioBruto)}`);
+  lines.push(`Deducciones acumuladas: ${formatCurrency(totalDeducciones)}`);
+  lines.push(`Pago neto acumulado: ${formatCurrency(totalPagoNeto)}`);
+  lines.push(sectionDivider);
+
+  const headers = ['#', 'Colaborador', 'Periodo', 'Tipo', 'Bruto', 'Deducciones', 'Neto', 'Pago'];
+  const longestByColumn = headers.map((header) => header.length);
+
+  safePlanillas.forEach((planilla) => {
+    const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
+    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
+      planilla.periodo_fin,
+    )}`;
+    const tipoPago = (planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado').toString();
+    const bruto = formatCurrency(planilla.salario_bruto);
+    const deducciones = formatCurrency(
+      (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
+    );
+    const neto = formatCurrency(planilla.pago_neto);
+    const fechaPago = formatDateDisplay(planilla.fecha_pago);
+
+    const values = [
+      `#${planilla.id_planilla || ''}`.trim(),
+      sanitizePdfText(colaborador),
+      sanitizePdfText(periodo),
+      sanitizePdfText(tipoPago),
+      sanitizePdfText(bruto),
+      sanitizePdfText(deducciones),
+      sanitizePdfText(neto),
+      sanitizePdfText(fechaPago),
+    ];
+
+    values.forEach((value, index) => {
+      longestByColumn[index] = Math.max(longestByColumn[index], value.length);
+    });
+  });
+
+  const padValue = (text, width) => {
+    const sanitized = sanitizePdfText(text || '');
+    if (sanitized.length > width) {
+      const available = Math.max(width - 3, 0);
+      return `${sanitized.slice(0, available)}...`.padEnd(width, ' ');
+    }
+    return sanitized.padEnd(width, ' ');
+  };
+
+  const headerLine = headers
+    .map((header, index) => padValue(header, Math.min(Math.max(longestByColumn[index], 5), 25)))
+    .join(' | ');
+  lines.push(headerLine);
+  lines.push(sectionDivider);
+
+  safePlanillas.forEach((planilla) => {
+    const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
+    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
+      planilla.periodo_fin,
+    )}`;
+    const tipoPago = planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado';
+    const bruto = formatCurrency(planilla.salario_bruto);
+    const deducciones = formatCurrency(
+      (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
+    );
+    const neto = formatCurrency(planilla.pago_neto);
+    const fechaPago = formatDateDisplay(planilla.fecha_pago);
+
+    const values = [
+      `#${planilla.id_planilla || ''}`.trim(),
+      colaborador,
+      periodo,
+      tipoPago,
+      bruto,
+      deducciones,
+      neto,
+      fechaPago,
+    ];
+
+    const padded = values.map((value, index) => padValue(value, Math.min(Math.max(longestByColumn[index], 5), 25)));
+    lines.push(padded.join(' | '));
+  });
+
+  if (safePlanillas.length === 0) {
+    lines.push('No hay planillas registradas para exportar.');
+  }
+
+  return lines;
+};
+
+const createResumenPdfFile = async (filePath, planillas) => {
+  const lines = buildPlanillasResumenLines(planillas);
+  const pages = chunkArray(lines, 40);
+  const contentStreams = pages.map((pageLines) => buildPdfContentStream(pageLines));
+  const pdfBuffer = buildPdfBuffer(contentStreams);
+  await fsPromises.writeFile(filePath, pdfBuffer);
+};
+
+const createResumenCsvFile = async (filePath, planillas) => {
+  const safePlanillas = Array.isArray(planillas) ? planillas : [];
+  const lines = [];
+  const now = new Date();
+  const totalSalarioBruto = safePlanillas.reduce(
+    (sum, planilla) => sum + (Number(planilla.salario_bruto) || 0),
+    0,
+  );
+  const totalDeducciones = safePlanillas.reduce(
+    (sum, planilla) =>
+      sum + (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
+    0,
+  );
+  const totalPagoNeto = safePlanillas.reduce(
+    (sum, planilla) => sum + (Number(planilla.pago_neto) || 0),
+    0,
+  );
+
+  lines.push('Resumen general de planillas');
+  lines.push(`Generado el;${escapeCsv(formatDateDisplay(now.toISOString()))}`);
+  lines.push(`Cantidad de planillas;${safePlanillas.length}`);
+  lines.push(`Salario bruto acumulado;${escapeCsv(formatCurrency(totalSalarioBruto))}`);
+  lines.push(`Deducciones acumuladas;${escapeCsv(formatCurrency(totalDeducciones))}`);
+  lines.push(`Pago neto acumulado;${escapeCsv(formatCurrency(totalPagoNeto))}`);
+  lines.push('');
+  lines.push('ID;Colaborador;Periodo;Tipo de pago;Salario bruto;Deducciones;Pago neto;Fecha de pago');
+
+  safePlanillas.forEach((planilla) => {
+    const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
+    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
+      planilla.periodo_fin,
+    )}`;
+    const tipoPago = planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado';
+    const deducciones =
+      (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
+
+    const row = [
+      planilla.id_planilla ?? '',
+      escapeCsv(colaborador),
+      escapeCsv(periodo),
+      escapeCsv(tipoPago),
+      escapeCsv(formatCurrency(planilla.salario_bruto)),
+      escapeCsv(formatCurrency(deducciones)),
+      escapeCsv(formatCurrency(planilla.pago_neto)),
+      escapeCsv(formatDateDisplay(planilla.fecha_pago)),
+    ]
+      .map(sanitizeCsvLine)
+      .join(';');
+    lines.push(row);
+  });
+
+  if (safePlanillas.length === 0) {
+    lines.push('No hay planillas registradas para exportar.');
+  }
+
+  const csvContent = `${CSV_BOM}${lines.join('\n')}`;
+  await fsPromises.writeFile(filePath, csvContent, 'utf8');
+};
+
 // 🔹 Obtener planillas
 const getPlanilla = async (req, res) => {
   try {
@@ -865,6 +1041,55 @@ const exportPlanillaArchivo = async (req, res) => {
   }
 };
 
+const exportPlanillasResumen = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    if (user.id_rol !== 1) {
+      return res.status(403).json({ error: 'No autorizado para exportar planillas' });
+    }
+
+    const formatParam = (req.query.format || 'pdf').toLowerCase();
+    const formatMap = new Map([
+      ['pdf', 'pdf'],
+      ['excel', 'excel'],
+      ['xls', 'excel'],
+      ['xlsx', 'excel'],
+      ['csv', 'excel'],
+    ]);
+    const format = formatMap.get(formatParam);
+
+    if (!format) {
+      return res.status(400).json({ error: 'Formato de exportación no soportado' });
+    }
+
+    const planillas = await Planilla.getAll();
+
+    await ensureExportsDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const baseName = `planillas-resumen-${timestamp}`;
+    const extension = format === 'pdf' ? 'pdf' : 'csv';
+    const filename = `${baseName}.${extension}`;
+    const filePath = path.join(EXPORTS_DIR, filename);
+
+    if (format === 'pdf') {
+      await createResumenPdfFile(filePath, planillas);
+    } else {
+      await createResumenCsvFile(filePath, planillas);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const publicUrl = `${baseUrl}/files/${filename}`;
+
+    return res.json({ url: publicUrl, filename, format });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getPlanilla,
   calcularPlanilla,
@@ -872,4 +1097,5 @@ module.exports = {
   getPlanillaAttendance,
   getPlanillaDetalle,
   exportPlanillaArchivo,
+  exportPlanillasResumen,
 };

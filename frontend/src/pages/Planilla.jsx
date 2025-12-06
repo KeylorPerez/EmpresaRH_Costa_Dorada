@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import { usePlanilla } from "../hooks/usePlanilla";
+import planillaService from "../services/planillaService";
 import { adminLinks as adminNavigationLinks } from "../utils/navigationLinks";
 import {
   buildPlanillaDisplayName,
@@ -42,6 +43,14 @@ const formatDate = (value) => {
 const formatPeriodo = (inicio, fin) => {
   if (!inicio || !fin) return "-";
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
+};
+
+const normalizeFileUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("//")) return `${window.location.protocol}${url}`;
+  if (url.startsWith("/")) return `${window.location.origin}${url}`;
+  return url;
 };
 
 const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();
@@ -158,6 +167,9 @@ const Planilla = () => {
     defaultDateRangeRef.current.inicio,
   );
   const [fechaFinFiltro, setFechaFinFiltro] = useState(defaultDateRangeRef.current.fin);
+  const [exportResumenMessage, setExportResumenMessage] = useState("");
+  const [exportResumenError, setExportResumenError] = useState("");
+  const [exportingResumen, setExportingResumen] = useState(null);
 
   useEffect(() => {
     if (!fechaInicioFiltro || !fechaFinFiltro) return;
@@ -254,6 +266,36 @@ const Planilla = () => {
       totalPago: currencyFormatter.format(totalPago),
     };
   }, [planillasFiltradas]);
+
+  const handleExportResumen = async (format) => {
+    setExportResumenError("");
+    setExportResumenMessage("");
+    setExportingResumen(format);
+
+    try {
+      const data = await planillaService.exportResumen(format);
+      const fileUrl = normalizeFileUrl(data?.url);
+      const responseFormat = data?.format || format;
+
+      if (!fileUrl) {
+        throw new Error("No se recibió la URL del archivo generado.");
+      }
+
+      window.open(fileUrl, "_blank", "noopener");
+
+      setExportResumenMessage(
+        responseFormat === "excel"
+          ? "Resumen en Excel generado correctamente."
+          : "Resumen en PDF generado correctamente.",
+      );
+    } catch (err) {
+      const message =
+        err.response?.data?.error || err.message || "No se pudo generar el resumen de planillas.";
+      setExportResumenError(message);
+    } finally {
+      setExportingResumen(null);
+    }
+  };
 
   const obtenerTipoPagoPlanilla = (planilla) =>
     formatearTipoPago(getPlanillaTipoPagoValue(planilla), {
@@ -966,6 +1008,45 @@ const Planilla = () => {
               {error}
             </div>
           )}
+
+          <section className="bg-white shadow rounded-xl p-4 space-y-3">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">Exportar resumen</h2>
+                <p className="text-sm text-gray-600">
+                  Descarga un PDF o Excel con todas las planillas registradas.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={exportingResumen === "pdf"}
+                  onClick={() => handleExportResumen("pdf")}
+                >
+                  {exportingResumen === "pdf" ? "Generando..." : "Exportar PDF"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={exportingResumen === "excel"}
+                  onClick={() => handleExportResumen("excel")}
+                >
+                  {exportingResumen === "excel" ? "Generando..." : "Exportar Excel"}
+                </Button>
+              </div>
+            </div>
+            {exportResumenMessage && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-sm">
+                {exportResumenMessage}
+              </div>
+            )}
+            {exportResumenError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                {exportResumenError}
+              </div>
+            )}
+          </section>
 
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <article className="bg-white shadow rounded-xl p-4">
