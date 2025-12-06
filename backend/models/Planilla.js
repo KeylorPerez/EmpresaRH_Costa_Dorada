@@ -118,10 +118,11 @@ class Planilla {
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT *
-          FROM Planilla
-          WHERE id_empleado = @id_empleado
-          ORDER BY periodo_inicio DESC
+          SELECT pl.*, e.nombre, e.apellido, e.tipo_pago AS tipo_pago_empleado
+          FROM Planilla pl
+          LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
+          WHERE pl.id_empleado = @id_empleado
+          ORDER BY pl.periodo_inicio DESC
         `);
       return result.recordset;
     } catch (err) {
