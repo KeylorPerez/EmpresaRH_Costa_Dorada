@@ -541,9 +541,9 @@ const Prestamos = ({ mode }) => {
                   : "Aún no has realizado solicitudes de préstamo."}
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <div className="max-h-[70vh] overflow-y-auto">
-                  <table className="min-w-full text-sm">
+              <div className="overflow-x-auto custom-scrollbar">
+                <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+                  <table className="min-w-[1000px] text-sm">
                     <thead className="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
                       <tr>
                         {isAdmin && <th className="px-4 py-3 text-left">Colaborador</th>}
