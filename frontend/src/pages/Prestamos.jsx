@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -16,6 +16,7 @@ import { getTodayInputValue } from "../utils/dateUtils";
 
 const Prestamos = ({ mode }) => {
   const { user, logoutUser } = useAuth();
+  const isAdmin = mode === "admin";
   const {
     prestamos,
     loading,
@@ -32,23 +33,40 @@ const Prestamos = ({ mode }) => {
     actionLoading,
     setError,
     setSuccessMessage,
-  } = usePrestamos();
-
-  const isAdmin = mode === "admin";
+    empleados,
+    loadingEmpleados,
+    linkedEmpleadoId,
+  } = usePrestamos({ user, isAdmin });
   const estadoDefault = "todos";
+  const defaultEmpleadoFiltro = useMemo(
+    () => (linkedEmpleadoId ? String(linkedEmpleadoId) : "todos"),
+    [linkedEmpleadoId]
+  );
   const [estadoFiltro, setEstadoFiltro] = useState(estadoDefault);
   const [busquedaNombre, setBusquedaNombre] = useState("");
+  const [empleadoFiltro, setEmpleadoFiltro] = useState(defaultEmpleadoFiltro);
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState("");
   const [fechaFinFiltro, setFechaFinFiltro] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const filtrosGridCols = isAdmin ? "md:grid-cols-4" : "md:grid-cols-3";
-  const filtrosButtonColSpan = isAdmin ? "md:col-span-4" : "md:col-span-3";
+  const filtrosGridCols = isAdmin ? "md:grid-cols-5" : "md:grid-cols-3";
+  const filtrosButtonColSpan = isAdmin ? "md:col-span-5" : "md:col-span-3";
   const fechaSolicitudMaxima = getTodayInputValue();
+
+  useEffect(() => {
+    setEmpleadoFiltro((prev) => {
+      if (prev === defaultEmpleadoFiltro) return prev;
+      if (prev === "todos" && defaultEmpleadoFiltro !== "todos") {
+        return defaultEmpleadoFiltro;
+      }
+      return prev;
+    });
+  }, [defaultEmpleadoFiltro]);
 
   const hayFiltrosActivos =
     estadoFiltro !== estadoDefault ||
     (isAdmin && busquedaNombre.trim() !== "") ||
+    (isAdmin && empleadoFiltro !== defaultEmpleadoFiltro) ||
     fechaInicioFiltro !== "" ||
     fechaFinFiltro !== "";
 
@@ -71,6 +89,7 @@ const Prestamos = ({ mode }) => {
   const handleResetFiltros = () => {
     setEstadoFiltro(estadoDefault);
     setBusquedaNombre("");
+    setEmpleadoFiltro(defaultEmpleadoFiltro);
     setFechaInicioFiltro("");
     setFechaFinFiltro("");
   };
@@ -89,6 +108,12 @@ const Prestamos = ({ mode }) => {
     return prestamos.filter((prestamo) => {
       if (estadoFiltro !== "todos" && String(prestamo.id_estado) !== estadoFiltro) {
         return false;
+      }
+
+      if (isAdmin && empleadoFiltro !== "todos") {
+        if (String(prestamo.id_empleado) !== empleadoFiltro) {
+          return false;
+        }
       }
 
       if (isAdmin && busquedaNombre.trim()) {
@@ -117,6 +142,7 @@ const Prestamos = ({ mode }) => {
     prestamos,
     estadoFiltro,
     busquedaNombre,
+    empleadoFiltro,
     fechaInicioFiltro,
     fechaFinFiltro,
     isAdmin,
@@ -255,6 +281,38 @@ const Prestamos = ({ mode }) => {
             </header>
 
             <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
+              {isAdmin && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Colaborador
+                  </label>
+                  <select
+                    name="id_empleado"
+                    value={formData.id_empleado || ""}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    required
+                    disabled={loadingEmpleados}
+                  >
+                    <option value="">
+                      {loadingEmpleados
+                        ? "Cargando colaboradores..."
+                        : "Selecciona un colaborador"}
+                    </option>
+                    {empleados.map((empleado) => (
+                      <option key={empleado.id_empleado} value={empleado.id_empleado}>
+                        {empleado.nombre} {empleado.apellido} — ID #{empleado.id_empleado}
+                      </option>
+                    ))}
+                  </select>
+                  {linkedEmpleadoId && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Se selecciona por defecto el colaborador asociado a tu usuario.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="md:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Monto solicitado
@@ -379,6 +437,27 @@ const Prestamos = ({ mode }) => {
                   <option value="3">Rechazados</option>
                 </select>
               </div>
+
+              {isAdmin && (
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Colaborador
+                  </label>
+                  <select
+                    value={empleadoFiltro}
+                    onChange={(event) => setEmpleadoFiltro(event.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    disabled={loadingEmpleados}
+                  >
+                    <option value="todos">{loadingEmpleados ? "Cargando..." : "Todos"}</option>
+                    {empleados.map((empleado) => (
+                      <option key={empleado.id_empleado} value={empleado.id_empleado}>
+                        {empleado.nombre} {empleado.apellido} — ID #{empleado.id_empleado}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {isAdmin && (
                 <div className="flex flex-col">
