@@ -4,6 +4,7 @@ import {
   FaArrowRightLong,
   FaCalendarCheck,
   FaFileSignature,
+  FaFileInvoiceDollar,
   FaGift,
   FaHandHoldingDollar,
   FaUser,
@@ -57,6 +58,13 @@ const DashboardEmpleado = () => {
       description: "Visualiza tu saldo disponible y gestiona nuevas solicitudes.",
       icon: FaUmbrellaBeach,
       accent: "from-teal-500 to-cyan-500",
+    },
+    {
+      path: "/empleado/planilla",
+      label: "Planilla y pagos",
+      description: "Consulta tus recibos, descárgalos y revisa los detalles de tus periodos.",
+      icon: FaFileInvoiceDollar,
+      accent: "from-indigo-500 to-blue-600",
     },
     {
       path: "/empleado/prestamos",

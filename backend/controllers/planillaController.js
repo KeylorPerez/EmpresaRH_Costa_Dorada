@@ -765,13 +765,30 @@ const getPlanillaAttendance = async (req, res) => {
 const getPlanillaDetalle = async (req, res) => {
   try {
     const user = req.user;
-    if (!user || user.id_rol !== 1) {
-      return res.status(403).json({ error: 'Solo admin puede consultar el detalle de la planilla' });
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
     }
 
     const id_planilla = parseInt(req.params.id, 10);
     if (Number.isNaN(id_planilla)) {
       return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const planilla = await Planilla.getById(id_planilla);
+    if (!planilla) {
+      return res.status(404).json({ error: 'Planilla no encontrada' });
+    }
+
+    if (user.id_rol === 2) {
+      if (!user.id_empleado) {
+        return res.status(403).json({ error: 'Usuario no vinculado a empleado' });
+      }
+
+      if (planilla.id_empleado !== user.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado para ver esta planilla' });
+      }
+    } else if (user.id_rol !== 1) {
+      return res.status(403).json({ error: 'No autorizado para consultar el detalle de la planilla' });
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
@@ -784,13 +801,30 @@ const getPlanillaDetalle = async (req, res) => {
 const exportPlanillaArchivo = async (req, res) => {
   try {
     const user = req.user;
-    if (!user || user.id_rol !== 1) {
-      return res.status(403).json({ error: 'Solo admin puede exportar planillas' });
+    if (!user) {
+      return res.status(401).json({ error: 'No autenticado' });
     }
 
     const id_planilla = parseInt(req.params.id, 10);
     if (Number.isNaN(id_planilla)) {
       return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const planilla = await Planilla.getById(id_planilla);
+    if (!planilla) {
+      return res.status(404).json({ error: 'Planilla no encontrada' });
+    }
+
+    if (user.id_rol === 2) {
+      if (!user.id_empleado) {
+        return res.status(403).json({ error: 'Usuario no vinculado a empleado' });
+      }
+
+      if (planilla.id_empleado !== user.id_empleado) {
+        return res.status(403).json({ error: 'No autorizado para exportar esta planilla' });
+      }
+    } else if (user.id_rol !== 1) {
+      return res.status(403).json({ error: 'No autorizado para exportar planillas' });
     }
 
     const formatParam = (req.query.format || 'pdf').toLowerCase();
@@ -805,11 +839,6 @@ const exportPlanillaArchivo = async (req, res) => {
 
     if (!format) {
       return res.status(400).json({ error: 'Formato de exportación no soportado' });
-    }
-
-    const planilla = await Planilla.getById(id_planilla);
-    if (!planilla) {
-      return res.status(404).json({ error: 'Planilla no encontrada' });
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
