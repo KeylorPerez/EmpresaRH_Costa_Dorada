@@ -1,4 +1,4 @@
-export const decodeJwtPayload = (token) => {
+const decodePayloadInternal = (token) => {
   if (!token) {
     throw new Error("Token inválido");
   }
@@ -14,14 +14,20 @@ export const decodeJwtPayload = (token) => {
 
   try {
     const decoded = atob(padded);
-    const payload = JSON.parse(decoded);
-
-    if (payload.exp && Date.now() >= payload.exp * 1000) {
-      throw new Error("Token expirado");
-    }
-
-    return payload;
+    return JSON.parse(decoded);
   } catch {
     throw new Error("No se pudo decodificar el token");
   }
 };
+
+export const decodeJwtPayload = (token) => {
+  const payload = decodePayloadInternal(token);
+
+  if (payload.exp && Date.now() >= payload.exp * 1000) {
+    throw new Error("Token expirado");
+  }
+
+  return payload;
+};
+
+export const decodeJwtPayloadAllowExpired = (token) => decodePayloadInternal(token);

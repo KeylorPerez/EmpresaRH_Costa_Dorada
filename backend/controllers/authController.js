@@ -10,6 +10,21 @@ const jwt = require('jsonwebtoken');
  * Valida las credenciales del usuario y genera un JWT con los datos
  * esenciales para la autorización posterior.
  */
+const buildJwtPayload = (user) => ({
+    id_usuario: user.id_usuario,
+    username: user.username,
+    id_rol: user.id_rol,
+    id_empleado: user.id_empleado,
+});
+
+const signSessionToken = (payload) => {
+    const tokenTtl = process.env.JWT_EXPIRES_IN || '1h';
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: tokenTtl });
+
+    return { token, tokenTtl };
+};
+
 const login = async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -31,19 +46,7 @@ const login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(400).json({ error: 'Contraseña incorrecta' });
 
-        const tokenTtl = process.env.JWT_EXPIRES_IN || '1h';
-
-        // Crear token JWT
-        const token = jwt.sign(
-            {
-                id_usuario: user.id_usuario,
-                username: user.username,
-                id_rol: user.id_rol,
-                id_empleado: user.id_empleado,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: tokenTtl }
-        );
+        const { token, tokenTtl } = signSessionToken(buildJwtPayload(user));
 
         // Actualizar último login (solo la fecha)
         const pool = await require('../db/db').poolPromise;
@@ -53,7 +56,7 @@ const login = async (req, res) => {
 
         const profile = await Usuario.getProfileById(user.id_usuario);
 
-        res.json({ token, user: profile });
+        res.json({ token, user: profile, expiresIn: tokenTtl });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -97,4 +100,25 @@ const getSessionStatus = (req, res) => {
     });
 };
 
-module.exports = { login, getCurrentUser, getSessionStatus };
+const refreshToken = async (req, res) => {
+    try {
+        const user = await Usuario.getById(req.user.id_usuario);
+
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        if (!user.estado) {
+            return res.status(403).json({ error: 'Usuario inactivo, contacte al administrador' });
+        }
+
+        const profile = await Usuario.getProfileById(user.id_usuario);
+        const { token, tokenTtl } = signSessionToken(buildJwtPayload(user));
+
+        res.json({ token, user: profile, expiresIn: tokenTtl });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+module.exports = { login, getCurrentUser, getSessionStatus, refreshToken };
