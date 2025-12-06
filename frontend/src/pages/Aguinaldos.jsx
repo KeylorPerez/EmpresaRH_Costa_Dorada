@@ -103,6 +103,8 @@ const Aguinaldos = ({ mode }) => {
   const tituloPagina = isAdminView ? "Gestión de Aguinaldos" : "Mis Aguinaldos";
 
   const [anioFiltro, setAnioFiltro] = useState("todos");
+  const [busquedaEmpleado, setBusquedaEmpleado] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState("todos");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [registroEditando, setRegistroEditando] = useState(null);
   const [editFormData, setEditFormData] = useState(() => ({
@@ -460,9 +462,42 @@ const Aguinaldos = ({ mode }) => {
   }, [aguinaldos]);
 
   const registrosFiltrados = useMemo(() => {
-    if (anioFiltro === "todos") return aguinaldos;
-    return aguinaldos.filter((item) => String(item.anio) === anioFiltro);
-  }, [aguinaldos, anioFiltro]);
+    let filtrados = aguinaldos;
+
+    if (anioFiltro !== "todos") {
+      filtrados = filtrados.filter((item) => String(item.anio) === anioFiltro);
+    }
+
+    if (isAdminView) {
+      const termino = busquedaEmpleado.trim().toLowerCase();
+      if (termino) {
+        filtrados = filtrados.filter((item) => {
+          const nombre = String(item.nombre || "").toLowerCase();
+          const apellido = String(item.apellido || "").toLowerCase();
+          const nombreCompleto = `${nombre} ${apellido}`.trim();
+          const idEmpleado = String(item.id_empleado || "");
+
+          return (
+            nombre.includes(termino) ||
+            apellido.includes(termino) ||
+            nombreCompleto.includes(termino) ||
+            idEmpleado.includes(termino)
+          );
+        });
+      }
+
+      if (estadoFiltro !== "todos") {
+        filtrados = filtrados.filter((item) => {
+          const pagado = Boolean(item.pagado);
+          if (estadoFiltro === "pagados") return pagado;
+          if (estadoFiltro === "pendientes") return !pagado;
+          return true;
+        });
+      }
+    }
+
+    return filtrados;
+  }, [aguinaldos, anioFiltro, busquedaEmpleado, estadoFiltro, isAdminView]);
 
   const hayRegistros = registrosFiltrados.length > 0;
 
@@ -1175,23 +1210,59 @@ const Aguinaldos = ({ mode }) => {
                   Consulta el detalle del cálculo y su estado de pago.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600" htmlFor="filtro-anio">
-                  Filtrar por año:
-                </label>
-                <select
-                  id="filtro-anio"
-                  value={anioFiltro}
-                  onChange={(event) => setAnioFiltro(event.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="todos">Todos</option>
-                  {listaAnios.map((anio) => (
-                    <option key={anio} value={anio}>
-                      {anio}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex flex-col w-full gap-3 md:w-auto md:flex-row md:items-center md:justify-end md:gap-4">
+                {isAdminView && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm text-gray-600" htmlFor="filtro-empleado">
+                      Buscar colaborador
+                    </label>
+                    <input
+                      id="filtro-empleado"
+                      type="text"
+                      value={busquedaEmpleado}
+                      onChange={(event) => setBusquedaEmpleado(event.target.value)}
+                      placeholder="Nombre, apellido o ID"
+                      className="w-full min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {isAdminView && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm text-gray-600" htmlFor="filtro-estado">
+                      Estado de pago
+                    </label>
+                    <select
+                      id="filtro-estado"
+                      value={estadoFiltro}
+                      onChange={(event) => setEstadoFiltro(event.target.value)}
+                      className="w-full min-w-[180px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="todos">Todos</option>
+                      <option value="pendientes">Pendientes</option>
+                      <option value="pagados">Pagados</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-gray-600" htmlFor="filtro-anio">
+                    Filtrar por año
+                  </label>
+                  <select
+                    id="filtro-anio"
+                    value={anioFiltro}
+                    onChange={(event) => setAnioFiltro(event.target.value)}
+                    className="w-full min-w-[150px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="todos">Todos</option>
+                    {listaAnios.map((anio) => (
+                      <option key={anio} value={anio}>
+                        {anio}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </header>
 
