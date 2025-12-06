@@ -200,9 +200,14 @@ const Prestamos = ({ mode }) => {
           size="sm"
           disabled={isUpdating}
           onClick={async () => {
-            const confirmed = window.confirm(
-              "¿Deseas eliminar el préstamo aprobado? Esta acción no se puede deshacer."
-            );
+            const nombreEmpleado = `${prestamo.nombre || "Empleado"} ${
+              prestamo.apellido || ""
+            }`.trim();
+            const confirmMessage =
+              `Estás a punto de eliminar el préstamo #${prestamo.id_prestamo}` +
+              ` de ${nombreEmpleado}. Esta acción es permanente y no se puede deshacer.`;
+
+            const confirmed = window.confirm(confirmMessage);
 
             if (!confirmed) return;
 
