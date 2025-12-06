@@ -30,6 +30,7 @@ const Prestamos = ({ mode }) => {
     approvePrestamo,
     rejectPrestamo,
     exportPrestamo,
+    deletePrestamo,
     actionLoading,
     setError,
     setSuccessMessage,
@@ -150,42 +151,74 @@ const Prestamos = ({ mode }) => {
   };
 
   const renderAcciones = (prestamo) => {
-    if (!isAdmin || prestamo.id_estado !== 1) return null;
+    if (!isAdmin) return null;
 
+    const estado = Number(prestamo.id_estado);
+    const isPending = estado === 1;
+    const isApproved = estado === 2;
     const isUpdating = Boolean(actionLoading[prestamo.id_prestamo]);
 
-    return (
-      <div className="flex items-center gap-2">
-        <Button
-          variant="success"
-          size="sm"
-          disabled={isUpdating}
-          onClick={async () => {
-            try {
-              await approvePrestamo(prestamo.id_prestamo);
-            } catch {
-              // Error gestionado en el hook
-            }
-          }}
-        >
-          {isUpdating ? "Procesando..." : "Aprobar"}
-        </Button>
+    if (isPending) {
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="success"
+            size="sm"
+            disabled={isUpdating}
+            onClick={async () => {
+              try {
+                await approvePrestamo(prestamo.id_prestamo);
+              } catch {
+                // Error gestionado en el hook
+              }
+            }}
+          >
+            {isUpdating ? "Procesando..." : "Aprobar"}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={isUpdating}
+            onClick={async () => {
+              try {
+                await rejectPrestamo(prestamo.id_prestamo);
+              } catch {
+                // Error gestionado en el hook
+              }
+            }}
+          >
+            Rechazar
+          </Button>
+        </div>
+      );
+    }
+
+    if (isApproved) {
+      return (
         <Button
           variant="danger"
           size="sm"
           disabled={isUpdating}
           onClick={async () => {
+            const confirmed = window.confirm(
+              "¿Deseas eliminar el préstamo aprobado? Esta acción no se puede deshacer."
+            );
+
+            if (!confirmed) return;
+
             try {
-              await rejectPrestamo(prestamo.id_prestamo);
+              await deletePrestamo(prestamo.id_prestamo);
             } catch {
               // Error gestionado en el hook
             }
           }}
         >
-          Rechazar
+          {isUpdating ? "Eliminando..." : "Eliminar"}
         </Button>
-      </div>
-    );
+      );
+    }
+
+    return <span className="text-xs text-gray-500">Sin acciones disponibles</span>;
   };
 
   const onExport = async (prestamo) => {

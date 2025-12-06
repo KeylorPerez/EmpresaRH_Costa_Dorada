@@ -229,6 +229,28 @@ export const usePrestamos = ({ autoFetch = true, user = null, isAdmin = false } 
     }
   }, []);
 
+  const deletePrestamo = useCallback(
+    async (id) => {
+      setError("");
+      setSuccessMessage("");
+      setActionLoading((prev) => ({ ...prev, [id]: true }));
+
+      try {
+        await prestamosService.delete(id);
+        setSuccessMessage("Préstamo eliminado correctamente");
+        await fetchPrestamos();
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible eliminar el préstamo";
+        setError(message);
+        throw err;
+      } finally {
+        setActionLoading((prev) => ({ ...prev, [id]: false }));
+      }
+    },
+    [fetchPrestamos]
+  );
+
   const sortedPrestamos = useMemo(() => {
     return [...prestamos].sort((a, b) => {
       const fechaA = new Date(a.fecha_solicitud || 0);
@@ -250,6 +272,7 @@ export const usePrestamos = ({ autoFetch = true, user = null, isAdmin = false } 
     approvePrestamo,
     rejectPrestamo,
     exportPrestamo,
+    deletePrestamo,
     actionLoading,
     setError,
     setSuccessMessage,
