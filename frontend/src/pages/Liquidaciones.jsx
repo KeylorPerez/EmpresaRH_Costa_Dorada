@@ -441,6 +441,7 @@ const Liquidaciones = ({ mode }) => {
   const [historicoDirty, setHistoricoDirty] = useState(false);
   const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
   const [filtroHistorial, setFiltroHistorial] = useState("");
+  const [filtroNombreHistorial, setFiltroNombreHistorial] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const isAdmin = mode === "admin";
@@ -456,10 +457,30 @@ const Liquidaciones = ({ mode }) => {
   const tituloPagina = isAdmin ? "Liquidaciones híbridas" : "Mis liquidaciones";
 
   const liquidacionesFiltradas = useMemo(() => {
-    const termino = filtroHistorial.trim().toLowerCase();
-    if (!termino) return liquidaciones;
+    const normalizar = (valor) =>
+      valor
+        ?.toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .trim();
+
+    const terminoGeneral = normalizar(filtroHistorial);
+    const terminoNombre = normalizar(filtroNombreHistorial);
+
+    if (!terminoGeneral && !terminoNombre) return liquidaciones;
 
     return liquidaciones.filter((registro) => {
+      const nombreCompuesto = normalizar(
+        [registro.nombre, registro.apellido].filter(Boolean).join(" ")
+      );
+
+      if (terminoNombre && nombreCompuesto?.includes(terminoNombre) === false) {
+        return false;
+      }
+
+      if (!terminoGeneral) return true;
+
       const camposBusqueda = [
         registro.nombre,
         registro.apellido,
@@ -473,10 +494,10 @@ const Liquidaciones = ({ mode }) => {
 
       const textoCompuesto = camposBusqueda
         .filter(Boolean)
-        .map((campo) => campo.toString().toLowerCase())
+        .map((campo) => normalizar(campo))
         .join(" ");
 
-      if (textoCompuesto.includes(termino)) return true;
+      if (textoCompuesto.includes(terminoGeneral)) return true;
 
       const montos = [
         registro.salario_promedio_mensual,
@@ -485,12 +506,12 @@ const Liquidaciones = ({ mode }) => {
         registro.total_pagar,
       ]
         .filter((valor) => valor !== null && valor !== undefined)
-        .map((valor) => valor.toString().toLowerCase())
+        .map((valor) => normalizar(valor))
         .join(" ");
 
-      return montos.includes(termino);
+      return montos.includes(terminoGeneral);
     });
-  }, [filtroHistorial, liquidaciones]);
+  }, [filtroHistorial, filtroNombreHistorial, liquidaciones]);
 
   const empleadoSeleccionado = useMemo(() => {
     if (!draftForm.id_empleado) return null;
@@ -1251,6 +1272,19 @@ const Liquidaciones = ({ mode }) => {
                       className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
                     />
                   </label>
+
+                  {isAdmin && (
+                    <label className="w-full md:w-72">
+                      <span className="text-sm font-medium text-gray-700">Filtrar por nombre</span>
+                      <input
+                        type="text"
+                        value={filtroNombreHistorial}
+                        onChange={(e) => setFiltroNombreHistorial(e.target.value)}
+                        placeholder="Buscar colaborador por nombre"
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                      />
+                    </label>
+                  )}
                 </div>
 
                 {liquidacionesFiltradas.length === 0 ? (
