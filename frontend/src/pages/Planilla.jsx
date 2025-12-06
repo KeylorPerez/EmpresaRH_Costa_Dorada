@@ -47,10 +47,20 @@ const formatPeriodo = (inicio, fin) => {
 
 const normalizeFileUrl = (url) => {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("//")) return `${window.location.protocol}${url}`;
-  if (url.startsWith("/")) return `${window.location.origin}${url}`;
-  return url;
+
+  try {
+    const normalized = new URL(url, window.location.origin);
+
+    if (window.location.protocol === "https:" && normalized.protocol === "http:") {
+      normalized.protocol = "https:";
+    }
+
+    return normalized.toString();
+  } catch (err) {
+    if (url.startsWith("//")) return `${window.location.protocol}${url}`;
+    if (url.startsWith("/")) return `${window.location.origin}${url}`;
+    return url;
+  }
 };
 
 const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();

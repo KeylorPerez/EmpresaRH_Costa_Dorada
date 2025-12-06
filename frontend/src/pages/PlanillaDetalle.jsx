@@ -125,7 +125,8 @@ const normalizeFileUrl = (url) => {
 
     return resolvedUrl.toString();
   } catch (err) {
-    console.error("No se pudo normalizar la URL del archivo", err);
+    if (url.startsWith("//")) return `${window.location.protocol}${url}`;
+    if (url.startsWith("/")) return `${window.location.origin}${url}`;
     return url;
   }
 };

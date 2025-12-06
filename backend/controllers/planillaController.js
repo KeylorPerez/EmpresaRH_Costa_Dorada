@@ -192,6 +192,12 @@ const ensureExportsDir = async () => {
   }
 };
 
+const getBaseUrl = (req) => {
+  const forwardedProto = req.get('x-forwarded-proto');
+  const protocol = forwardedProto || req.protocol;
+  return `${protocol}://${req.get('host')}`;
+};
+
 const buildPdfLines = (planilla, detalles) => {
   const lines = [];
   const nombreColaborador = [planilla.nombre, planilla.apellido]
@@ -1036,7 +1042,7 @@ const exportPlanillaArchivo = async (req, res) => {
       await createCsvFile(filePath, planilla, detalles);
     }
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getBaseUrl(req);
     const publicUrl = `${baseUrl}/files/${filename}`;
 
     return res.json({ url: publicUrl, filename, format });
@@ -1085,7 +1091,7 @@ const exportPlanillasResumen = async (req, res) => {
       await createResumenCsvFile(filePath, planillas);
     }
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getBaseUrl(req);
     const publicUrl = `${baseUrl}/files/${filename}`;
 
     return res.json({ url: publicUrl, filename, format });
