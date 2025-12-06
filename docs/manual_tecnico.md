@@ -12,6 +12,7 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
   - `PORT` (puerto del API, por defecto 3000).
   - `DB_USER`, `DB_PASSWORD`, `DB_SERVER`, `DB_DATABASE`, `DB_PORT` para la conexión SQL Server.
   - `JWT_SECRET` para firmar tokens.
+  - `SESSION_INACTIVITY_MINUTES` (opcional) para definir el cierre automático por inactividad; por defecto 15 minutos.
   - `OFFICE_LATITUDE`, `OFFICE_LONGITUDE` y `OFFICE_RADIUS_METERS` definen la geocerca para las
     marcaciones. Actualmente se utiliza `10.34113265735398`, `-83.73774991896887` y un radio de
     150 m (con tolerancia `OFFICE_RADIUS_TOLERANCE_METERS`, por defecto 0 m).
@@ -29,7 +30,7 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
 ### 2.3 Flujo de autenticación
 1. El cliente envía `username` y `password` a `/api/auth/login`.
 2. `authController` valida credenciales (comparando el hash con `bcryptjs`), verifica que el usuario esté activo y emite un JWT con `id_usuario`, `username` e `id_rol` válido por 8 horas.
-3. Cada petición protegida incluye `Authorization: Bearer <token>`; el middleware recupera el usuario, confirma que siga activo y añade `req.user`.
+3. Cada petición protegida incluye `Authorization: Bearer <token>`; el middleware recupera el usuario, confirma que siga activo, aplica un límite de inactividad (15 minutos por defecto, configurable con `SESSION_INACTIVITY_MINUTES`) y añade `req.user`.
 
 ### 2.4 Gestión de empleados (ejemplo de módulo)
 - **Endpoints:**

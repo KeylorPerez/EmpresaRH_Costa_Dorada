@@ -6,6 +6,13 @@
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/Usuario');
 
+// Límite de inactividad en milisegundos (por defecto, 15 minutos)
+const inactivityLimitMs =
+    (parseInt(process.env.SESSION_INACTIVITY_MINUTES || '15', 10) || 15) * 60 * 1000;
+
+// Registro en memoria del último uso por token para forzar cierre de sesión por inactividad
+const sessionActivity = new Map();
+
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
@@ -23,6 +30,16 @@ const authenticateToken = async (req, res, next) => {
         if (!usuario.estado) {
             return res.status(403).json({ error: 'Usuario inactivo, contacte al administrador' });
         }
+
+        const lastSeen = sessionActivity.get(token);
+        const now = Date.now();
+
+        if (lastSeen && now - lastSeen > inactivityLimitMs) {
+            sessionActivity.delete(token);
+            return res.status(440).json({ error: 'Sesión expirada por inactividad. Vuelva a iniciar sesión.' });
+        }
+
+        sessionActivity.set(token, now);
 
         req.user = decoded; // decoded contiene id_usuario, username, id_rol
         next();
