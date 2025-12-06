@@ -1186,7 +1186,7 @@ const Planilla = () => {
           {modalOpen && (
             <>
               <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-4 py-6">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl xl:max-w-6xl flex flex-col max-h-[90vh] overflow-hidden">
                   <div className="flex items-center justify-between border-b px-6 py-4">
                     <h2 className="text-xl font-semibold text-gray-800">
                       {editingPlanilla ? "Actualizar planilla" : "Generar planilla"}
