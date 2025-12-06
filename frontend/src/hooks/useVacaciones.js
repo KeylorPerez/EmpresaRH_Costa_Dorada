@@ -1,20 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import vacacionesService from "../services/vacacionesService";
+import empleadoService from "../services/empleadoService";
 import { formatDateValue } from "../utils/dateUtils";
 
-const initialForm = {
+const createInitialForm = (defaultEmpleado = "") => ({
+  id_empleado: defaultEmpleado,
   fecha_inicio: "",
   fecha_fin: "",
   motivo: "",
-};
+});
 
-export const useVacaciones = ({ autoFetch = true } = {}) => {
+export const useVacaciones = ({ autoFetch = true, isAdmin = false, user = null } = {}) => {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(autoFetch);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [formData, setFormData] = useState(() => initialForm);
+  const [formData, setFormData] = useState(() => createInitialForm());
+  const [empleados, setEmpleados] = useState([]);
+  const [loadingEmpleados, setLoadingEmpleados] = useState(isAdmin);
+
+  const linkedEmpleadoId = useMemo(() => {
+    const candidate =
+      user?.id_empleado ?? user?.empleado_id ?? user?.idEmpleado ?? user?.empleadoId;
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return String(parsed);
+    }
+    return "";
+  }, [user]);
 
   const fetchSolicitudes = useCallback(async () => {
     try {
@@ -37,13 +51,40 @@ export const useVacaciones = ({ autoFetch = true } = {}) => {
     }
   }, [autoFetch, fetchSolicitudes]);
 
+  useEffect(() => {
+    const defaultId = linkedEmpleadoId || "";
+    setFormData((prev) => {
+      if (prev.id_empleado && prev.id_empleado !== "") return prev;
+      return createInitialForm(defaultId);
+    });
+  }, [linkedEmpleadoId]);
+
+  const fetchEmpleados = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setLoadingEmpleados(true);
+      const data = await empleadoService.getAll();
+      setEmpleados(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setError((prev) => prev || "No fue posible cargar los empleados");
+    } finally {
+      setLoadingEmpleados(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    fetchEmpleados();
+  }, [fetchEmpleados]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const resetForm = () => {
-    setFormData(initialForm);
+    const defaultId = linkedEmpleadoId || "";
+    setFormData(createInitialForm(defaultId));
   };
 
   const handleSubmit = async (event) => {
@@ -69,12 +110,23 @@ export const useVacaciones = ({ autoFetch = true } = {}) => {
       return;
     }
 
+    const selectedEmpleado = Number(formData.id_empleado || linkedEmpleadoId);
+
+    if (isAdmin && (!selectedEmpleado || Number.isNaN(selectedEmpleado))) {
+      setError("Selecciona el empleado para la solicitud");
+      return;
+    }
+
     try {
       setSubmitting(true);
       const payload = {
         fecha_inicio: formData.fecha_inicio,
         fecha_fin: formData.fecha_fin,
       };
+
+      if (selectedEmpleado && !Number.isNaN(selectedEmpleado)) {
+        payload.id_empleado = selectedEmpleado;
+      }
 
       if (formData.motivo.trim()) {
         payload.motivo = formData.motivo.trim();
@@ -169,6 +221,8 @@ export const useVacaciones = ({ autoFetch = true } = {}) => {
     exportSolicitud,
     setError,
     setSuccessMessage,
+    empleados,
+    loadingEmpleados,
   };
 };
 
