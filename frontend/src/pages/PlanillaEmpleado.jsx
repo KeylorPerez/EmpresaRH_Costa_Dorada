@@ -153,7 +153,6 @@ const PlanillaEmpleado = () => {
                   <table className="min-w-full divide-y divide-emerald-100">
                     <thead className="bg-emerald-50 text-xs uppercase tracking-wide text-emerald-700/80">
                       <tr>
-                        <th className="px-4 py-3 text-left">ID</th>
                         <th className="px-4 py-3 text-left">Periodo</th>
                         <th className="px-4 py-3 text-left">Fecha de pago</th>
                         <th className="px-4 py-3 text-left">Tipo de pago</th>
@@ -166,7 +165,9 @@ const PlanillaEmpleado = () => {
                       {planillasOrdenadas.map((planilla) => {
                         const periodo = formatPeriodo(planilla.periodo_inicio, planilla.periodo_fin);
                         const pagoNeto = formatCurrency(planilla.pago_neto ?? planilla.pagoNeto);
-                        const tipoPago = formatearTipoPago(planilla.tipo_pago || planilla.tipo_pago_empleado);
+                        const tipoPago = formatearTipoPago(
+                          planilla.tipo_pago || planilla.tipo_pago_empleado || planilla.empleado?.tipo_pago,
+                        );
                         const planillaId = planilla.id_planilla || planilla.idPlanilla;
                         const fechaPago = formatDate(planilla.fecha_pago);
                         const colaborador = planilla.nombre
@@ -175,9 +176,6 @@ const PlanillaEmpleado = () => {
 
                         return (
                           <tr key={planillaId} className="hover:bg-emerald-50/40">
-                            <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-900">
-                              #{planillaId}
-                            </td>
                             <td className="px-4 py-3">{periodo}</td>
                             <td className="px-4 py-3">{fechaPago}</td>
                             <td className="px-4 py-3">{tipoPago}</td>
