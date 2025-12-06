@@ -1029,7 +1029,7 @@ const Planilla = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="secondary"
+                  variant="danger"
                   size="sm"
                   disabled={exportingResumen === "pdf"}
                   onClick={() => handleExportResumen("pdf")}
@@ -1037,7 +1037,7 @@ const Planilla = () => {
                   {exportingResumen === "pdf" ? "Generando..." : "Exportar PDF"}
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="success"
                   size="sm"
                   disabled={exportingResumen === "excel"}
                   onClick={() => handleExportResumen("excel")}
