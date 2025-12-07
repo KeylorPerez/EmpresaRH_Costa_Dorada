@@ -789,7 +789,7 @@ const Liquidaciones = ({ mode }) => {
               {isExporting ? "Generando PDF..." : "Descargar PDF"}
             </Button>
             <Button
-              variant="secondary"
+              variant="warning"
               size="sm"
               disabled={!puedeExportar || !supportsShare || isSharing || isExporting}
               onClick={() => shareLiquidacion(detalleSeleccionado.id_liquidacion)}

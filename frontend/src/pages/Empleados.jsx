@@ -159,7 +159,7 @@ const Empleados = ({ mode = "admin" }) => {
               {isAdmin && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 md:justify-end md:mt-2">
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
                     disabled={exportDisabled}
                     onClick={() => exportEmpleados("pdf", { status: statusFilter })}
@@ -167,7 +167,7 @@ const Empleados = ({ mode = "admin" }) => {
                     {isExportingPdf ? "Generando PDF..." : "Exportar PDF"}
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="success"
                     size="sm"
                     disabled={exportDisabled}
                     onClick={() => exportEmpleados("excel", { status: statusFilter })}
@@ -175,7 +175,7 @@ const Empleados = ({ mode = "admin" }) => {
                     {isExportingExcel ? "Generando Excel..." : "Exportar Excel"}
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="warning"
                     size="sm"
                     disabled={exportDisabled}
                     onClick={() => shareEmpleados({ status: statusFilter })}
