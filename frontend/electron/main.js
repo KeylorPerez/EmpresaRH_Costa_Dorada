@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron');
+const { app, BrowserWindow, Menu, dialog, session } = require('electron');
 const path = require('path');
 
 const APP_NAME = 'Distribuidora Astua Pirie';
@@ -23,6 +23,20 @@ function createWindow() {
     win.loadURL('http://localhost:5173') // Modo desarrollo con Vite
     win.webContents.openDevTools()
   }
+}
+
+function allowGeolocationRequests() {
+  const defaultSession = session.defaultSession;
+  if (!defaultSession) return;
+
+  defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'geolocation') {
+      callback(true);
+      return;
+    }
+
+    callback(false);
+  });
 }
 
 function showAboutDialog() {
@@ -104,6 +118,7 @@ app.whenReady().then(() => {
   app.setName(APP_NAME);
   createWindow();
   createMenu();
+  allowGeolocationRequests();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
