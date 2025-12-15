@@ -39,11 +39,10 @@ function createWindow() {
   }
 }
 
-function allowGeolocationRequests() {
-  const defaultSession = session.defaultSession;
-  if (!defaultSession) return;
+function allowGeolocationRequests(targetSession) {
+  if (!targetSession) return;
 
-  defaultSession.setPermissionCheckHandler((webContents, permission) => {
+  targetSession.setPermissionCheckHandler((webContents, permission) => {
     if (permission === 'geolocation') {
       return true;
     }
@@ -51,7 +50,7 @@ function allowGeolocationRequests() {
     return false;
   });
 
-  defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+  targetSession.setPermissionRequestHandler((webContents, permission, callback) => {
     if (permission === 'geolocation') {
       callback(true);
       return;
@@ -138,9 +137,11 @@ function createMenu() {
 
 app.whenReady().then(() => {
   app.setName(APP_NAME);
+  allowGeolocationRequests(session.defaultSession);
+  app.on('session-created', allowGeolocationRequests);
+
   createWindow();
   createMenu();
-  allowGeolocationRequests();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
