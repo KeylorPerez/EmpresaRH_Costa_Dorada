@@ -610,11 +610,14 @@ export const useAsistencia = ({ mode, user } = {}) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     setError("");
     setSuccessMessage("");
 
     if (!formData.tipo_marca) {
       setError("Selecciona el tipo de marca");
+      setSubmitting(false);
       return;
     }
 
@@ -656,17 +659,20 @@ export const useAsistencia = ({ mode, user } = {}) => {
           locationStatus.error ||
           "Debes capturar tu ubicación antes de registrar la marca";
         setError(message);
+        setSubmitting(false);
         return;
       }
     }
 
     if (!isAdmin && (latitudValue === null || longitudValue === null)) {
       setError("Debes capturar tu ubicación antes de registrar la marca");
+      setSubmitting(false);
       return;
     }
 
     if ((latitudValue === null) !== (longitudValue === null)) {
       setError("Completa la latitud y la longitud para registrar la ubicación");
+      setSubmitting(false);
       return;
     }
 
@@ -678,13 +684,13 @@ export const useAsistencia = ({ mode, user } = {}) => {
     if (isAdmin) {
       if (!formData.id_empleado) {
         setError("Selecciona un empleado");
+        setSubmitting(false);
         return;
       }
       payload.id_empleado = Number(formData.id_empleado);
     }
 
     try {
-      setSubmitting(true);
       await asistenciaService.createMarca(payload);
       setSuccessMessage("Marca registrada correctamente");
       resetForm();
