@@ -406,6 +406,37 @@ const parseDateSafe = (value) => {
   return date;
 };
 
+const parseDateWithoutTimezoneShift = (value) => {
+  if (!value) return null;
+
+  const toLocalMidday = (dateInstance) => {
+    if (!(dateInstance instanceof Date) || Number.isNaN(dateInstance.getTime())) {
+      return null;
+    }
+
+    return new Date(
+      dateInstance.getFullYear(),
+      dateInstance.getMonth(),
+      dateInstance.getDate(),
+      12,
+      0,
+      0,
+      0,
+    );
+  };
+
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (match) {
+      const [_, year, month, day] = match; // eslint-disable-line no-unused-vars
+      return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+    }
+  }
+
+  return toLocalMidday(new Date(value));
+};
+
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
   const inicioDate = parseDateSafe(inicio);
   const finDate = parseDateSafe(fin);
@@ -800,10 +831,10 @@ export const usePlanilla = () => {
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
-    const fechaInicio = new Date(inicio);
-    const fechaFin = new Date(fin);
+    const fechaInicio = parseDateWithoutTimezoneShift(inicio);
+    const fechaFin = parseDateWithoutTimezoneShift(fin);
 
-    if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime()) || fechaFin < fechaInicio) {
+    if (Number.isNaN(fechaInicio?.getTime()) || Number.isNaN(fechaFin?.getTime()) || fechaFin < fechaInicio) {
       return [];
     }
 
