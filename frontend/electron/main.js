@@ -1,5 +1,23 @@
 const { app, BrowserWindow, Menu, dialog, session } = require('electron');
+const fs = require('fs');
 const path = require('path');
+const dotenv = require('dotenv');
+
+function loadEnvFile() {
+  const candidatePaths = [
+    path.join(process.resourcesPath || '', '.env'),
+    path.join(__dirname, '..', '.env'),
+    path.join(process.cwd(), '.env'),
+  ];
+
+  const envPath = candidatePaths.find((filePath) => fs.existsSync(filePath));
+
+  if (envPath) {
+    dotenv.config({ path: envPath });
+  }
+}
+
+loadEnvFile();
 
 // Electron necesita una API key válida para poder resolver la ubicación con el
 // proveedor de geolocalización (Google). Si la aplicación web ya cuenta con una
