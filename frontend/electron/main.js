@@ -1,6 +1,20 @@
 const { app, BrowserWindow, Menu, dialog, session } = require('electron');
 const path = require('path');
 
+// Electron necesita una API key válida para poder resolver la ubicación con el
+// proveedor de geolocalización (Google). Si la aplicación web ya cuenta con una
+// key configurada en variables de entorno, la reutilizamos para el cliente de
+// escritorio. No sobrescribimos un valor existente para permitir personalizarla
+// desde el entorno del sistema.
+if (!process.env.GOOGLE_API_KEY) {
+  process.env.GOOGLE_API_KEY =
+    process.env.ELECTRON_GOOGLE_API_KEY ||
+    process.env.VITE_GOOGLE_API_KEY ||
+    process.env.VITE_GOOGLE_MAPS_API_KEY ||
+    process.env.VITE_MAPS_API_KEY ||
+    '';
+}
+
 const APP_NAME = 'Distribuidora Astua Pirie';
 
 function createWindow() {
@@ -28,6 +42,14 @@ function createWindow() {
 function allowGeolocationRequests() {
   const defaultSession = session.defaultSession;
   if (!defaultSession) return;
+
+  defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'geolocation') {
+      return true;
+    }
+
+    return false;
+  });
 
   defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     if (permission === 'geolocation') {
