@@ -53,6 +53,9 @@ const AuthProvider = ({ children }) => {
     setToken(jwtToken);
     lastActivityRef.current = Date.now();
     localStorage.setItem("token", jwtToken);
+    // Asegura que las rutas privadas no se queden en estado de carga luego
+    // de un login exitoso (p. ej. en dispositivos móviles con red más lenta).
+    setLoading(false);
   };
 
   const logoutUser = () => {
