@@ -750,52 +750,38 @@ const createMarca = async (req, res) => {
 const updateMarca = async (req, res) => {
   try {
     const id_asistencia = parseInt(req.params.id, 10);
-    const {
-      tipo_marca,
-      observaciones,
-      estado: estadoBody,
-      justificado: justificadoBody,
-      justificacion,
-    } = req.body;
+    const { observaciones, justificado: justificadoBody, justificacion } = req.body;
 
-    if (!tipo_marca || !allowedTypes.includes(tipo_marca)) {
-      return res.status(400).json({ error: `tipo_marca inválido. Debe ser uno de: ${allowedTypes.join(', ')}` });
+    const existingMarca = await Asistencia.findById(id_asistencia);
+    if (!existingMarca) {
+      return res.status(404).json({ error: 'Marca de asistencia no encontrada' });
     }
 
-    let estadoFinal = null;
-    if (estadoBody !== undefined) {
-      if (estadoBody === null || estadoBody === '') {
-        return res.status(400).json({ error: 'estado es requerido' });
-      }
-      const estadoTrimmed = estadoBody.toString().trim();
-      if (!allowedStates.includes(estadoTrimmed)) {
-        return res.status(400).json({
-          error: `estado inválido. Debe ser uno de: ${allowedStates.join(', ')}`,
-        });
-      }
-      estadoFinal = estadoTrimmed;
-    }
+    const observacionesActualizadas =
+      observaciones === undefined ? existingMarca.observaciones : observaciones;
 
-    let justificadoFinal = null;
-    if (justificadoBody !== undefined && justificadoBody !== null) {
-      justificadoFinal = isTruthy(justificadoBody);
-    }
-
+    let justificadoFinal;
     let justificacionTexto;
+
     if (justificadoBody !== undefined) {
-      if (justificadoFinal) {
-        justificacionTexto = justificacion !== undefined && justificacion !== null ? justificacion.toString().trim() : '';
-      } else {
-        justificacionTexto = '';
-      }
+      justificadoFinal = isTruthy(justificadoBody);
+      justificacionTexto = justificadoFinal
+        ? justificacion !== undefined && justificacion !== null
+          ? justificacion.toString().trim()
+          : ''
+        : '';
     } else if (justificacion !== undefined && justificacion !== null) {
       justificacionTexto = justificacion.toString().trim();
     }
 
-    const payload = { tipo_marca, observaciones };
-    if (estadoBody !== undefined) {
-      payload.estado = estadoFinal;
-    }
+    const payload = {
+      // Se mantiene la integridad de la marca original: solo se permite modificar
+      // observaciones y la sección de justificación.
+      tipo_marca: existingMarca.tipo_marca,
+      observaciones: observacionesActualizadas,
+      estado: existingMarca.estado,
+    };
+
     if (justificadoBody !== undefined) {
       payload.justificado = justificadoFinal;
       payload.justificacion = justificacionTexto;
