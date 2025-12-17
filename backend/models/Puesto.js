@@ -72,22 +72,6 @@ class Puesto {
       throw err;
     }
   }
-
-  // Eliminar un puesto
-  static async delete(id_puesto) {
-    try {
-      const pool = await poolPromise;
-      await pool.request()
-        .input('id_puesto', sql.Int, id_puesto)
-        .query(`
-          DELETE FROM Puestos
-          WHERE id_puesto = @id_puesto
-        `);
-      return { message: 'Puesto eliminado' };
-    } catch (err) {
-      throw err;
-    }
-  }
 }
 
 module.exports = Puesto;

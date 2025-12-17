@@ -61,23 +61,9 @@ const updatePuesto = async (req, res) => {
   }
 };
 
-// Eliminar un puesto
-const deletePuesto = async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
-
-    await Puesto.delete(id);
-    res.json({ message: 'Puesto eliminado correctamente' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
 module.exports = {
   getPuestos,
   getPuestoById,
   createPuesto,
-  updatePuesto,
-  deletePuesto
+  updatePuesto
 };
