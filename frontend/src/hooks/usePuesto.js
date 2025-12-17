@@ -80,16 +80,6 @@ export const usePuesto = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = async (puesto) => {
-    try {
-      await puestoService.remove(puesto.id_puesto);
-      fetchPuestos();
-    } catch (err) {
-      console.error(err);
-      setError("Error al eliminar el puesto");
-    }
-  };
-
   const closeModal = () => {
     setModalOpen(false);
     setEditingPuesto(null);
@@ -108,7 +98,6 @@ export const usePuesto = () => {
     handleChange,
     handleSubmit,
     handleEdit,
-    handleDelete,
     openCreateModal,
     closeModal,
   };

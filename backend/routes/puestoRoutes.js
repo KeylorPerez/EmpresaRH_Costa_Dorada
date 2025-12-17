@@ -8,8 +8,7 @@ const {
   getPuestos,
   getPuestoById,
   createPuesto,
-  updatePuesto,
-  deletePuesto
+  updatePuesto
 } = require('../controllers/puestoController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -24,8 +23,5 @@ router.post('/', authenticateToken, authorizeRoles(1), createPuesto);
 
 // Actualizar puesto (solo admin)
 router.put('/:id', authenticateToken, authorizeRoles(1), updatePuesto);
-
-// Eliminar un puesto
-router.delete('/:id', authenticateToken, authorizeRoles(1), deletePuesto);
 
 module.exports = router;

@@ -18,7 +18,6 @@ const Puestos = () => {
     handleChange,
     handleSubmit,
     handleEdit,
-    handleDelete,
     openCreateModal,
     closeModal,
   } = usePuesto();
@@ -27,15 +26,6 @@ const Puestos = () => {
 
   if (!user) return <p>Cargando usuario...</p>;
   if (user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
-
-  const confirmAndDelete = (puesto) => {
-    const confirmed = window.confirm(
-      `¿Estás seguro de eliminar el puesto "${puesto.nombre}"?`
-    );
-    if (confirmed) {
-      handleDelete(puesto);
-    }
-  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -105,13 +95,6 @@ const Puestos = () => {
                               onClick={() => handleEdit(puesto)}
                             >
                               Editar
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => confirmAndDelete(puesto)}
-                            >
-                              Eliminar
                             </Button>
                           </div>
                         </td>
