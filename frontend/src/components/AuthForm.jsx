@@ -14,6 +14,7 @@ const AuthForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { loginUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -21,6 +22,7 @@ const AuthForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
     try {
       const { user, token } = await login(username, password);
       loginUser(user, token);
@@ -39,6 +41,8 @@ const AuthForm = () => {
       }
     } catch (err) {
       setError(err.message || "Error al iniciar sesión");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -67,6 +71,7 @@ const AuthForm = () => {
           placeholder="Ingrese su usuario"
           className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
+          disabled={isLoading}
         />
 
         <label htmlFor="password" className="block mb-1 font-medium text-gray-700">
@@ -80,12 +85,18 @@ const AuthForm = () => {
           placeholder="Ingrese su contraseña"
           className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
+          disabled={isLoading}
         />
 
         {/* Botón con Tailwind o tu componente Button */}
-      <Button variant="primary" type="submit" className="w-full py-2">
-        Ingresar
-      </Button>
+        <Button
+          variant="primary"
+          type="submit"
+          className="w-full py-2"
+          disabled={isLoading}
+        >
+          {isLoading ? "Cargando..." : "Ingresar"}
+        </Button>
         <div className="mt-4 text-center">
           <Link
             to="/acerca"
