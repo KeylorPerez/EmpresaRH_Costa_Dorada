@@ -755,19 +755,10 @@ export const useAsistencia = ({ mode, user } = {}) => {
     event.preventDefault();
     if (!editingRegistro) return;
 
-    if (!editForm.tipo_marca) {
-      setError("Selecciona el tipo de marca");
-      return;
-    }
-
     try {
       setEditLoading(true);
       const payload = {
-        fecha: editForm.fecha || undefined,
-        hora: editForm.hora || undefined,
-        tipo_marca: editForm.tipo_marca,
         observaciones: editForm.observaciones,
-        estado: editForm.estado || "Presente",
         justificado: Boolean(editForm.justificado),
       };
 
