@@ -4,7 +4,7 @@
  * encapsula aquí para que el resto de la app consuma siempre un `user` ya
  * procesado.
  */
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import AuthContext from "./AuthContext";
 import api from "../api/axiosConfig";
 import { decodeJwtPayload, decodeJwtPayloadAllowExpired } from "../utils/jwt";
@@ -58,13 +58,13 @@ const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const logoutUser = () => {
+  const logoutUser = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("token");
-  };
+  }, []);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     if (refreshInFlight.current) return;
 
     refreshInFlight.current = true;
@@ -84,7 +84,7 @@ const AuthProvider = ({ children }) => {
     } finally {
       refreshInFlight.current = false;
     }
-  };
+  }, [logoutUser]);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -127,7 +127,7 @@ const AuthProvider = ({ children }) => {
       clearInterval(healthCheck);
       activityEvents.forEach((event) => window.removeEventListener(event, registerActivity));
     };
-  }, [token]);
+  }, [logoutUser, refreshSession, token]);
 
   return (
     <AuthContext.Provider value={{ user, token, loading, loginUser, logoutUser }}>
