@@ -56,7 +56,7 @@ const normalizeFileUrl = (url) => {
     }
 
     return normalized.toString();
-  } catch (err) {
+  } catch {
     if (url.startsWith("//")) return `${window.location.protocol}${url}`;
     if (url.startsWith("/")) return `${window.location.origin}${url}`;
     return url;
