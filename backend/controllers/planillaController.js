@@ -597,10 +597,35 @@ const createCsvFile = async (filePath, planilla, detalles) => {
   await fsPromises.writeFile(filePath, content, 'utf8');
 };
 
+const getPeriodoRango = (planillas = []) => {
+  if (!Array.isArray(planillas) || planillas.length === 0) {
+    return { inicio: null, fin: null };
+  }
+
+  let inicio = null;
+  let fin = null;
+
+  planillas.forEach((planilla) => {
+    const inicioDate = planilla?.periodo_inicio ? new Date(planilla.periodo_inicio) : null;
+    const finDate = planilla?.periodo_fin ? new Date(planilla.periodo_fin) : null;
+
+    if (inicioDate && !Number.isNaN(inicioDate.getTime())) {
+      if (!inicio || inicioDate < inicio) inicio = inicioDate;
+    }
+
+    if (finDate && !Number.isNaN(finDate.getTime())) {
+      if (!fin || finDate > fin) fin = finDate;
+    }
+  });
+
+  return { inicio, fin };
+};
+
 const buildPlanillasResumenLines = (planillas) => {
   const safePlanillas = Array.isArray(planillas) ? planillas : [];
   const lines = [];
   const now = new Date();
+  const { inicio: inicioPeriodo, fin: finPeriodo } = getPeriodoRango(safePlanillas);
   const totalSalarioBruto = safePlanillas.reduce(
     (sum, planilla) => sum + (Number(planilla.salario_bruto) || 0),
     0,
@@ -617,6 +642,11 @@ const buildPlanillasResumenLines = (planillas) => {
 
   lines.push('Resumen general de planillas');
   lines.push(`Generado el: ${formatDateDisplay(now.toISOString())}`);
+  if (inicioPeriodo || finPeriodo) {
+    lines.push(
+      `Periodo cubierto: ${formatDateDisplay(inicioPeriodo)} al ${formatDateDisplay(finPeriodo)}`,
+    );
+  }
   lines.push('');
   lines.push(`Total de planillas: ${safePlanillas.length}`);
   lines.push(`Salario bruto acumulado: ${formatCurrency(totalSalarioBruto)}`);
@@ -625,12 +655,11 @@ const buildPlanillasResumenLines = (planillas) => {
   lines.push(sectionDivider);
 
   const columns = [
-    { header: 'Colaborador', min: 10, max: 24 },
-    { header: 'Periodo', min: 12, max: 22 },
-    { header: 'Bruto', min: 8, max: 13 },
-    { header: 'Deducciones', min: 10, max: 15 },
-    { header: 'Neto', min: 8, max: 13 },
-    { header: 'Pago', min: 8, max: 13 },
+    { header: 'Colaborador', min: 14, max: 28 },
+    { header: 'Bruto', min: 10, max: 15 },
+    { header: 'Deducciones', min: 12, max: 17 },
+    { header: 'Neto', min: 10, max: 15 },
+    { header: 'Pago', min: 9, max: 13 },
   ];
   const MAX_LINE_WIDTH = 90;
   const COLUMN_SEPARATOR = ' | ';
@@ -639,9 +668,6 @@ const buildPlanillasResumenLines = (planillas) => {
 
   safePlanillas.forEach((planilla) => {
     const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
-    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
-      planilla.periodo_fin,
-    )}`;
     const bruto = formatCurrency(planilla.salario_bruto);
     const deducciones = formatCurrency(
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
@@ -651,7 +677,6 @@ const buildPlanillasResumenLines = (planillas) => {
 
     const values = [
       sanitizePdfText(colaborador),
-      sanitizePdfText(periodo),
       sanitizePdfText(bruto),
       sanitizePdfText(deducciones),
       sanitizePdfText(neto),
@@ -712,9 +737,6 @@ const buildPlanillasResumenLines = (planillas) => {
 
   safePlanillas.forEach((planilla) => {
     const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
-    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
-      planilla.periodo_fin,
-    )}`;
     const bruto = formatCurrency(planilla.salario_bruto);
     const deducciones = formatCurrency(
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
@@ -722,14 +744,7 @@ const buildPlanillasResumenLines = (planillas) => {
     const neto = formatCurrency(planilla.pago_neto);
     const fechaPago = formatDateDisplay(planilla.fecha_pago);
 
-    const values = [
-      colaborador,
-      periodo,
-      bruto,
-      deducciones,
-      neto,
-      fechaPago,
-    ];
+    const values = [colaborador, bruto, deducciones, neto, fechaPago];
 
     const padded = values.map((value, index) => padValue(value, columnWidths[index]));
     lines.push(padded.join(COLUMN_SEPARATOR));
@@ -754,6 +769,7 @@ const createResumenCsvFile = async (filePath, planillas) => {
   const safePlanillas = Array.isArray(planillas) ? planillas : [];
   const lines = [];
   const now = new Date();
+  const { inicio: inicioPeriodo, fin: finPeriodo } = getPeriodoRango(safePlanillas);
   const totalSalarioBruto = safePlanillas.reduce(
     (sum, planilla) => sum + (Number(planilla.salario_bruto) || 0),
     0,
@@ -770,24 +786,27 @@ const createResumenCsvFile = async (filePath, planillas) => {
 
   lines.push('Resumen general de planillas');
   lines.push(`Generado el;${escapeCsv(formatDateDisplay(now.toISOString()))}`);
+  if (inicioPeriodo || finPeriodo) {
+    lines.push(
+      `Periodo cubierto;${escapeCsv(
+        `${formatDateDisplay(inicioPeriodo)} al ${formatDateDisplay(finPeriodo)}`,
+      )}`,
+    );
+  }
   lines.push(`Cantidad de planillas;${safePlanillas.length}`);
   lines.push(`Salario bruto acumulado;${escapeCsv(formatCurrency(totalSalarioBruto))}`);
   lines.push(`Deducciones acumuladas;${escapeCsv(formatCurrency(totalDeducciones))}`);
   lines.push(`Pago neto acumulado;${escapeCsv(formatCurrency(totalPagoNeto))}`);
   lines.push('');
-  lines.push('Colaborador;Periodo;Salario bruto;Deducciones;Pago neto;Fecha de pago');
+  lines.push('Colaborador;Salario bruto;Deducciones;Pago neto;Fecha de pago');
 
   safePlanillas.forEach((planilla) => {
     const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
-    const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
-      planilla.periodo_fin,
-    )}`;
     const deducciones =
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
 
     const row = [
       escapeCsv(colaborador),
-      escapeCsv(periodo),
       escapeCsv(formatCurrency(planilla.salario_bruto)),
       escapeCsv(formatCurrency(deducciones)),
       escapeCsv(formatCurrency(planilla.pago_neto)),
