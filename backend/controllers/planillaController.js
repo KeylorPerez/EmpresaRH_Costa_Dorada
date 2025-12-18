@@ -624,7 +624,19 @@ const buildPlanillasResumenLines = (planillas) => {
   lines.push(`Pago neto acumulado: ${formatCurrency(totalPagoNeto)}`);
   lines.push(sectionDivider);
 
-  const headers = ['#', 'Colaborador', 'Periodo', 'Tipo', 'Bruto', 'Deducciones', 'Neto', 'Pago'];
+  const columns = [
+    { header: '#', min: 3, max: 6 },
+    { header: 'Colaborador', min: 10, max: 22 },
+    { header: 'Periodo', min: 12, max: 22 },
+    { header: 'Tipo', min: 6, max: 12 },
+    { header: 'Bruto', min: 8, max: 13 },
+    { header: 'Deducciones', min: 10, max: 15 },
+    { header: 'Neto', min: 8, max: 13 },
+    { header: 'Pago', min: 8, max: 13 },
+  ];
+  const MAX_LINE_WIDTH = 90;
+  const COLUMN_SEPARATOR = ' | ';
+  const headers = columns.map((column) => column.header);
   const longestByColumn = headers.map((header) => header.length);
 
   safePlanillas.forEach((planilla) => {
@@ -665,9 +677,41 @@ const buildPlanillasResumenLines = (planillas) => {
     return sanitized.padEnd(width, ' ');
   };
 
+  const computeWidths = () =>
+    columns.map((column, index) => {
+      const longest = longestByColumn[index];
+      return Math.min(column.max, Math.max(column.min, longest));
+    });
+
+  const clampToLineLimit = (widths) => {
+    const minWidths = columns.map((column) => column.min);
+    const separatorWidth = COLUMN_SEPARATOR.length * (columns.length - 1);
+    const totalWidth = (candidateWidths) =>
+      candidateWidths.reduce((sum, width) => sum + width, 0) + separatorWidth;
+
+    const adjusted = [...widths];
+    while (totalWidth(adjusted) > MAX_LINE_WIDTH) {
+      const candidates = adjusted
+        .map((width, index) => ({ index, space: width - minWidths[index] }))
+        .filter(({ space }) => space > 0)
+        .sort((a, b) => {
+          const widthDiff = adjusted[b.index] - adjusted[a.index];
+          if (widthDiff !== 0) return widthDiff;
+          return b.space - a.space;
+        });
+
+      if (candidates.length === 0) break;
+      adjusted[candidates[0].index] -= 1;
+    }
+
+    return adjusted;
+  };
+
+  const columnWidths = clampToLineLimit(computeWidths());
+
   const headerLine = headers
-    .map((header, index) => padValue(header, Math.min(Math.max(longestByColumn[index], 5), 25)))
-    .join(' | ');
+    .map((header, index) => padValue(header, columnWidths[index]))
+    .join(COLUMN_SEPARATOR);
   lines.push(headerLine);
   lines.push(sectionDivider);
 
@@ -695,8 +739,8 @@ const buildPlanillasResumenLines = (planillas) => {
       fechaPago,
     ];
 
-    const padded = values.map((value, index) => padValue(value, Math.min(Math.max(longestByColumn[index], 5), 25)));
-    lines.push(padded.join(' | '));
+    const padded = values.map((value, index) => padValue(value, columnWidths[index]));
+    lines.push(padded.join(COLUMN_SEPARATOR));
   });
 
   if (safePlanillas.length === 0) {
