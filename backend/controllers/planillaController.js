@@ -649,7 +649,6 @@ const buildPlanillasResumenLines = (planillas) => {
     { header: 'Bruto', min: 10, max: 15 },
     { header: 'Deducciones', min: 12, max: 17 },
     { header: 'Neto', min: 10, max: 15 },
-    { header: 'Pago', min: 9, max: 13 },
   ];
   const MAX_LINE_WIDTH = 90;
   const COLUMN_SEPARATOR = ' | ';
@@ -663,14 +662,12 @@ const buildPlanillasResumenLines = (planillas) => {
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
     );
     const neto = formatCurrency(planilla.pago_neto);
-    const fechaPago = formatDateDisplay(planilla.fecha_pago);
 
     const values = [
       sanitizePdfText(colaborador),
       sanitizePdfText(bruto),
       sanitizePdfText(deducciones),
       sanitizePdfText(neto),
-      sanitizePdfText(fechaPago),
     ];
 
     values.forEach((value, index) => {
@@ -732,9 +729,7 @@ const buildPlanillasResumenLines = (planillas) => {
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
     );
     const neto = formatCurrency(planilla.pago_neto);
-    const fechaPago = formatDateDisplay(planilla.fecha_pago);
-
-    const values = [colaborador, bruto, deducciones, neto, fechaPago];
+    const values = [colaborador, bruto, deducciones, neto];
 
     const padded = values.map((value, index) => padValue(value, columnWidths[index]));
     lines.push(padded.join(COLUMN_SEPARATOR));
