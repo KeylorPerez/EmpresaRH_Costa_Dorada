@@ -31,6 +31,11 @@ if (!fs.existsSync(EXPORTS_DIR)) {
 }
 
 // Middlewares
+// Confiar en los encabezados de proxy para detectar correctamente el esquema
+// (http/https) cuando la app está detrás de un balanceador o servicio de hosting.
+// Esto evita que se generen URLs con http que luego los navegadores bloquean
+// como descargas inseguras.
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 app.use('/files', express.static(EXPORTS_DIR));
