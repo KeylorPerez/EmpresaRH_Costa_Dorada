@@ -425,10 +425,10 @@ const buildPdfLines = (planilla, detalles) => {
 
 const buildPdfContentStream = (lines) => {
   const safeLines = lines.length > 0 ? lines : [''];
-  const instructions = ['BT', '/F1 12 Tf', '50 780 Td'];
+  const instructions = ['BT', '/F1 11 Tf', '50 780 Td'];
   instructions.push(`(${escapePdfText(safeLines[0])}) Tj`);
   for (let i = 1; i < safeLines.length; i += 1) {
-    instructions.push('0 -16 Td');
+    instructions.push('0 -15 Td');
     instructions.push(`(${escapePdfText(safeLines[i])}) Tj`);
   }
   instructions.push('ET');
@@ -625,10 +625,8 @@ const buildPlanillasResumenLines = (planillas) => {
   lines.push(sectionDivider);
 
   const columns = [
-    { header: '#', min: 3, max: 6 },
-    { header: 'Colaborador', min: 10, max: 22 },
+    { header: 'Colaborador', min: 10, max: 24 },
     { header: 'Periodo', min: 12, max: 22 },
-    { header: 'Tipo', min: 6, max: 12 },
     { header: 'Bruto', min: 8, max: 13 },
     { header: 'Deducciones', min: 10, max: 15 },
     { header: 'Neto', min: 8, max: 13 },
@@ -644,7 +642,6 @@ const buildPlanillasResumenLines = (planillas) => {
     const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
       planilla.periodo_fin,
     )}`;
-    const tipoPago = (planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado').toString();
     const bruto = formatCurrency(planilla.salario_bruto);
     const deducciones = formatCurrency(
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
@@ -653,10 +650,8 @@ const buildPlanillasResumenLines = (planillas) => {
     const fechaPago = formatDateDisplay(planilla.fecha_pago);
 
     const values = [
-      `#${planilla.id_planilla || ''}`.trim(),
       sanitizePdfText(colaborador),
       sanitizePdfText(periodo),
-      sanitizePdfText(tipoPago),
       sanitizePdfText(bruto),
       sanitizePdfText(deducciones),
       sanitizePdfText(neto),
@@ -720,7 +715,6 @@ const buildPlanillasResumenLines = (planillas) => {
     const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
       planilla.periodo_fin,
     )}`;
-    const tipoPago = planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado';
     const bruto = formatCurrency(planilla.salario_bruto);
     const deducciones = formatCurrency(
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0),
@@ -729,10 +723,8 @@ const buildPlanillasResumenLines = (planillas) => {
     const fechaPago = formatDateDisplay(planilla.fecha_pago);
 
     const values = [
-      `#${planilla.id_planilla || ''}`.trim(),
       colaborador,
       periodo,
-      tipoPago,
       bruto,
       deducciones,
       neto,
@@ -783,22 +775,19 @@ const createResumenCsvFile = async (filePath, planillas) => {
   lines.push(`Deducciones acumuladas;${escapeCsv(formatCurrency(totalDeducciones))}`);
   lines.push(`Pago neto acumulado;${escapeCsv(formatCurrency(totalPagoNeto))}`);
   lines.push('');
-  lines.push('ID;Colaborador;Periodo;Tipo de pago;Salario bruto;Deducciones;Pago neto;Fecha de pago');
+  lines.push('Colaborador;Periodo;Salario bruto;Deducciones;Pago neto;Fecha de pago');
 
   safePlanillas.forEach((planilla) => {
     const colaborador = [planilla.nombre, planilla.apellido].filter(Boolean).join(' ').trim() || 'Sin nombre';
     const periodo = `${formatDateDisplay(planilla.periodo_inicio)} - ${formatDateDisplay(
       planilla.periodo_fin,
     )}`;
-    const tipoPago = planilla.tipo_pago || planilla.tipo_pago_empleado || 'No especificado';
     const deducciones =
       (Number(planilla.deducciones) || 0) + (Number(planilla.ccss_deduccion) || 0);
 
     const row = [
-      planilla.id_planilla ?? '',
       escapeCsv(colaborador),
       escapeCsv(periodo),
-      escapeCsv(tipoPago),
       escapeCsv(formatCurrency(planilla.salario_bruto)),
       escapeCsv(formatCurrency(deducciones)),
       escapeCsv(formatCurrency(planilla.pago_neto)),
