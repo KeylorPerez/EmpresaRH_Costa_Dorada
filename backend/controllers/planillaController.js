@@ -621,6 +621,7 @@ const buildPlanillasResumenLines = (planillas) => {
   const safePlanillas = Array.isArray(planillas) ? planillas : [];
   const lines = [];
   const now = new Date();
+  const { inicio: inicioPeriodo, fin: finPeriodo } = getPeriodoRango(safePlanillas);
   const totalSalarioBruto = safePlanillas.reduce(
     (sum, planilla) => sum + (Number(planilla.salario_bruto) || 0),
     0,
@@ -637,6 +638,9 @@ const buildPlanillasResumenLines = (planillas) => {
 
   lines.push('Resumen general de planillas');
   lines.push(`Generado el: ${formatDateDisplay(now.toISOString())}`);
+  if (inicioPeriodo || finPeriodo) {
+    lines.push(`Periodo cubierto: ${formatDateDisplay(inicioPeriodo)} al ${formatDateDisplay(finPeriodo)}`);
+  }
   lines.push('');
   lines.push(`Total de planillas: ${safePlanillas.length}`);
   lines.push(`Salario bruto acumulado: ${formatCurrency(totalSalarioBruto)}`);
