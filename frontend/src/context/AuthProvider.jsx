@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import AuthContext from "./AuthContext";
 import api from "../api/axiosConfig";
 import { decodeJwtPayload, decodeJwtPayloadAllowExpired } from "../utils/jwt";
+import { redirectToLogin } from "../utils/navigation";
 
 const IDLE_TIMEOUT_MINUTES = Number(import.meta.env.VITE_IDLE_TIMEOUT_MINUTES ?? 15);
 const REFRESH_THRESHOLD_MINUTES = Number(import.meta.env.VITE_REFRESH_THRESHOLD_MINUTES ?? 5);
@@ -80,7 +81,7 @@ const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("No se pudo refrescar la sesión", error);
       logoutUser();
-      window.location.href = "/login";
+      redirectToLogin();
     } finally {
       refreshInFlight.current = false;
     }
@@ -105,7 +106,7 @@ const AuthProvider = ({ children }) => {
 
       if (idleTime >= idleTimeoutMs) {
         logoutUser();
-        window.location.href = "/login";
+        redirectToLogin();
         return;
       }
 
@@ -119,7 +120,7 @@ const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error("No se pudo leer el token", error);
         logoutUser();
-        window.location.href = "/login";
+        redirectToLogin();
       }
     }, HEALTH_CHECK_INTERVAL_MS);
 
