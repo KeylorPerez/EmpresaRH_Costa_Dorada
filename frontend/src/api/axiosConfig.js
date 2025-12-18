@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { redirectToLogin } from '../utils/navigation';
 
 // Crear la instancia base de Axios con la URL del backend
 const api = axios.create({
@@ -34,7 +35,7 @@ api.interceptors.response.use(
     if (shouldLogout) {
       console.warn('Sesión expirada o usuario inactivo');
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      redirectToLogin();
     }
 
     return Promise.reject(error);
