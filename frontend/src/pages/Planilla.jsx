@@ -1990,18 +1990,19 @@ const Planilla = () => {
                           {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
                         </Button>
                       </div>
-                      <div className="mt-4 flex-1 min-h-0 max-h-[45vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 pb-3 custom-scrollbar">
-                        <table className="min-w-full divide-y divide-gray-100 text-sm">
-                          <thead className="bg-gray-50 text-left text-gray-600">
-                            <tr>
-                              <th className="px-4 py-3 font-semibold">Fecha</th>
-                              <th className="px-4 py-3 font-semibold">Descripción</th>
-                              <th className="px-4 py-3 font-semibold">Multiplicador</th>
-                              <th className="px-4 py-3 font-semibold">Estado</th>
-                              <th className="px-4 py-3 font-semibold">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 bg-white">
+                      <div className="mt-4 flex-1 min-h-0 overflow-x-auto custom-scrollbar">
+                        <div className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
+                          <table className="min-w-[720px] w-full divide-y divide-gray-100 text-sm">
+                            <thead className="bg-gray-50 text-left text-gray-600">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold">Fecha</th>
+                            <th className="px-4 py-3 font-semibold">Descripción</th>
+                            <th className="px-4 py-3 font-semibold">Multiplicador</th>
+                            <th className="px-4 py-3 font-semibold">Estado</th>
+                            <th className="px-4 py-3 font-semibold">Acciones</th>
+                          </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white">
                             {diasDoblesLoading ? (
                               <tr>
                                 <td className="px-4 py-4 text-gray-500" colSpan={5}>
@@ -2017,11 +2018,11 @@ const Planilla = () => {
                             ) : (
                               diasDobles.map((dia) => (
                                 <tr key={dia.id_dia_doble} className="hover:bg-gray-50">
-                                  <td className="px-4 py-3 text-gray-700">
+                                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                     {formatDate(dia.fecha)}
                                   </td>
-                                  <td className="px-4 py-3 text-gray-700">{dia.descripcion}</td>
-                                  <td className="px-4 py-3 text-gray-700">
+                                  <td className="px-4 py-3 text-gray-700 min-w-[240px]">{dia.descripcion}</td>
+                                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                     {Number(dia.multiplicador || 0).toFixed(2)}
                                   </td>
                                   <td className="px-4 py-3">
@@ -2036,7 +2037,7 @@ const Planilla = () => {
                                     </span>
                                   </td>
                                   <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap gap-2 whitespace-nowrap">
                                       <Button
                                         variant="warning"
                                         size="sm"
@@ -2056,8 +2057,9 @@ const Planilla = () => {
                                 </tr>
                               ))
                             )}
-                          </tbody>
-                        </table>
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   </div>
