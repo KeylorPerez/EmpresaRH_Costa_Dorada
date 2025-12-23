@@ -1887,7 +1887,7 @@ const Planilla = () => {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto px-6 pb-6">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-6">
                     {diasDoblesError && (
                       <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {diasDoblesError}
@@ -1979,19 +1979,18 @@ const Planilla = () => {
                       </div>
                     </form>
 
-                    <div className="mt-6">
+                    <div className="mt-6 flex min-h-0 flex-1 flex-col">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={fetchDiasDobles}
-                          disabled={diasDoblesLoading}
                         >
                           {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
                         </Button>
                       </div>
-                      <div className="mt-4 max-h-[40vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
+                      <div className="mt-4 flex-1 min-h-0 overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
                         <table className="min-w-full divide-y divide-gray-100 text-sm">
                           <thead className="bg-gray-50 text-left text-gray-600">
                             <tr>
