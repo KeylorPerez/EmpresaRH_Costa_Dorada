@@ -1990,7 +1990,7 @@ const Planilla = () => {
                           {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
                         </Button>
                       </div>
-                      <div className="mt-4 flex-1 min-h-0 max-h-[45vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
+                      <div className="mt-4 flex-1 min-h-0 max-h-[45vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 pb-3 custom-scrollbar">
                         <table className="min-w-full divide-y divide-gray-100 text-sm">
                           <thead className="bg-gray-50 text-left text-gray-600">
                             <tr>
