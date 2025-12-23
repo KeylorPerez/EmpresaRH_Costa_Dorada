@@ -1866,202 +1866,208 @@ const Planilla = () => {
 
           {diasDoblesModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-6">
-              <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Configuración de días dobles</h2>
-                    <p className="text-sm text-gray-500">
-                      Define feriados o días especiales que se aplicarán automáticamente en planillas diarias.
-                    </p>
+              <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div className="flex h-full flex-col">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 pb-4 pt-6">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-800">Configuración de días dobles</h2>
+                      <p className="text-sm text-gray-500">
+                        Define feriados o días especiales que se aplicarán automáticamente en planillas diarias.
+                      </p>
+                    </div>
+                    <button
+                      aria-label="Cerrar"
+                      onClick={() => {
+                        resetDiasDoblesForm();
+                        setDiasDoblesModalOpen(false);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    aria-label="Cerrar"
-                    onClick={() => {
-                      resetDiasDoblesForm();
-                      setDiasDoblesModalOpen(false);
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
 
-                {diasDoblesError && (
-                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {diasDoblesError}
-                  </div>
-                )}
+                  <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    {diasDoblesError && (
+                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {diasDoblesError}
+                      </div>
+                    )}
 
-                <form onSubmit={handleDiasDoblesSubmit} className="mt-4 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <div className="flex flex-col gap-1 text-sm text-gray-600">
-                      <label className="font-medium" htmlFor="dias-dobles-fecha">
-                        Fecha
-                      </label>
-                      <input
-                        id="dias-dobles-fecha"
-                        name="fecha"
-                        type="date"
-                        value={diasDoblesForm.fecha}
-                        onChange={handleDiasDoblesFormChange}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 text-sm text-gray-600 md:col-span-2">
-                      <label className="font-medium" htmlFor="dias-dobles-descripcion">
-                        Descripción
-                      </label>
-                      <input
-                        id="dias-dobles-descripcion"
-                        name="descripcion"
-                        type="text"
-                        value={diasDoblesForm.descripcion}
-                        onChange={handleDiasDoblesFormChange}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                        placeholder="Ej: Feriado nacional"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 text-sm text-gray-600">
-                      <label className="font-medium" htmlFor="dias-dobles-multiplicador">
-                        Multiplicador
-                      </label>
-                      <input
-                        id="dias-dobles-multiplicador"
-                        name="multiplicador"
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        value={diasDoblesForm.multiplicador}
-                        onChange={handleDiasDoblesFormChange}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 text-sm text-gray-600">
-                      <label htmlFor="dias-dobles-activo" className="font-medium text-gray-700">
-                        Activo
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="dias-dobles-activo"
-                          name="activo"
-                          type="checkbox"
-                          checked={diasDoblesForm.activo}
-                          onChange={handleDiasDoblesFormChange}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">Aplicar</span>
+                    <form onSubmit={handleDiasDoblesSubmit} className="mt-4 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-4">
+                        <div className="flex flex-col gap-1 text-sm text-gray-600">
+                          <label className="font-medium" htmlFor="dias-dobles-fecha">
+                            Fecha
+                          </label>
+                          <input
+                            id="dias-dobles-fecha"
+                            name="fecha"
+                            type="date"
+                            value={diasDoblesForm.fecha}
+                            onChange={handleDiasDoblesFormChange}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-sm text-gray-600 md:col-span-2">
+                          <label className="font-medium" htmlFor="dias-dobles-descripcion">
+                            Descripción
+                          </label>
+                          <input
+                            id="dias-dobles-descripcion"
+                            name="descripcion"
+                            type="text"
+                            value={diasDoblesForm.descripcion}
+                            onChange={handleDiasDoblesFormChange}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            placeholder="Ej: Feriado nacional"
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-sm text-gray-600">
+                          <label className="font-medium" htmlFor="dias-dobles-multiplicador">
+                            Multiplicador
+                          </label>
+                          <input
+                            id="dias-dobles-multiplicador"
+                            name="multiplicador"
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            value={diasDoblesForm.multiplicador}
+                            onChange={handleDiasDoblesFormChange}
+                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 text-sm text-gray-600">
+                          <label htmlFor="dias-dobles-activo" className="font-medium text-gray-700">
+                            Activo
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="dias-dobles-activo"
+                              name="activo"
+                              type="checkbox"
+                              checked={diasDoblesForm.activo}
+                              onChange={handleDiasDoblesFormChange}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Aplicar</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {editingDiaDoble && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={resetDiasDoblesForm}
+                          >
+                            Cancelar edición
+                          </Button>
+                        )}
+                        <Button variant="primary" size="sm" type="submit" disabled={diasDoblesSaving}>
+                          {diasDoblesSaving
+                            ? "Guardando..."
+                            : editingDiaDoble
+                              ? "Actualizar día doble"
+                              : "Agregar día doble"}
+                        </Button>
+                      </div>
+                    </form>
+
+                    <div className="mt-6">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchDiasDobles}
+                          disabled={diasDoblesLoading}
+                        >
+                          {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
+                        </Button>
+                      </div>
+                      <div className="mt-4 overflow-x-auto overflow-y-auto rounded-xl border border-gray-100">
+                        <table className="min-w-full divide-y divide-gray-100 text-sm">
+                          <thead className="bg-gray-50 text-left text-gray-600">
+                            <tr>
+                              <th className="px-4 py-3 font-semibold">Fecha</th>
+                              <th className="px-4 py-3 font-semibold">Descripción</th>
+                              <th className="px-4 py-3 font-semibold">Multiplicador</th>
+                              <th className="px-4 py-3 font-semibold">Estado</th>
+                              <th className="px-4 py-3 font-semibold">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {diasDoblesLoading ? (
+                              <tr>
+                                <td className="px-4 py-4 text-gray-500" colSpan={5}>
+                                  Cargando días dobles...
+                                </td>
+                              </tr>
+                            ) : diasDobles.length === 0 ? (
+                              <tr>
+                                <td className="px-4 py-4 text-gray-500" colSpan={5}>
+                                  No hay días dobles configurados.
+                                </td>
+                              </tr>
+                            ) : (
+                              diasDobles.map((dia) => (
+                                <tr key={dia.id_dia_doble} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-gray-700">
+                                    {formatDate(dia.fecha)}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700">{dia.descripcion}</td>
+                                  <td className="px-4 py-3 text-gray-700">
+                                    {Number(dia.multiplicador || 0).toFixed(2)}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                        dia.activo
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : "bg-gray-100 text-gray-600"
+                                      }`}
+                                    >
+                                      {dia.activo ? "Activo" : "Inactivo"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        variant="warning"
+                                        size="sm"
+                                        onClick={() => handleEditDiaDoble(dia)}
+                                      >
+                                        Editar
+                                      </Button>
+                                      <Button
+                                        variant={dia.activo ? "secondary" : "success"}
+                                        size="sm"
+                                        onClick={() => handleToggleDiaDoble(dia)}
+                                      >
+                                        {dia.activo ? "Desactivar" : "Activar"}
+                                      </Button>
+                                      <Button
+                                        variant="danger"
+                                        size="sm"
+                                        onClick={() => handleDeleteDiaDoble(dia)}
+                                      >
+                                        Eliminar
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {editingDiaDoble && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={resetDiasDoblesForm}
-                      >
-                        Cancelar edición
-                      </Button>
-                    )}
-                    <Button variant="primary" size="sm" type="submit" disabled={diasDoblesSaving}>
-                      {diasDoblesSaving
-                        ? "Guardando..."
-                        : editingDiaDoble
-                          ? "Actualizar día doble"
-                          : "Agregar día doble"}
-                    </Button>
-                  </div>
-                </form>
-
-                <div className="mt-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchDiasDobles}
-                      disabled={diasDoblesLoading}
-                    >
-                      {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
-                    </Button>
-                  </div>
-                  <div className="mt-4 max-h-[60vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100">
-                    <table className="min-w-full divide-y divide-gray-100 text-sm">
-                      <thead className="bg-gray-50 text-left text-gray-600">
-                        <tr>
-                          <th className="px-4 py-3 font-semibold">Fecha</th>
-                          <th className="px-4 py-3 font-semibold">Descripción</th>
-                          <th className="px-4 py-3 font-semibold">Multiplicador</th>
-                          <th className="px-4 py-3 font-semibold">Estado</th>
-                          <th className="px-4 py-3 font-semibold">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 bg-white">
-                        {diasDoblesLoading ? (
-                          <tr>
-                            <td className="px-4 py-4 text-gray-500" colSpan={5}>
-                              Cargando días dobles...
-                            </td>
-                          </tr>
-                        ) : diasDobles.length === 0 ? (
-                          <tr>
-                            <td className="px-4 py-4 text-gray-500" colSpan={5}>
-                              No hay días dobles configurados.
-                            </td>
-                          </tr>
-                        ) : (
-                          diasDobles.map((dia) => (
-                            <tr key={dia.id_dia_doble} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-gray-700">{formatDate(dia.fecha)}</td>
-                              <td className="px-4 py-3 text-gray-700">{dia.descripcion}</td>
-                              <td className="px-4 py-3 text-gray-700">
-                                {Number(dia.multiplicador || 0).toFixed(2)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                    dia.activo
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-gray-100 text-gray-600"
-                                  }`}
-                                >
-                                  {dia.activo ? "Activo" : "Inactivo"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-2">
-                                  <Button
-                                    variant="warning"
-                                    size="sm"
-                                    onClick={() => handleEditDiaDoble(dia)}
-                                  >
-                                    Editar
-                                  </Button>
-                                  <Button
-                                    variant={dia.activo ? "secondary" : "success"}
-                                    size="sm"
-                                    onClick={() => handleToggleDiaDoble(dia)}
-                                  >
-                                    {dia.activo ? "Desactivar" : "Activar"}
-                                  </Button>
-                                  <Button
-                                    variant="danger"
-                                    size="sm"
-                                    onClick={() => handleDeleteDiaDoble(dia)}
-                                  >
-                                    Eliminar
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
               </div>
