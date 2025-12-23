@@ -1991,7 +1991,7 @@ const Planilla = () => {
                           {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
                         </Button>
                       </div>
-                      <div className="mt-4 max-h-[40vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100">
+                      <div className="mt-4 max-h-[40vh] overflow-x-auto overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
                         <table className="min-w-full divide-y divide-gray-100 text-sm">
                           <thead className="bg-gray-50 text-left text-gray-600">
                             <tr>
@@ -2044,13 +2044,6 @@ const Planilla = () => {
                                         onClick={() => handleEditDiaDoble(dia)}
                                       >
                                         Editar
-                                      </Button>
-                                      <Button
-                                        variant={dia.activo ? "secondary" : "success"}
-                                        size="sm"
-                                        onClick={() => handleToggleDiaDoble(dia)}
-                                      >
-                                        {dia.activo ? "Desactivar" : "Activar"}
                                       </Button>
                                       <Button
                                         variant="danger"
