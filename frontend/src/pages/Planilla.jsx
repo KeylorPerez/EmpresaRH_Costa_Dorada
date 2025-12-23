@@ -1938,18 +1938,21 @@ const Planilla = () => {
                         className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
                       />
                     </div>
-                    <div className="flex items-center gap-2 pt-4 text-sm text-gray-600">
-                      <input
-                        id="dias-dobles-activo"
-                        name="activo"
-                        type="checkbox"
-                        checked={diasDoblesForm.activo}
-                        onChange={handleDiasDoblesFormChange}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
+                    <div className="flex flex-col gap-1 text-sm text-gray-600">
                       <label htmlFor="dias-dobles-activo" className="font-medium text-gray-700">
                         Activo
                       </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="dias-dobles-activo"
+                          name="activo"
+                          type="checkbox"
+                          checked={diasDoblesForm.activo}
+                          onChange={handleDiasDoblesFormChange}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Aplicar</span>
+                      </div>
                     </div>
                   </div>
 
