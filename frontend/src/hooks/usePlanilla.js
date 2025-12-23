@@ -394,7 +394,7 @@ const createEmptyForm = (defaults = {}) => ({
   dias_trabajados: "",
   dias_descuento: "0",
   monto_descuento_dias: "",
-  dias_dobles: "0",
+  dias_dobles: "",
   monto_dias_dobles: "",
   ...defaults,
 });
@@ -556,7 +556,7 @@ export const usePlanilla = () => {
         dias_trabajados: "",
         dias_descuento: "0",
         monto_descuento_dias: "",
-        dias_dobles: "0",
+        dias_dobles: "",
         monto_dias_dobles: "",
       }));
       return;
@@ -616,7 +616,7 @@ export const usePlanilla = () => {
       dias_trabajados: "",
       dias_descuento: "0",
       monto_descuento_dias: "",
-      dias_dobles: "0",
+      dias_dobles: "",
       monto_dias_dobles: "",
     });
     setError("");
@@ -1655,24 +1655,24 @@ export const usePlanilla = () => {
       const diasDoblesDetalle = Number(detalleDiasResumen.diasDobles) || 0;
       const montoDoblesDetalle = Number(detalleDiasResumen.montoDiasDobles) || 0;
 
-      const diasDoblesManual = parseNonNegative(formData.dias_dobles);
+      const diasDoblesManual = parseOptionalNonNegative(formData.dias_dobles);
       const montoDoblesManual = parseOptionalNonNegative(formData.monto_dias_dobles);
-
       const ingresoManualDobles =
-        (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
+        (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) ||
+        diasDoblesManual !== null;
       const usaDoblesManualPayload = detalleDias.length === 0 || ingresoManualDobles;
 
-      let diasDoblesPayload = 0;
+      let diasDoblesPayload = null;
       let montoDoblesPayload = null;
 
       if (usaDoblesManualPayload) {
-        diasDoblesPayload = diasDoblesManual;
+        diasDoblesPayload = diasDoblesManual ?? 0;
         if (montoDoblesManual !== null) {
           montoDoblesPayload = montoDoblesManual;
-        } else if (diasDoblesManual > 0) {
+        } else if ((diasDoblesManual ?? 0) > 0) {
           const salarioReferenciaDobles =
             tipoPagoEmpleado === "Diario" ? salarioBaseEmpleado : salarioBaseEmpleado / 15;
-          montoDoblesPayload = Number((salarioReferenciaDobles * diasDoblesManual).toFixed(2));
+          montoDoblesPayload = Number((salarioReferenciaDobles * (diasDoblesManual ?? 0)).toFixed(2));
         } else {
           montoDoblesPayload = 0;
         }
