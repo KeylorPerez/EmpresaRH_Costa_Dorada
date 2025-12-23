@@ -8,6 +8,16 @@ import { usePlanilla } from "../hooks/usePlanilla";
 import planillaService from "../services/planillaService";
 import diasDoblesService from "../services/diasDoblesService";
 import { adminLinks as adminNavigationLinks } from "../utils/navigationLinks";
+import AttendanceStatusMessage from "./planilla/AttendanceStatusMessage";
+import DetalleResumenBadges from "./planilla/DetalleResumenBadges";
+import DetalleTable from "./planilla/DetalleTable";
+import {
+  currencyFormatter,
+  formatCurrency,
+  formatDate,
+  formatDateInputValue,
+  formatPeriodo,
+} from "./planilla/planillaFormatters";
 import {
   buildPlanillaDisplayName,
   clonePlanillaWithCanonicalFields,
@@ -17,34 +27,6 @@ import {
   resolveEmpleadoId,
   resolvePlanillaId,
 } from "../utils/planillaUtils";
-
-const currencyFormatter = new Intl.NumberFormat("es-CR", {
-  style: "currency",
-  currency: "CRC",
-  currencyDisplay: "narrowSymbol",
-  minimumFractionDigits: 2,
-});
-
-const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
-
-const formatDate = (value) => {
-  if (!value) return "-";
-  if (typeof value === "string") {
-    const [datePart] = value.split("T");
-    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-      const [year, month, day] = datePart.split("-");
-      return `${day}/${month}/${year}`;
-    }
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
-};
-
-const formatPeriodo = (inicio, fin) => {
-  if (!inicio || !fin) return "-";
-  return `${formatDate(inicio)} - ${formatDate(fin)}`;
-};
 
 const normalizeFileUrl = (url) => {
   if (!url) return "";
@@ -90,18 +72,6 @@ const WIZARD_TIPO_PAGO_LABELS = {
 };
 
 const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
-
-const formatDateInputValue = (date) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-};
 
 const obtenerRangoFechaPorDefecto = () => {
   const hoy = new Date();
@@ -752,210 +722,6 @@ const Planilla = () => {
       autoResizeTextarea(element);
     });
   }, [detalleDias, autoResizeTextarea]);
-
-  const DetalleResumenBadges = ({ className = "" }) => (
-    <div className={`flex flex-wrap items-center gap-3 text-xs text-gray-500 ${className}`}>
-      <span>Días: {detalleDias.length}</span>
-      <span>Pagados: {detalleDiasResumen.diasAsistidos}</span>
-      <span>Dobles: {diasDoblesAplicados}</span>
-      <span>Faltas: {detalleDiasResumen.diasFaltantes}</span>
-      <span>Total detalle: {formatCurrency(detalleDiasResumen.salarioTotal)}</span>
-      <span>Extra días dobles: {formatCurrency(pagoExtraDiasDobles)}</span>
-    </div>
-  );
-
-  const AttendanceStatusMessage = ({ className = "" }) => {
-    if (attendanceState.error) {
-      return (
-        <p className={`text-xs font-medium text-red-600 ${className}`.trim()}>
-          {attendanceState.error}
-        </p>
-      );
-    }
-
-    if (attendanceState.loading) {
-      return (
-        <p className={`text-xs text-blue-600 ${className}`.trim()}>
-          Actualizando asistencia...
-        </p>
-      );
-    }
-
-    if (attendanceState.message) {
-      return (
-        <p className={`text-xs text-gray-500 ${className}`.trim()}>
-          {attendanceState.message}
-        </p>
-      );
-    }
-
-    if (attendanceState.dias !== null) {
-      const dias = Number(attendanceState.dias) || 0;
-      const labelDias = dias === 1 ? "día" : "días";
-      return (
-        <p className={`text-xs text-gray-500 ${className}`.trim()}>
-          Asistencia sincronizada ({dias} {labelDias} registrados).
-        </p>
-      );
-    }
-
-    return null;
-  };
-
-  const DetalleTable = ({ className = "", context = "main" }) => {
-    if (detalleDias.length === 0) {
-      return (
-        <p className={`text-sm text-gray-500 ${className}`}>
-          Selecciona un colaborador y un periodo para visualizar el detalle diario de la planilla.
-        </p>
-      );
-    }
-
-    const handleJustificacionChange = (event, rowIndex) => {
-      const { target } = event;
-      const { value } = target;
-      autoResizeTextarea(target);
-      updateDetalleDia(rowIndex, { justificacion: value });
-      restoreDetalleFieldFocus(target);
-    };
-
-    const handleSalarioChange = (event, rowIndex) => {
-      const { target } = event;
-      updateDetalleDia(rowIndex, { salario_dia: target.value });
-      restoreDetalleFieldFocus(target);
-    };
-
-    const handleObservacionChange = (event, rowIndex) => {
-      const { target } = event;
-      updateDetalleDia(rowIndex, { observacion: target.value });
-      restoreDetalleFieldFocus(target);
-    };
-
-    const handleSalarioBlur = (event, rowIndex) => {
-      const { value } = event.target;
-      if (value === "" || value === null) {
-        updateDetalleDia(rowIndex, { salario_dia: "" });
-        return;
-      }
-      normalizeDetalleSalario(rowIndex);
-    };
-
-    return (
-      <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-4 py-3 text-left">Fecha</th>
-              <th className="px-4 py-3 text-left">Día</th>
-              <th className="px-4 py-3 text-center">Asistencia</th>
-              <th className="px-4 py-3 text-center">Tipo</th>
-              <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
-              <th className="px-4 py-3 text-center">Justificado</th>
-              <th className="px-4 py-3 text-left min-w-[240px]">Justificación</th>
-              <th className="px-4 py-3 text-right">Salario día</th>
-              <th className="px-4 py-3 text-left">Observación</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {detalleDias.map((detalle, index) => (
-              <tr key={`${detalle.fecha}-${index}`} className="hover:bg-gray-50/70">
-                <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(detalle.fecha)}</td>
-                <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => toggleDetalleAsistencia(index)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      detalle.asistio
-                        ? "bg-green-100 text-green-700 hover:bg-green-200"
-                        : "bg-red-100 text-red-600 hover:bg-red-200"
-                    }`}
-                  >
-                    {detalle.asistio ? "Asistió" : "Faltó"}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => toggleDetalleDiaDoble(index)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      detalle.es_dia_doble
-                        ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {detalle.es_dia_doble ? "Día doble" : "Normal"}
-                  </button>
-                </td>
-                <td className="px-4 py-3 min-w-[160px]">
-                  <select
-                    value={detalle.estado || "Presente"}
-                    onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  >
-                    {detalleEstadoOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(detalle.justificado)}
-                    onChange={(event) => updateDetalleDia(index, { justificado: event.target.checked })}
-                    className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                  />
-                </td>
-                <td className="px-4 py-3 align-top">
-                  <textarea
-                    value={detalle.justificacion || ""}
-                    onChange={(event) => handleJustificacionChange(event, index)}
-                    placeholder="Describe la justificación"
-                    rows={2}
-                    maxLength={500}
-                    disabled={!detalle.justificado}
-                    data-detalle-field="justificacion"
-                    data-detalle-index={index}
-                    data-detalle-context={context}
-                    ref={autoResizeTextarea}
-                    className="w-full min-h-[3rem] rounded-lg border border-gray-200 px-3 py-2 text-sm leading-relaxed text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none overflow-hidden disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
-                  />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={detalle.salario_dia ?? ""}
-                    onChange={(event) => handleSalarioChange(event, index)}
-                    onBlur={(event) => handleSalarioBlur(event, index)}
-                    data-detalle-field="salario_dia"
-                    data-detalle-index={index}
-                    data-detalle-context={context}
-                    className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    type="text"
-                    value={detalle.observacion || ""}
-                    onChange={(event) => handleObservacionChange(event, index)}
-                    placeholder="Opcional"
-                    data-detalle-field="observacion"
-                    data-detalle-index={index}
-                    data-detalle-context={context}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
   const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
@@ -1896,10 +1662,19 @@ const Planilla = () => {
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
-                              <AttendanceStatusMessage className="mt-1" />
+                              <AttendanceStatusMessage
+                                className="mt-1"
+                                attendanceState={attendanceState}
+                              />
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <DetalleResumenBadges />
+                              <DetalleResumenBadges
+                                detalleDias={detalleDias}
+                                detalleDiasResumen={detalleDiasResumen}
+                                diasDoblesAplicados={diasDoblesAplicados}
+                                pagoExtraDiasDobles={pagoExtraDiasDobles}
+                                formatCurrency={formatCurrency}
+                              />
                               <Button
                                 type="button"
                                 variant="outline"
@@ -1912,7 +1687,19 @@ const Planilla = () => {
                             </div>
                           </div>
 
-                          <DetalleTable className="mt-4" context="main" />
+                          <DetalleTable
+                            className="mt-4"
+                            context="main"
+                            detalleDias={detalleDias}
+                            detalleEstadoOptions={detalleEstadoOptions}
+                            formatDate={formatDate}
+                            autoResizeTextarea={autoResizeTextarea}
+                            updateDetalleDia={updateDetalleDia}
+                            toggleDetalleAsistencia={toggleDetalleAsistencia}
+                            toggleDetalleDiaDoble={toggleDetalleDiaDoble}
+                            normalizeDetalleSalario={normalizeDetalleSalario}
+                            restoreDetalleFieldFocus={restoreDetalleFieldFocus}
+                          />
                           </div>
 
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -2018,10 +1805,17 @@ const Planilla = () => {
                         <p className="text-sm text-gray-500">
                           Actualiza asistencias, marca días dobles y ajusta los montos directamente en esta vista ampliada.
                         </p>
-                        <AttendanceStatusMessage />
+                        <AttendanceStatusMessage attendanceState={attendanceState} />
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <DetalleResumenBadges className="text-sm" />
+                        <DetalleResumenBadges
+                          className="text-sm"
+                          detalleDias={detalleDias}
+                          detalleDiasResumen={detalleDiasResumen}
+                          diasDoblesAplicados={diasDoblesAplicados}
+                          pagoExtraDiasDobles={pagoExtraDiasDobles}
+                          formatCurrency={formatCurrency}
+                        />
                         <Button
                           variant="outline"
                           size="sm"
@@ -2053,6 +1847,15 @@ const Planilla = () => {
                       <DetalleTable
                         className={detalleDias.length === 0 ? "" : "mt-2"}
                         context="overlay"
+                        detalleDias={detalleDias}
+                        detalleEstadoOptions={detalleEstadoOptions}
+                        formatDate={formatDate}
+                        autoResizeTextarea={autoResizeTextarea}
+                        updateDetalleDia={updateDetalleDia}
+                        toggleDetalleAsistencia={toggleDetalleAsistencia}
+                        toggleDetalleDiaDoble={toggleDetalleDiaDoble}
+                        normalizeDetalleSalario={normalizeDetalleSalario}
+                        restoreDetalleFieldFocus={restoreDetalleFieldFocus}
                       />
                     </div>
                   </div>
