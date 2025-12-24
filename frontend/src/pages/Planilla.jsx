@@ -1991,19 +1991,70 @@ const Planilla = () => {
                         </Button>
                       </div>
                       <div className="mt-4 flex-1 min-h-0 overflow-x-auto custom-scrollbar">
+                        <div className="space-y-3 md:hidden">
+                          {diasDoblesLoading ? (
+                            <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-500">
+                              Cargando días dobles...
+                            </div>
+                          ) : diasDobles.length === 0 ? (
+                            <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-500">
+                              No hay días dobles configurados.
+                            </div>
+                          ) : (
+                            diasDobles.map((dia) => (
+                              <div
+                                key={dia.id_dia_doble}
+                                className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-800">
+                                      {formatDate(dia.fecha)}
+                                    </p>
+                                    <p className="text-sm text-gray-600">{dia.descripcion}</p>
+                                  </div>
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      dia.activo
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {dia.activo ? "Activo" : "Inactivo"}
+                                  </span>
+                                </div>
+                                <div className="mt-3 flex items-center justify-between text-sm">
+                                  <span className="text-gray-500">Multiplicador</span>
+                                  <span className="font-semibold text-gray-700">
+                                    {Number(dia.multiplicador || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <Button
+                                    variant="warning"
+                                    size="sm"
+                                    onClick={() => handleEditDiaDoble(dia)}
+                                  >
+                                    Editar
+                                  </Button>
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() => handleDeleteDiaDoble(dia)}
+                                  >
+                                    Eliminar
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
                         <div
-                          className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
+                          className="hidden md:block max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
-                          <table className="min-w-[720px] w-full table-fixed divide-y divide-gray-100 text-sm">
-                            <colgroup>
-                              <col className="w-32" />
-                              <col />
-                              <col className="w-32" />
-                              <col className="w-28" />
-                              <col className="w-40" />
-                            </colgroup>
-                            <thead className="sticky top-0 z-10 bg-gray-50 text-left text-gray-600">
+                          <table className="min-w-full text-sm">
+                            <thead className="sticky top-0 z-10 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-600">
                               <tr>
                                 <th className="px-4 py-3 font-semibold">Fecha</th>
                                 <th className="px-4 py-3 font-semibold">Descripción</th>
@@ -2013,64 +2064,64 @@ const Planilla = () => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
-                            {diasDoblesLoading ? (
-                              <tr>
-                                <td className="px-4 py-4 text-gray-500" colSpan={5}>
-                                  Cargando días dobles...
-                                </td>
-                              </tr>
-                            ) : diasDobles.length === 0 ? (
-                              <tr>
-                                <td className="px-4 py-4 text-gray-500" colSpan={5}>
-                                  No hay días dobles configurados.
-                                </td>
-                              </tr>
-                            ) : (
-                              diasDobles.map((dia) => (
-                                <tr key={dia.id_dia_doble} className="hover:bg-gray-50">
-                                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                                    {formatDate(dia.fecha)}
-                                  </td>
-                                  <td className="px-4 py-3 text-gray-700">
-                                    <span className="block truncate sm:whitespace-normal">
-                                      {dia.descripcion}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                                    {Number(dia.multiplicador || 0).toFixed(2)}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span
-                                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                        dia.activo
-                                          ? "bg-emerald-100 text-emerald-700"
-                                          : "bg-gray-100 text-gray-600"
-                                      }`}
-                                    >
-                                      {dia.activo ? "Activo" : "Inactivo"}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                                      <Button
-                                        variant="warning"
-                                        size="sm"
-                                        onClick={() => handleEditDiaDoble(dia)}
-                                      >
-                                        Editar
-                                      </Button>
-                                      <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onClick={() => handleDeleteDiaDoble(dia)}
-                                      >
-                                        Eliminar
-                                      </Button>
-                                    </div>
+                              {diasDoblesLoading ? (
+                                <tr>
+                                  <td className="px-4 py-4 text-gray-500" colSpan={5}>
+                                    Cargando días dobles...
                                   </td>
                                 </tr>
-                              ))
-                            )}
+                              ) : diasDobles.length === 0 ? (
+                                <tr>
+                                  <td className="px-4 py-4 text-gray-500" colSpan={5}>
+                                    No hay días dobles configurados.
+                                  </td>
+                                </tr>
+                              ) : (
+                                diasDobles.map((dia) => (
+                                  <tr key={dia.id_dia_doble} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                      {formatDate(dia.fecha)}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700">
+                                      <span className="block truncate sm:whitespace-normal">
+                                        {dia.descripcion}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                      {Number(dia.multiplicador || 0).toFixed(2)}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span
+                                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                          dia.activo
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-gray-100 text-gray-600"
+                                        }`}
+                                      >
+                                        {dia.activo ? "Activo" : "Inactivo"}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex flex-wrap gap-2 whitespace-nowrap">
+                                        <Button
+                                          variant="warning"
+                                          size="sm"
+                                          onClick={() => handleEditDiaDoble(dia)}
+                                        >
+                                          Editar
+                                        </Button>
+                                        <Button
+                                          variant="danger"
+                                          size="sm"
+                                          onClick={() => handleDeleteDiaDoble(dia)}
+                                        >
+                                          Eliminar
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
                             </tbody>
                           </table>
                         </div>
