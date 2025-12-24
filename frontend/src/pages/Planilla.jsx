@@ -1866,7 +1866,7 @@ const Planilla = () => {
 
           {diasDoblesModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-6">
-              <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="w-full max-w-4xl h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex h-full flex-col">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 pb-4 pt-6">
                     <div>
