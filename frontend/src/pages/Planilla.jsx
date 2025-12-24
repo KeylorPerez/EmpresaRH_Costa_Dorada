@@ -2053,7 +2053,7 @@ const Planilla = () => {
                                 <th className="w-1/2 px-4 py-3 font-semibold">Descripción</th>
                                 <th className="w-32 px-4 py-3 font-semibold">Multiplicador</th>
                                 <th className="w-28 px-4 py-3 font-semibold">Estado</th>
-                                <th className="w-40 px-4 py-3 font-semibold">Acciones</th>
+                                <th className="w-48 px-4 py-3 font-semibold text-right">Acciones</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
@@ -2092,8 +2092,8 @@ const Planilla = () => {
                                         {dia.activo ? "Activo" : "Inactivo"}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-3">
-                                      <div className="flex flex-wrap gap-2 whitespace-nowrap">
+                                    <td className="px-4 py-3 text-right">
+                                      <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                                         <Button
                                           variant="warning"
                                           size="xs"
