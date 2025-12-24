@@ -2046,11 +2046,11 @@ const Planilla = () => {
                           className="hidden md:block max-h-[60vh] lg:max-h-[65vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
-                          <table className="min-w-full table-fixed text-sm">
+                          <table className="min-w-full table-auto text-sm">
                             <thead className="sticky top-0 z-10 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-600">
                               <tr>
                                 <th className="w-32 px-4 py-3 font-semibold">Fecha</th>
-                                <th className="px-4 py-3 font-semibold">Descripción</th>
+                                <th className="w-1/2 px-4 py-3 font-semibold">Descripción</th>
                                 <th className="w-32 px-4 py-3 font-semibold">Multiplicador</th>
                                 <th className="w-28 px-4 py-3 font-semibold">Estado</th>
                                 <th className="w-40 px-4 py-3 font-semibold">Acciones</th>
@@ -2075,10 +2075,8 @@ const Planilla = () => {
                                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                       {formatDate(dia.fecha)}
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700">
-                                      <span className="block truncate sm:whitespace-normal">
-                                        {dia.descripcion}
-                                      </span>
+                                    <td className="px-4 py-3 text-gray-700 break-words whitespace-normal">
+                                      {dia.descripcion}
                                     </td>
                                     <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                       {Number(dia.multiplicador || 0).toFixed(2)}
