@@ -12,7 +12,7 @@ const Acerca = () => {
           EmpresaRH es una plataforma diseñada para facilitar la gestión del
           talento humano dentro de tu organización. Con nuestro sistema podés
           administrar empleados, puestos, asistencia, vacaciones, préstamos y
-          más, todo en un mismo lugar y con una interfaz intuitiva.
+          más, todo en un mismo lugar y con una interfaz muy intuitiva.
         </p>
         <p className="text-gray-700 leading-relaxed mb-4">
           El objetivo principal es agilizar los procesos administrativos del
