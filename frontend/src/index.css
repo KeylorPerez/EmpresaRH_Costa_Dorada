@@ -78,6 +78,10 @@ html, body {
     @apply h-9 px-3 text-sm;
   }
 
+  .btn-xs {
+    @apply h-8 px-2 text-xs;
+  }
+
   .btn-md {
     @apply h-10 px-4 text-sm;
   }

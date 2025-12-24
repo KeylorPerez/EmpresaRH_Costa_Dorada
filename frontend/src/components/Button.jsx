@@ -23,6 +23,7 @@ const Button = ({
   };
 
   const sizeClasses = {
+    xs: "btn-xs",
     sm: "btn-sm",
     md: "btn-md",
     lg: "btn-lg",
@@ -57,7 +58,7 @@ Button.propTypes = {
     "ghost",
     "link",
   ]),
-  size: PropTypes.oneOf(["sm", "md", "lg"]),
+  size: PropTypes.oneOf(["xs", "sm", "md", "lg"]),
   className: PropTypes.string,
   disabled: PropTypes.bool,
 };
