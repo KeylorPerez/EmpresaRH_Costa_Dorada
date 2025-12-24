@@ -51,6 +51,20 @@ END
 `;
 
 class JustificacionAsistencia {
+  static async tableExists() {
+    try {
+      const pool = await poolPromise;
+      const result = await pool
+        .request()
+        .query(
+          "SELECT 1 AS existe FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[JustificacionAsistencia]') AND type in (N'U')",
+        );
+      return result.recordset.length > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
   static async ensureTable() {
     const pool = await poolPromise;
     await pool.request().query(ensureTableQuery);

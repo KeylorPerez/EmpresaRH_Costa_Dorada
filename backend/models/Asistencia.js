@@ -53,6 +53,16 @@ const JUSTIFICACION_SELECT = `
           , CONVERT(varchar(19), js.updated_at, 120) AS justificacion_solicitud_actualizada
 `;
 
+const JUSTIFICACION_SELECT_FALLBACK = `
+          , CAST(NULL AS INT) AS justificacion_solicitud_id
+          , CAST(NULL AS NVARCHAR(50)) AS justificacion_solicitud_tipo
+          , CAST(NULL AS NVARCHAR(MAX)) AS justificacion_solicitud_descripcion
+          , CAST(NULL AS NVARCHAR(20)) AS justificacion_solicitud_estado
+          , CAST(NULL AS NVARCHAR(MAX)) AS justificacion_solicitud_respuesta
+          , CAST(NULL AS VARCHAR(19)) AS justificacion_solicitud_creada
+          , CAST(NULL AS VARCHAR(19)) AS justificacion_solicitud_actualizada
+`;
+
 const JUSTIFICACION_JOIN = `
   LEFT JOIN (
     SELECT
@@ -68,6 +78,11 @@ const JUSTIFICACION_JOIN = `
     FROM JustificacionAsistencia ja
   ) AS js ON js.id_asistencia = a.id_asistencia AND js.rn = 1
 `;
+
+const buildJustificacionFragments = (hasJustificacionTable) => ({
+  select: hasJustificacionTable ? JUSTIFICACION_SELECT : JUSTIFICACION_SELECT_FALLBACK,
+  join: hasJustificacionTable ? JUSTIFICACION_JOIN : '',
+});
 
 class Asistencia {
   static async ensureSchema({ force = false } = {}) {
@@ -98,10 +113,11 @@ class Asistencia {
   // Obtener todas las marcas (con información básica del empleado)
   static async getAll() {
     try {
-      await this.ensureSchema();
-      await JustificacionAsistencia.ensureTable();
+      const state = await this.ensureSchema();
+      const hasJustificacionTable = await JustificacionAsistencia.tableExists();
       const pool = await poolPromise;
       const { justificado, justificacion } = buildSelectFragments(state);
+      const justificacionFragments = buildJustificacionFragments(hasJustificacionTable);
       const result = await pool.request()
         .query(`
           SELECT
@@ -118,10 +134,10 @@ class Asistencia {
             a.longitud,
             e.nombre,
             e.apellido
-${JUSTIFICACION_SELECT}
+${justificacionFragments.select}
           FROM Asistencia a
           INNER JOIN Empleados e ON a.id_empleado = e.id_empleado
-          ${JUSTIFICACION_JOIN}
+          ${justificacionFragments.join}
           ORDER BY a.fecha DESC, a.hora DESC
         `);
       return result.recordset;
@@ -185,9 +201,10 @@ ${JUSTIFICACION_SELECT}
   static async getByEmpleado(id_empleado) {
     try {
       const state = await this.ensureSchema();
-      await JustificacionAsistencia.ensureTable();
+      const hasJustificacionTable = await JustificacionAsistencia.tableExists();
       const pool = await poolPromise;
       const { justificado, justificacion } = buildSelectFragments(state);
+      const justificacionFragments = buildJustificacionFragments(hasJustificacionTable);
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
@@ -203,9 +220,9 @@ ${JUSTIFICACION_SELECT}
             observaciones,
             latitud,
             longitud
-          ${JUSTIFICACION_SELECT}
+          ${justificacionFragments.select}
           FROM Asistencia a
-          ${JUSTIFICACION_JOIN}
+          ${justificacionFragments.join}
           WHERE id_empleado = @id_empleado
           ORDER BY a.fecha DESC, a.hora DESC
         `);
@@ -219,13 +236,14 @@ ${JUSTIFICACION_SELECT}
   static async getByDateRange(startDate, endDate, id_empleado = null) {
     try {
       const state = await this.ensureSchema();
-      await JustificacionAsistencia.ensureTable();
+      const hasJustificacionTable = await JustificacionAsistencia.tableExists();
       const pool = await poolPromise;
       const req = pool.request()
         .input('start', sql.VarChar(10), startDate)
         .input('end', sql.VarChar(10), endDate);
 
       const { justificado, justificacion } = buildSelectFragments(state);
+      const justificacionFragments = buildJustificacionFragments(hasJustificacionTable);
 
       let query = `
         SELECT
@@ -242,10 +260,10 @@ ${JUSTIFICACION_SELECT}
           a.longitud,
           e.nombre,
           e.apellido
-${JUSTIFICACION_SELECT}
+${justificacionFragments.select}
         FROM Asistencia a
         LEFT JOIN Empleados e ON a.id_empleado = e.id_empleado
-        ${JUSTIFICACION_JOIN}
+        ${justificacionFragments.join}
         WHERE a.fecha BETWEEN CONVERT(date, @start, 23) AND CONVERT(date, @end, 23)
       `;
 
