@@ -2035,7 +2035,7 @@ const Planilla = () => {
                                     size="xs"
                                     onClick={() => handleDeleteDiaDoble(dia)}
                                   >
-                                    Eliminar
+                                    Inactivar
                                   </Button>
                                 </div>
                               </div>
@@ -2043,7 +2043,7 @@ const Planilla = () => {
                           )}
                         </div>
                         <div
-                          className="hidden md:block max-h-[60vh] lg:max-h-[65vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
+                          className="hidden md:block max-h-[70vh] lg:max-h-[75vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
                           <table className="min-w-full table-auto text-sm">
@@ -2106,7 +2106,7 @@ const Planilla = () => {
                                           size="xs"
                                           onClick={() => handleDeleteDiaDoble(dia)}
                                         >
-                                          Eliminar
+                                          Inactivar
                                         </Button>
                                       </div>
                                     </td>
