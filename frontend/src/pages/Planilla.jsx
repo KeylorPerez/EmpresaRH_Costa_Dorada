@@ -1983,7 +1983,7 @@ const Planilla = () => {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
                       </div>
-                      <div className="mt-4 flex-1 min-h-0 overflow-x-auto custom-scrollbar">
+                      <div className="mt-4 flex-1 min-h-0 overflow-auto custom-scrollbar">
                         <div className="space-y-3 md:hidden">
                           {diasDoblesLoading ? (
                             <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-500">
@@ -2043,7 +2043,7 @@ const Planilla = () => {
                           )}
                         </div>
                         <div
-                          className="hidden md:block max-h-[70vh] lg:max-h-[75vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
+                          className="hidden md:block rounded-xl border border-gray-100 bg-white"
                           style={{ scrollbarGutter: "stable" }}
                         >
                           <table className="min-w-full table-auto text-sm">
