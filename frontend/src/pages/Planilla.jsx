@@ -1895,6 +1895,25 @@ const Planilla = () => {
                     )}
 
                     <form onSubmit={handleDiasDoblesSubmit} className="mt-4 space-y-4">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {editingDiaDoble && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="xs"
+                            onClick={resetDiasDoblesForm}
+                          >
+                            Cancelar edición
+                          </Button>
+                        )}
+                        <Button variant="primary" size="xs" type="submit" disabled={diasDoblesSaving}>
+                          {diasDoblesSaving
+                            ? "Guardando..."
+                            : editingDiaDoble
+                              ? "Actualizar día doble"
+                              : "Agregar día doble"}
+                        </Button>
+                      </div>
                       <div className="grid gap-4 md:grid-cols-4">
                         <div className="flex flex-col gap-1 text-sm text-gray-600">
                           <label className="font-medium" htmlFor="dias-dobles-fecha">
@@ -1958,37 +1977,11 @@ const Planilla = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {editingDiaDoble && (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="xs"
-                            onClick={resetDiasDoblesForm}
-                          >
-                            Cancelar edición
-                          </Button>
-                        )}
-                        <Button variant="primary" size="xs" type="submit" disabled={diasDoblesSaving}>
-                          {diasDoblesSaving
-                            ? "Guardando..."
-                            : editingDiaDoble
-                              ? "Actualizar día doble"
-                              : "Agregar día doble"}
-                        </Button>
-                      </div>
                     </form>
 
                     <div className="mt-6 flex min-h-0 flex-1 flex-col">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={fetchDiasDobles}
-                        >
-                          {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
-                        </Button>
                       </div>
                       <div className="mt-4 flex-1 min-h-0 overflow-x-auto custom-scrollbar">
                         <div className="space-y-3 md:hidden">
@@ -2053,14 +2046,14 @@ const Planilla = () => {
                           className="hidden md:block max-h-[60vh] lg:max-h-[65vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
-                          <table className="min-w-full text-sm">
+                          <table className="min-w-full table-fixed text-sm">
                             <thead className="sticky top-0 z-10 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-600">
                               <tr>
-                                <th className="px-4 py-3 font-semibold">Fecha</th>
+                                <th className="w-32 px-4 py-3 font-semibold">Fecha</th>
                                 <th className="px-4 py-3 font-semibold">Descripción</th>
-                                <th className="px-4 py-3 font-semibold">Multiplicador</th>
-                                <th className="px-4 py-3 font-semibold">Estado</th>
-                                <th className="px-4 py-3 font-semibold">Acciones</th>
+                                <th className="w-32 px-4 py-3 font-semibold">Multiplicador</th>
+                                <th className="w-28 px-4 py-3 font-semibold">Estado</th>
+                                <th className="w-40 px-4 py-3 font-semibold">Acciones</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
