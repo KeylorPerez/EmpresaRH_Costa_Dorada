@@ -1963,13 +1963,13 @@ const Planilla = () => {
                           <Button
                             type="button"
                             variant="secondary"
-                            size="sm"
+                            size="xs"
                             onClick={resetDiasDoblesForm}
                           >
                             Cancelar edición
                           </Button>
                         )}
-                        <Button variant="primary" size="sm" type="submit" disabled={diasDoblesSaving}>
+                        <Button variant="primary" size="xs" type="submit" disabled={diasDoblesSaving}>
                           {diasDoblesSaving
                             ? "Guardando..."
                             : editingDiaDoble
@@ -1984,7 +1984,7 @@ const Planilla = () => {
                         <h3 className="text-lg font-semibold text-gray-800">Días configurados</h3>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="xs"
                           onClick={fetchDiasDobles}
                         >
                           {diasDoblesLoading ? "Actualizando..." : "Actualizar lista"}
@@ -2032,14 +2032,14 @@ const Planilla = () => {
                                 <div className="mt-4 flex flex-wrap gap-2">
                                   <Button
                                     variant="warning"
-                                    size="sm"
+                                    size="xs"
                                     onClick={() => handleEditDiaDoble(dia)}
                                   >
                                     Editar
                                   </Button>
                                   <Button
                                     variant="danger"
-                                    size="sm"
+                                    size="xs"
                                     onClick={() => handleDeleteDiaDoble(dia)}
                                   >
                                     Eliminar
@@ -2050,7 +2050,7 @@ const Planilla = () => {
                           )}
                         </div>
                         <div
-                          className="hidden md:block max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
+                          className="hidden md:block max-h-[60vh] lg:max-h-[65vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
                           <table className="min-w-full text-sm">
@@ -2105,14 +2105,14 @@ const Planilla = () => {
                                       <div className="flex flex-wrap gap-2 whitespace-nowrap">
                                         <Button
                                           variant="warning"
-                                          size="sm"
+                                          size="xs"
                                           onClick={() => handleEditDiaDoble(dia)}
                                         >
                                           Editar
                                         </Button>
                                         <Button
                                           variant="danger"
-                                          size="sm"
+                                          size="xs"
                                           onClick={() => handleDeleteDiaDoble(dia)}
                                         >
                                           Eliminar
