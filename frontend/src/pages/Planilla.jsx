@@ -1991,16 +1991,19 @@ const Planilla = () => {
                         </Button>
                       </div>
                       <div className="mt-4 flex-1 min-h-0 overflow-x-auto custom-scrollbar">
-                        <div className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 custom-scrollbar">
+                        <div
+                          className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
+                          style={{ scrollbarGutter: "stable" }}
+                        >
                           <table className="min-w-[720px] w-full divide-y divide-gray-100 text-sm">
-                            <thead className="bg-gray-50 text-left text-gray-600">
-                          <tr>
-                            <th className="px-4 py-3 font-semibold">Fecha</th>
-                            <th className="px-4 py-3 font-semibold">Descripción</th>
-                            <th className="px-4 py-3 font-semibold">Multiplicador</th>
-                            <th className="px-4 py-3 font-semibold">Estado</th>
-                            <th className="px-4 py-3 font-semibold">Acciones</th>
-                          </tr>
+                            <thead className="sticky top-0 z-10 bg-gray-50 text-left text-gray-600">
+                              <tr>
+                                <th className="px-4 py-3 font-semibold">Fecha</th>
+                                <th className="px-4 py-3 font-semibold">Descripción</th>
+                                <th className="px-4 py-3 font-semibold">Multiplicador</th>
+                                <th className="px-4 py-3 font-semibold">Estado</th>
+                                <th className="px-4 py-3 font-semibold">Acciones</th>
+                              </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
                             {diasDoblesLoading ? (
