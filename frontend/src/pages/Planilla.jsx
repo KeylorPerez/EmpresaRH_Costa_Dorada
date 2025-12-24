@@ -1995,7 +1995,14 @@ const Planilla = () => {
                           className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-100 bg-white custom-scrollbar"
                           style={{ scrollbarGutter: "stable" }}
                         >
-                          <table className="min-w-[720px] w-full divide-y divide-gray-100 text-sm">
+                          <table className="min-w-[720px] w-full table-fixed divide-y divide-gray-100 text-sm">
+                            <colgroup>
+                              <col className="w-32" />
+                              <col />
+                              <col className="w-32" />
+                              <col className="w-28" />
+                              <col className="w-40" />
+                            </colgroup>
                             <thead className="sticky top-0 z-10 bg-gray-50 text-left text-gray-600">
                               <tr>
                                 <th className="px-4 py-3 font-semibold">Fecha</th>
@@ -2024,7 +2031,11 @@ const Planilla = () => {
                                   <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                     {formatDate(dia.fecha)}
                                   </td>
-                                  <td className="px-4 py-3 text-gray-700 min-w-[240px]">{dia.descripcion}</td>
+                                  <td className="px-4 py-3 text-gray-700">
+                                    <span className="block truncate sm:whitespace-normal">
+                                      {dia.descripcion}
+                                    </span>
+                                  </td>
                                   <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
                                     {Number(dia.multiplicador || 0).toFixed(2)}
                                   </td>
