@@ -347,7 +347,7 @@ class Planilla {
             Number.isFinite(diasTrabajadosCalculados) && diasTrabajadosCalculados >= 0
               ? diasTrabajadosCalculados
               : 0;
-          const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosNormalizados, 0);
+          const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
           const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
           const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
@@ -620,7 +620,7 @@ class Planilla {
           Number.isFinite(diasTrabajadosValor) && diasTrabajadosValor >= 0 ? diasTrabajadosValor : null;
 
         if (tipo_pago === 'Quincenal' && diasTrabajadosNormalizados !== null) {
-          const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosNormalizados, 0);
+          const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
           const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
           const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
