@@ -556,10 +556,17 @@ const Planilla = () => {
     [empleados, formData.id_empleado]
   );
 
+  const empleadosActivos = useMemo(
+    () => empleados.filter((empleado) => Number(empleado.estado) === 1),
+    [empleados]
+  );
+
   const empleadosFiltrados = useMemo(() => {
     const terminoBusqueda = wizardSearch.trim().toLowerCase();
 
-    return empleados.filter((empleado) => {
+    const baseEmpleados = isEditing ? empleados : empleadosActivos;
+
+    return baseEmpleados.filter((empleado) => {
       const nombreCompleto = `${empleado.nombre || ""} ${empleado.apellido || ""}`.toLowerCase();
       const coincideBusqueda =
         terminoBusqueda.length === 0 ||
@@ -590,11 +597,16 @@ const Planilla = () => {
 
       return true;
     });
-  }, [empleados, wizardSearch, wizardTipoPagoFiltro]);
+  }, [empleados, empleadosActivos, isEditing, wizardSearch, wizardTipoPagoFiltro]);
 
   const empleadosNavegables = useMemo(
     () => (isEditing ? empleados : empleadosFiltrados),
     [empleados, empleadosFiltrados, isEditing]
+  );
+
+  const empleadosDisponibles = useMemo(
+    () => (isEditing ? empleados : empleadosActivos),
+    [empleados, empleadosActivos, isEditing]
   );
 
   const empleadosConPlanillaEnPeriodo = useMemo(() => {
@@ -1456,7 +1468,7 @@ const Planilla = () => {
                                     required={!editingPlanilla}
                                   >
                                     <option value="">Selecciona un empleado</option>
-                                    {empleados.map((empleado) => (
+                                    {empleadosDisponibles.map((empleado) => (
                                       <option key={empleado.id_empleado} value={empleado.id_empleado}>
                                         {empleado.nombre} {empleado.apellido}
                                       </option>

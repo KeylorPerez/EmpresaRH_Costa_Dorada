@@ -208,12 +208,18 @@ class Planilla {
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado
           FROM Empleados
           WHERE id_empleado = @id_empleado
+            AND estado = 1
         `);
 
-      const empleado = empleadoRes.recordset[0] || {};
+      const empleado = empleadoRes.recordset[0];
+      if (!empleado) {
+        const error = new Error('Empleado no encontrado o inactivo');
+        error.statusCode = 404;
+        throw error;
+      }
       const salario_base = Number(empleado.salario_monto) || 0;
       const porcentaje_ccss =
         empleado.porcentaje_ccss !== null && empleado.porcentaje_ccss !== undefined
