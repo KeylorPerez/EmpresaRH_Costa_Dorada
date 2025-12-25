@@ -78,6 +78,17 @@ const WIZARD_TIPO_PAGO_LABELS = {
 
 const DIAS_POR_QUINCENA = 15;
 const DIAS_LIBRES_QUINCENA = 2;
+const DIAS_POR_MES = 30;
+const MS_POR_DIA = 1000 * 60 * 60 * 24;
+
+const calcularDiasPeriodo = (inicio, fin) => {
+  if (!inicio || !fin) return 0;
+  const fechaInicio = new Date(inicio);
+  const fechaFin = new Date(fin);
+  if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime())) return 0;
+  const diferencia = Math.floor((fechaFin - fechaInicio) / MS_POR_DIA) + 1;
+  return Math.max(diferencia, 0);
+};
 
 const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
 
@@ -749,6 +760,13 @@ const Planilla = () => {
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
   const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
+  const diasPeriodoQuincena = calcularDiasPeriodo(formData.periodo_inicio, formData.periodo_fin);
+  const diasReferenciaPago =
+    tipoPago === "Mensual"
+      ? DIAS_POR_MES
+      : tipoPago === "Quincenal" && diasPeriodoQuincena > 0
+        ? diasPeriodoQuincena
+        : DIAS_POR_QUINCENA;
   const montoHorasExtras = Math.max(Number(formData.horas_extras || 0), 0);
   const bonificaciones = Number(formData.bonificaciones || 0);
   const deduccionesManualInput = Number(formData.deducciones || 0);
@@ -777,7 +795,11 @@ const Planilla = () => {
       ? null
       : montoDescuentoDiasValor;
   const salarioDiarioReferencia =
-    tipoPago === "Diario" ? salarioBaseReferencia : salarioBaseReferencia / 15;
+    tipoPago === "Diario"
+      ? salarioBaseReferencia
+      : diasReferenciaPago > 0
+        ? salarioBaseReferencia / diasReferenciaPago
+        : 0;
   const diasDoblesValor = Number(formData.dias_dobles);
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
   const ingresoManualDiasDobles =
@@ -821,7 +843,7 @@ const Planilla = () => {
       return Number.isNaN(base) || base < 0 ? 0 : base;
     }
     if (usaDiasTrabajadosQuincenal) {
-      const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosValor, 0);
+      const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosValor, 0);
       const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
       const diasPago = Math.max(diasTrabajadosValor + diasExtra, 0);
       const base = salarioDiarioReferencia * diasPago;
