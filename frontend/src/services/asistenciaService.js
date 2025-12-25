@@ -40,6 +40,11 @@ const asistenciaService = {
     return response.data;
   },
 
+  createMarcaRange: async (payload) => {
+    const response = await api.post("/asistencia/range", payload);
+    return response.data;
+  },
+
   updateMarca: async (id, payload) => {
     const response = await api.put(`/asistencia/${id}`, payload);
     return response.data;

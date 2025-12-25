@@ -165,6 +165,7 @@ const createInitialForm = (isAdmin) => {
   return {
     id_empleado: isAdmin ? "" : undefined,
     fecha,
+    fecha_fin: "",
     hora,
     tipo_marca: "entrada",
     observaciones: "",
@@ -229,6 +230,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState(() => createInitialForm(isAdmin));
   const [submitting, setSubmitting] = useState(false);
+  const [rangeMode, setRangeMode] = useState(false);
   const defaultRange = useMemo(() => createDefaultRange(), []);
   const [rangeFilters, setRangeFilters] = useState(defaultRange);
   const [appliedRange, setAppliedRange] = useState(defaultRange);
@@ -437,7 +439,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
     const { name, value, type, checked } = event.target;
     if (
       !isAdmin &&
-      (name === "fecha" || name === "hora" || name === "estado" || name === "justificado" || name === "justificacion")
+      (name === "fecha" || name === "fecha_fin" || name === "hora" || name === "estado" || name === "justificado" || name === "justificacion")
     ) {
       return;
     }
@@ -446,8 +448,21 @@ export const useAsistencia = ({ mode, user } = {}) => {
   };
 
   const resetForm = () => {
-    setFormData(createInitialForm(isAdmin));
+    const nextForm = createInitialForm(isAdmin);
+    if (isAdmin && rangeMode) {
+      nextForm.fecha_fin = nextForm.fecha;
+    }
+    setFormData(nextForm);
     resetLocation();
+  };
+
+  const toggleRangeMode = (event) => {
+    const checked = event.target.checked;
+    setRangeMode(checked);
+    setFormData((prev) => ({
+      ...prev,
+      fecha_fin: checked ? prev.fecha_fin || prev.fecha : "",
+    }));
   };
 
   const handleEmpleadoSelect = (event) => {
@@ -691,8 +706,43 @@ export const useAsistencia = ({ mode, user } = {}) => {
     }
 
     try {
-      await asistenciaService.createMarca(payload);
-      setSuccessMessage("Marca registrada correctamente");
+      if (isAdmin && rangeMode) {
+        if (!formData.fecha || !formData.fecha_fin) {
+          setError("Selecciona una fecha de inicio y fin para el rango");
+          setSubmitting(false);
+          return;
+        }
+
+        const startDate = new Date(formData.fecha);
+        const endDate = new Date(formData.fecha_fin);
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+          setError("El rango de fechas no es válido");
+          setSubmitting(false);
+          return;
+        }
+
+        if (startDate.getTime() > endDate.getTime()) {
+          setError("La fecha de inicio debe ser anterior o igual a la fecha fin");
+          setSubmitting(false);
+          return;
+        }
+
+        const rangePayload = {
+          ...payload,
+          fecha_inicio: formData.fecha,
+          fecha_fin: formData.fecha_fin,
+        };
+
+        const response = await asistenciaService.createMarcaRange(rangePayload);
+        if (response?.message) {
+          setSuccessMessage(response.message);
+        } else {
+          setSuccessMessage("Marcas registradas correctamente");
+        }
+      } else {
+        await asistenciaService.createMarca(payload);
+        setSuccessMessage("Marca registrada correctamente");
+      }
       resetForm();
       await fetchRegistros({
         ...(appliedRange?.start && appliedRange?.end
@@ -1033,6 +1083,8 @@ export const useAsistencia = ({ mode, user } = {}) => {
     handleSubmit,
     submitting,
     resetForm,
+    rangeMode,
+    toggleRangeMode,
     tipoMarcaOptions,
     rangeFilters,
     handleRangeChange,

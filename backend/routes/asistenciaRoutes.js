@@ -8,6 +8,7 @@ const {
   getAsistencia,
   getByRange,
   createMarca,
+  createMarcaRange,
   updateMarca,
   exportAsistencia,
   createJustificacionSolicitud,
@@ -31,6 +32,9 @@ router.get('/export', authenticateToken, authorizeRoles(1), exportAsistencia);
 
 // POST /api/asistencia  -> crear marca (empleado puede crear la suya; admin puede crear para cualquiera)
 router.post('/', authenticateToken, createMarca);
+
+// POST /api/asistencia/range -> crear marcas masivas por rango (solo admin)
+router.post('/range', authenticateToken, authorizeRoles(1), createMarcaRange);
 
 // PUT /api/asistencia/:id -> modificar (solo admin)
 router.put('/:id', authenticateToken, authorizeRoles(1), updateMarca);
