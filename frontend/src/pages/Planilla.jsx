@@ -76,6 +76,9 @@ const WIZARD_TIPO_PAGO_LABELS = {
   mensual: "Pago mensual",
 };
 
+const DIAS_POR_QUINCENA = 15;
+const DIAS_LIBRES_QUINCENA = 2;
+
 const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
 
 const obtenerRangoFechaPorDefecto = () => {
@@ -744,6 +747,12 @@ const Planilla = () => {
     : Number.isNaN(diasTrabajadosValor) || diasTrabajadosValor < 0
       ? 0
       : diasTrabajadosValor;
+  const usaDiasTrabajadosQuincenal =
+    tipoPago === "Quincenal" &&
+    !usaDetalleParaCalculos &&
+    formData.dias_trabajados !== "" &&
+    Number.isFinite(diasTrabajadosValor) &&
+    diasTrabajadosValor >= 0;
   const diasDescuentoValor = Number(formData.dias_descuento);
   const diasDescuentoAplicados =
     Number.isNaN(diasDescuentoValor) || diasDescuentoValor < 0 ? 0 : diasDescuentoValor;
@@ -799,6 +808,14 @@ const Planilla = () => {
       const base = salarioDiarioReferencia * diasTrabajadosAplicados + pagoExtraDiasDobles;
       return Number.isNaN(base) || base < 0 ? 0 : base;
     }
+    if (usaDiasTrabajadosQuincenal) {
+      const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosValor, 0);
+      const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
+      const diasPago = Math.max(diasTrabajadosValor + diasExtra, 0);
+      const base = salarioDiarioReferencia * diasPago;
+      const baseNormalizado = Number.isNaN(base) || base < 0 ? 0 : base;
+      return usaDoblesManual ? baseNormalizado + pagoExtraDiasDobles : baseNormalizado;
+    }
     const base = Math.max(salarioBaseReferencia, 0);
     return usaDoblesManual ? base + pagoExtraDiasDobles : base;
   })();
@@ -806,6 +823,8 @@ const Planilla = () => {
   let deduccionDiasCalculada = 0;
   if (tipoPago === "Quincenal") {
     if (usaDetalleParaCalculos) {
+      deduccionDiasCalculada = 0;
+    } else if (usaDiasTrabajadosQuincenal) {
       deduccionDiasCalculada = 0;
     } else {
       if (montoDescuentoDiasAplicado !== null) {

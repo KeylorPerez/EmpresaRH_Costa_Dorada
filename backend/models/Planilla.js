@@ -224,6 +224,7 @@ class Planilla {
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
 
       const DIAS_POR_QUINCENA = 15;
+      const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;
       const diasReferenciaPago =
         tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
@@ -321,17 +322,31 @@ class Planilla {
       } else {
         const salarioDiarioEstimado = salario_base > 0 ? salario_base / diasReferenciaPago : 0;
 
-        if (montoDescuentoDiasValor !== null) {
-          deduccionDiasMonto = montoDescuentoDiasValor;
-        } else if (diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
-          deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
-        }
-
-        if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+        if (tipo_pago === 'Quincenal' && diasTrabajadosCalculados !== null) {
+          const diasTrabajadosNormalizados =
+            Number.isFinite(diasTrabajadosCalculados) && diasTrabajadosCalculados >= 0
+              ? diasTrabajadosCalculados
+              : 0;
+          const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosNormalizados, 0);
+          const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
+          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
-        }
+        } else {
+          if (montoDescuentoDiasValor !== null) {
+            deduccionDiasMonto = montoDescuentoDiasValor;
+          } else if (diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
+            deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
+          }
 
-        deduccionDiasMonto = Number(Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2));
+          if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+            deduccionDiasMonto = 0;
+          }
+
+          deduccionDiasMonto = Number(
+            Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2)
+          );
+        }
       }
 
       const montoHorasExtras = Math.max(Number(horas_extras) || 0, 0);
@@ -501,6 +516,7 @@ class Planilla {
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
       const DIAS_POR_QUINCENA = 15;
+      const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;
       const diasReferenciaPago =
         tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
@@ -573,32 +589,44 @@ class Planilla {
         const montoExtraNormalizado = Number(Number(montoExtraDiasDobles).toFixed(2));
         salarioBasePeriodo = Number((pagoDiasNormales + montoExtraNormalizado).toFixed(2));
       } else {
-        salarioBasePeriodo = salario_base;
-
         const salarioDiarioEstimado = salario_base > 0 ? salario_base / diasReferenciaPago : 0;
-        const diasDescuentoValor = Number(dias_descuento);
-        const montoDescuentoDiasValor =
-          monto_descuento_dias === null || monto_descuento_dias === undefined
-            ? null
-            : Number(monto_descuento_dias);
+        const diasTrabajadosValor = Number(dias_trabajados);
+        const diasTrabajadosNormalizados =
+          Number.isFinite(diasTrabajadosValor) && diasTrabajadosValor >= 0 ? diasTrabajadosValor : null;
 
-        if (
-          montoDescuentoDiasValor !== null &&
-          Number.isFinite(montoDescuentoDiasValor) &&
-          montoDescuentoDiasValor >= 0
-        ) {
-          deduccionDiasMonto = montoDescuentoDiasValor;
-        } else if (!Number.isNaN(diasDescuentoValor) && diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
-          deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
-        }
-
-        if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+        if (tipo_pago === 'Quincenal' && diasTrabajadosNormalizados !== null) {
+          const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosNormalizados, 0);
+          const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
+          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
-        }
+        } else {
+          salarioBasePeriodo = salario_base;
 
-        deduccionDiasMonto = Number(
-          Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2)
-        );
+          const diasDescuentoValor = Number(dias_descuento);
+          const montoDescuentoDiasValor =
+            monto_descuento_dias === null || monto_descuento_dias === undefined
+              ? null
+              : Number(monto_descuento_dias);
+
+          if (
+            montoDescuentoDiasValor !== null &&
+            Number.isFinite(montoDescuentoDiasValor) &&
+            montoDescuentoDiasValor >= 0
+          ) {
+            deduccionDiasMonto = montoDescuentoDiasValor;
+          } else if (!Number.isNaN(diasDescuentoValor) && diasDescuentoValor > 0 && salarioDiarioEstimado > 0) {
+            deduccionDiasMonto = salarioDiarioEstimado * diasDescuentoValor;
+          }
+
+          if (!Number.isFinite(deduccionDiasMonto) || deduccionDiasMonto < 0) {
+            deduccionDiasMonto = 0;
+          }
+
+          deduccionDiasMonto = Number(
+            Math.min(deduccionDiasMonto, Math.max(salarioBasePeriodo, 0)).toFixed(2)
+          );
+        }
       }
 
       if (!Number.isFinite(salarioBasePeriodo) || salarioBasePeriodo < 0) {
