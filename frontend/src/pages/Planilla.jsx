@@ -809,10 +809,9 @@ const Planilla = () => {
       return Number.isNaN(base) || base < 0 ? 0 : base;
     }
     if (usaDiasTrabajadosQuincenal) {
-      const diasPago = Math.min(
-        Math.max(diasTrabajadosValor, 0) + DIAS_LIBRES_QUINCENA,
-        DIAS_POR_QUINCENA
-      );
+      const diasLibres = Math.max(DIAS_POR_QUINCENA - diasTrabajadosValor, 0);
+      const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
+      const diasPago = Math.max(diasTrabajadosValor + diasExtra, 0);
       const base = salarioDiarioReferencia * diasPago;
       const baseNormalizado = Number.isNaN(base) || base < 0 ? 0 : base;
       return usaDoblesManual ? baseNormalizado + pagoExtraDiasDobles : baseNormalizado;
