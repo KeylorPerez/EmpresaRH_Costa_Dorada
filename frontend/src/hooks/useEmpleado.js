@@ -6,6 +6,7 @@ import puestoService from "../services/puestoService";
 const normalizeTipoPago = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized.startsWith("quin")) return "Quincenal";
+  if (normalized.startsWith("men")) return "Mensual";
   return "Diario";
 };
 
@@ -398,4 +399,3 @@ const normalizeDate = (value) => {
   }
   return parsed.toISOString().slice(0, 10);
 };
-

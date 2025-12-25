@@ -505,7 +505,7 @@ const createEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos requeridos o valores inválidos' });
     }
 
-    if (!['Diario', 'Quincenal'].includes(tipo_pago)) {
+    if (!['Diario', 'Quincenal', 'Mensual'].includes(tipo_pago)) {
       return res.status(400).json({ error: 'Tipo de pago inválido' });
     }
 
@@ -601,7 +601,7 @@ const updateEmpleado = async (req, res) => {
       estado
     } = req.body;
 
-    if (tipo_pago && !['Diario', 'Quincenal'].includes(tipo_pago)) {
+    if (tipo_pago && !['Diario', 'Quincenal', 'Mensual'].includes(tipo_pago)) {
       return res.status(400).json({ error: 'Tipo de pago inválido' });
     }
 

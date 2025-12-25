@@ -224,6 +224,9 @@ class Planilla {
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
 
       const DIAS_POR_QUINCENA = 15;
+      const DIAS_POR_MES = 30;
+      const diasReferenciaPago =
+        tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
 
@@ -316,7 +319,7 @@ class Planilla {
         const montoExtraNormalizado = Number(montoExtraDiasDobles.toFixed(2));
         salarioBasePeriodo = Number((pagoDiasNormales + montoExtraNormalizado).toFixed(2));
       } else {
-        const salarioDiarioEstimado = salario_base > 0 ? salario_base / DIAS_POR_QUINCENA : 0;
+        const salarioDiarioEstimado = salario_base > 0 ? salario_base / diasReferenciaPago : 0;
 
         if (montoDescuentoDiasValor !== null) {
           deduccionDiasMonto = montoDescuentoDiasValor;
@@ -497,6 +500,10 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
+      const DIAS_POR_QUINCENA = 15;
+      const DIAS_POR_MES = 30;
+      const diasReferenciaPago =
+        tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
       const detallesDoblesPresentes = detallesSanitizados.some((detalle) => detalle.es_dia_doble);
@@ -568,7 +575,7 @@ class Planilla {
       } else {
         salarioBasePeriodo = salario_base;
 
-        const salarioDiarioEstimado = salario_base > 0 ? salario_base / 15 : 0;
+        const salarioDiarioEstimado = salario_base > 0 ? salario_base / diasReferenciaPago : 0;
         const diasDescuentoValor = Number(dias_descuento);
         const montoDescuentoDiasValor =
           monto_descuento_dias === null || monto_descuento_dias === undefined

@@ -59,16 +59,21 @@ const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
     return "Pago quincenal";
   }
 
+  if (tipoNormalizado.startsWith("men")) {
+    return "Pago mensual";
+  }
+
   const textoOriginal = (valor ?? "").toString().trim();
   return textoOriginal || etiquetaPorDefecto;
 };
 
-const WIZARD_TIPO_PAGO_VALUES = ["todos", "diario", "quincenal"];
+const WIZARD_TIPO_PAGO_VALUES = ["todos", "diario", "quincenal", "mensual"];
 
 const WIZARD_TIPO_PAGO_LABELS = {
   todos: "Todos",
   diario: "Pago diario",
   quincenal: "Pago quincenal",
+  mensual: "Pago mensual",
 };
 
 const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
@@ -576,6 +581,10 @@ const Planilla = () => {
         return tipoNormalizado === "quincenal";
       }
 
+      if (wizardTipoPagoFiltro === "mensual") {
+        return tipoNormalizado === "mensual";
+      }
+
       return true;
     });
   }, [empleados, wizardSearch, wizardTipoPagoFiltro]);
@@ -994,6 +1003,7 @@ const Planilla = () => {
                     <option value="todos">Todos</option>
                     <option value="diario">Pago diario</option>
                     <option value="quincenal">Pago quincenal</option>
+                    <option value="mensual">Pago mensual</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1 text-sm text-gray-600">
