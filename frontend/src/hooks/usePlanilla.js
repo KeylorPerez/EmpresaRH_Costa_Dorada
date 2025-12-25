@@ -3,6 +3,7 @@ import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
+import diasDoblesService from "../services/diasDoblesService";
 import {
   ensurePlanillaArrayCanonical,
   ensurePlanillaCanonical,
@@ -453,6 +454,19 @@ export const usePlanilla = () => {
     message: "",
   });
   const [attendanceReloadKey, setAttendanceReloadKey] = useState(0);
+  const [detalleAsistencia, setDetalleAsistencia] = useState({
+    key: "",
+    loading: false,
+    fechas: [],
+    error: "",
+  });
+  const [detalleDiasDobles, setDetalleDiasDobles] = useState({
+    key: "",
+    loading: false,
+    fechas: [],
+    error: "",
+  });
+  const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
   const [detalleJustificaciones, setDetalleJustificaciones] = useState(
     DETALLE_JUSTIFICACIONES_INICIAL,
@@ -509,6 +523,144 @@ export const usePlanilla = () => {
       return normalizado;
     },
     [salarioDetalleReferencia],
+  );
+
+  const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
+    if (!Array.isArray(detalles) || detalles.length === 0) {
+      return detalles;
+    }
+
+    if (!Array.isArray(fechasAsistidas)) {
+      return detalles;
+    }
+
+    const fechasNormalizadas = fechasAsistidas
+      .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+      .filter((fecha) => fecha.length > 0);
+
+    const asistenciaSet = new Set(fechasNormalizadas);
+    const salarioCero = Number(0).toFixed(2);
+
+    if (asistenciaSet.size === 0) {
+      return detalles.map((detalle) => {
+        if (detalle.asistenciaManual) {
+          return detalle;
+        }
+
+        if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
+          return detalle.salario_dia === salarioCero
+            ? detalle
+            : {
+                ...detalle,
+                salario_dia: salarioCero,
+                estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                asistenciaManual: false,
+              };
+        }
+
+        return {
+          ...detalle,
+          asistio: false,
+          salario_dia: salarioCero,
+          estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+          asistenciaManual: false,
+        };
+      });
+    }
+
+    return detalles.map((detalle) => {
+      if (detalle.asistenciaManual) {
+        return detalle;
+      }
+
+      const asistio = asistenciaSet.has(detalle.fecha);
+
+      if (!asistio) {
+        if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
+          return detalle.salario_dia === salarioCero
+            ? detalle
+            : {
+                ...detalle,
+                salario_dia: salarioCero,
+                estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                asistenciaManual: false,
+              };
+        }
+
+        return {
+          ...detalle,
+          asistio: false,
+          salario_dia: salarioCero,
+          estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+          asistenciaManual: false,
+        };
+      }
+
+      const salarioBase = parseNumberInput(detalle.salario_base);
+      const factor = detalle.es_dia_doble ? 2 : 1;
+      const salarioCalculado = (() => {
+        if (Number.isFinite(salarioBase) && salarioBase >= 0) {
+          return salarioBase * factor;
+        }
+        const actual = parseNumberInput(detalle.salario_dia);
+        return Number.isFinite(actual) && actual >= 0 ? actual : 0;
+      })();
+
+      const salarioTexto = Number(salarioCalculado).toFixed(2);
+
+      if (detalle.asistio && detalle.salario_dia === salarioTexto) {
+        return detalle;
+      }
+
+      return {
+        ...detalle,
+        asistio: true,
+        salario_dia: salarioTexto,
+        estado: ajustarEstadoPorAsistencia(detalle.estado, true),
+        asistenciaManual: false,
+      };
+    });
+  }, []);
+
+  const aplicarDiasDoblesAuto = useCallback(
+    (detalles, fechasDobles) => {
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        return detalles;
+      }
+
+      const fechasNormalizadas = Array.isArray(fechasDobles)
+        ? fechasDobles
+            .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+            .filter((fecha) => fecha.length > 0)
+        : [];
+
+      const doblesSet = new Set(fechasNormalizadas);
+
+      return detalles.map((detalle) => {
+        const es_dia_doble = doblesSet.has(detalle.fecha);
+
+        if (detalle.es_dia_doble === es_dia_doble) {
+          return detalle;
+        }
+
+        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+        const factorDobles = es_dia_doble ? 2 : 1;
+        const factorAplicado = detalle.asistio ? factorDobles : 1;
+        const debePagar = detalle.asistio || detalle.justificado;
+        const salarioCalculado = debePagar
+          ? formatMontoPositivo(baseNormalizado * factorAplicado)
+          : SALARIO_CERO_TEXTO;
+
+        return {
+          ...detalle,
+          es_dia_doble,
+          salario_base: baseNormalizado,
+          salario_dia: salarioCalculado,
+        };
+      });
+    },
+    [applySalarioBaseFallback],
   );
 
   const fetchPlanillas = useCallback(async () => {
@@ -586,6 +738,9 @@ export const usePlanilla = () => {
     setDetalleDias([]);
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
     setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+    setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
+    setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
+    setDetalleNonDiarioReloadKey(0);
   };
 
   const openCreateModal = () => {
@@ -738,6 +893,7 @@ export const usePlanilla = () => {
   useEffect(() => {
     if (!modalOpen || editingPlanilla) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
 
@@ -745,6 +901,7 @@ export const usePlanilla = () => {
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
 
@@ -757,6 +914,7 @@ export const usePlanilla = () => {
       !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
     ) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
 
@@ -765,6 +923,7 @@ export const usePlanilla = () => {
 
     const fetchJustificaciones = async () => {
       setDetalleJustificaciones({ key, loading: true, registros: [], error: "" });
+      setDetalleAsistencia({ key, loading: true, fechas: [], error: "" });
 
       try {
         const data = await asistenciaService.getByRange(
@@ -777,8 +936,30 @@ export const usePlanilla = () => {
         const registros = Array.isArray(data)
           ? data.map(normalizarJustificacionRegistro).filter(Boolean)
           : [];
+        const fechasAsistencia = Array.isArray(data)
+          ? Array.from(
+              new Set(
+                data
+                  .map((registro) =>
+                    typeof registro.fecha === "string" ? registro.fecha.trim() : "",
+                  )
+                  .filter((fecha) => fecha.length > 0),
+              ),
+            )
+          : [];
 
         setDetalleJustificaciones({ key, loading: false, registros, error: "" });
+        setDetalleAsistencia({ key, loading: false, fechas: fechasAsistencia, error: "" });
+
+        if (detalleNonDiarioReloadKey > 0) {
+          setAttendanceState({
+            loading: false,
+            dias: null,
+            fechas: [],
+            error: "",
+            message: "Asistencia actualizada para el periodo.",
+          });
+        }
       } catch (err) {
         if (cancelado) return;
 
@@ -787,6 +968,16 @@ export const usePlanilla = () => {
           err?.message ||
           "No se pudieron obtener las justificaciones del periodo seleccionado.";
         setDetalleJustificaciones({ key, loading: false, registros: [], error: message });
+        setDetalleAsistencia({ key, loading: false, fechas: [], error: message });
+        if (detalleNonDiarioReloadKey > 0) {
+          setAttendanceState({
+            loading: false,
+            dias: null,
+            fechas: [],
+            error: message,
+            message: "",
+          });
+        }
       }
     };
 
@@ -803,6 +994,86 @@ export const usePlanilla = () => {
     formData.periodo_inicio,
     formData.periodo_fin,
     empleados,
+    detalleNonDiarioReloadKey,
+  ]);
+
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) {
+      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const { id_empleado, periodo_inicio, periodo_fin } = formData;
+
+    if (!id_empleado || !periodo_inicio || !periodo_fin) {
+      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === String(id_empleado),
+    );
+
+    if (
+      !empleadoSeleccionado ||
+      !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
+    ) {
+      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+    let cancelado = false;
+
+    const fetchDiasDobles = async () => {
+      setDetalleDiasDobles({ key, loading: true, fechas: [], error: "" });
+
+      try {
+        const data = await diasDoblesService.getAll();
+        if (cancelado) return;
+
+        const inicioDate = parseDateSafe(periodo_inicio);
+        const finDate = parseDateSafe(periodo_fin);
+
+        const fechasDobles = Array.isArray(data)
+          ? data
+              .filter((dia) => dia && dia.activo)
+              .map((dia) => (typeof dia.fecha === "string" ? dia.fecha.trim() : ""))
+              .filter((fecha) => fecha.length > 0)
+              .filter((fecha) => {
+                if (!inicioDate || !finDate) return false;
+                const fechaDate = parseDateSafe(fecha);
+                if (!fechaDate) return false;
+                return fechaDate >= inicioDate && fechaDate <= finDate;
+              })
+          : [];
+
+        setDetalleDiasDobles({ key, loading: false, fechas: fechasDobles, error: "" });
+      } catch (err) {
+        if (cancelado) return;
+
+        const message =
+          err?.response?.data?.error ||
+          err?.message ||
+          "No se pudieron obtener los días dobles del periodo.";
+        setDetalleDiasDobles({ key, loading: false, fechas: [], error: message });
+      }
+    };
+
+    fetchDiasDobles();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    empleados,
+    detalleNonDiarioReloadKey,
   ]);
 
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
@@ -857,109 +1128,16 @@ export const usePlanilla = () => {
   }, []);
 
   const syncDetalleWithAttendance = useCallback((fechasAsistidas) => {
-    if (!Array.isArray(fechasAsistidas)) {
-      return;
-    }
-
-    const fechasNormalizadas = fechasAsistidas
-      .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
-      .filter((fecha) => fecha.length > 0);
-
-    const asistenciaSet = new Set(fechasNormalizadas);
-    const salarioCero = Number(0).toFixed(2);
-
     setDetalleDias((prev) => {
       if (!prev || prev.length === 0) {
         return prev;
       }
 
-      if (asistenciaSet.size === 0) {
-        const updated = prev.map((detalle) => {
-          if (detalle.asistenciaManual) {
-            return detalle;
-          }
-
-          if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
-            return detalle.salario_dia === salarioCero
-              ? detalle
-              : {
-                  ...detalle,
-                  salario_dia: salarioCero,
-                  estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-                  asistenciaManual: false,
-                };
-          }
-
-          return {
-            ...detalle,
-            asistio: false,
-            salario_dia: salarioCero,
-            estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-            asistenciaManual: false,
-          };
-        });
-
-        const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
-        return hasChanges ? updated : prev;
-      }
-
-      const updated = prev.map((detalle) => {
-        if (detalle.asistenciaManual) {
-          return detalle;
-        }
-
-        const asistio = asistenciaSet.has(detalle.fecha);
-
-        if (!asistio) {
-          if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
-            return detalle.salario_dia === salarioCero
-              ? detalle
-              : {
-                  ...detalle,
-                  salario_dia: salarioCero,
-                  estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-                  asistenciaManual: false,
-                };
-          }
-
-          return {
-            ...detalle,
-            asistio: false,
-            salario_dia: salarioCero,
-            estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-            asistenciaManual: false,
-          };
-        }
-
-        const salarioBase = parseNumberInput(detalle.salario_base);
-        const factor = detalle.es_dia_doble ? 2 : 1;
-        const salarioCalculado = (() => {
-          if (Number.isFinite(salarioBase) && salarioBase >= 0) {
-            return salarioBase * factor;
-          }
-          const actual = parseNumberInput(detalle.salario_dia);
-          return Number.isFinite(actual) && actual >= 0 ? actual : 0;
-        })();
-
-        const salarioTexto = Number(salarioCalculado).toFixed(2);
-
-        if (detalle.asistio && detalle.salario_dia === salarioTexto) {
-          return detalle;
-        }
-
-        return {
-          ...detalle,
-          asistio: true,
-          salario_dia: salarioTexto,
-          estado: ajustarEstadoPorAsistencia(detalle.estado, true),
-          asistenciaManual: false,
-        };
-      });
-
+      const updated = aplicarAsistenciaDetalle(prev, fechasAsistidas);
       const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
       return hasChanges ? updated : prev;
     });
-  }, []);
+  }, [aplicarAsistenciaDetalle]);
 
   useEffect(() => {
     if (!modalOpen || editingPlanilla) return;
@@ -994,7 +1172,19 @@ export const usePlanilla = () => {
       return;
     }
 
-    const nuevosDetalles = buildDetalleDias(empleadoSeleccionado, periodo_inicio, periodo_fin);
+    const nuevosDetallesBase = buildDetalleDias(empleadoSeleccionado, periodo_inicio, periodo_fin);
+    const fechasAsistencia =
+      detalleAsistencia.key === keyNuevo ? detalleAsistencia.fechas : [];
+    const fechasDobles =
+      detalleDiasDobles.key === keyNuevo ? detalleDiasDobles.fechas : [];
+
+    let nuevosDetalles = aplicarDiasDoblesAuto(nuevosDetallesBase, fechasDobles);
+    nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
+
+    if (detalleJustificaciones.key === keyNuevo) {
+      nuevosDetalles = aplicarJustificacionesAuto(nuevosDetalles, detalleJustificaciones.registros);
+    }
+
     setDetalleDias(nuevosDetalles);
     detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
   }, [
@@ -1007,6 +1197,14 @@ export const usePlanilla = () => {
     empleados,
     detalleDias,
     buildDetalleDias,
+    aplicarDiasDoblesAuto,
+    aplicarAsistenciaDetalle,
+    detalleAsistencia.key,
+    detalleAsistencia.fechas,
+    detalleDiasDobles.key,
+    detalleDiasDobles.fechas,
+    detalleJustificaciones.key,
+    detalleJustificaciones.registros,
   ]);
 
   useEffect(() => {
@@ -1018,6 +1216,10 @@ export const usePlanilla = () => {
     const registrosJustificados = Array.isArray(detalleJustificaciones.registros)
       ? detalleJustificaciones.registros
       : [];
+    const fechasAsistencia =
+      detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : null;
+    const fechasDobles =
+      detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : null;
 
     if (!keyJustificaciones || keyActual !== keyJustificaciones) {
       if (!keyJustificaciones && detalleDias.length > 0) {
@@ -1026,7 +1228,13 @@ export const usePlanilla = () => {
             return prev;
           }
 
-          const restaurados = aplicarJustificacionesAuto(prev, []);
+          let restaurados = aplicarJustificacionesAuto(prev, []);
+          if (fechasDobles) {
+            restaurados = aplicarDiasDoblesAuto(restaurados, fechasDobles);
+          }
+          if (fechasAsistencia) {
+            restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
+          }
           const cambio = restaurados.some((detalle, index) => detalle !== prev[index]);
           return cambio ? restaurados : prev;
         });
@@ -1043,7 +1251,15 @@ export const usePlanilla = () => {
         return prev;
       }
 
-      const aplicados = aplicarJustificacionesAuto(prev, registrosJustificados);
+      let aplicados = prev;
+      if (fechasDobles) {
+        aplicados = aplicarDiasDoblesAuto(aplicados, fechasDobles);
+      }
+      if (fechasAsistencia) {
+        aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
+      }
+      aplicados = aplicarJustificacionesAuto(aplicados, registrosJustificados);
+
       const cambio = aplicados.some((detalle, index) => detalle !== prev[index]);
       return cambio ? aplicados : prev;
     });
@@ -1053,6 +1269,12 @@ export const usePlanilla = () => {
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     detalleDias,
+    detalleAsistencia.key,
+    detalleAsistencia.fechas,
+    detalleDiasDobles.key,
+    detalleDiasDobles.fechas,
+    aplicarAsistenciaDetalle,
+    aplicarDiasDoblesAuto,
   ]);
 
   const updateDetalleDia = useCallback((index, updates) => {
@@ -1582,10 +1804,19 @@ export const usePlanilla = () => {
 
       const keyActual = `${formData.id_empleado}-${formData.periodo_inicio}-${formData.periodo_fin}`;
       const debeAplicarJustificaciones = detalleJustificaciones.key === keyActual;
+      const fechasAsistencia =
+        detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : [];
+      const fechasDobles =
+        detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : [];
 
-      const detallesRestaurados = debeAplicarJustificaciones
-        ? aplicarJustificacionesAuto(detallesBase, detalleJustificaciones.registros)
-        : detallesBase;
+      let detallesRestaurados = aplicarDiasDoblesAuto(detallesBase, fechasDobles);
+      detallesRestaurados = aplicarAsistenciaDetalle(detallesRestaurados, fechasAsistencia);
+      if (debeAplicarJustificaciones) {
+        detallesRestaurados = aplicarJustificacionesAuto(
+          detallesRestaurados,
+          detalleJustificaciones.registros,
+        );
+      }
 
       setDetalleDias(detallesRestaurados);
       detalleContextRef.current = {
@@ -1595,12 +1826,13 @@ export const usePlanilla = () => {
       };
       autoDiasRef.current = null;
       setAttendanceState({
-        loading: false,
+        loading: true,
         dias: null,
         fechas: [],
         error: "",
-        message: "El detalle diario se restauró a los valores iniciales.",
+        message: "",
       });
+      setDetalleNonDiarioReloadKey((prev) => prev + 1);
       return;
     }
 
@@ -1614,6 +1846,12 @@ export const usePlanilla = () => {
     buildDetalleDias,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
+    detalleAsistencia.key,
+    detalleAsistencia.fechas,
+    detalleDiasDobles.key,
+    detalleDiasDobles.fechas,
+    aplicarAsistenciaDetalle,
+    aplicarDiasDoblesAuto,
   ]);
 
   const handleSubmit = async (event) => {
