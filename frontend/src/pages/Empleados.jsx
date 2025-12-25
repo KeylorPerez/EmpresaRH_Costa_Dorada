@@ -466,6 +466,7 @@ const Empleados = ({ mode = "admin" }) => {
                       >
                         <option value="Diario">Diario</option>
                         <option value="Quincenal">Quincenal</option>
+                        <option value="Mensual">Mensual</option>
                       </select>
                     </div>
                     <FormField
@@ -688,4 +689,3 @@ Empleados.propTypes = {
 };
 
 export default Empleados;
-

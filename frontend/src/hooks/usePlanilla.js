@@ -26,6 +26,11 @@ const estadoAsistenciaSet = new Set(ESTADOS_ASISTENCIA);
 const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
+const DIAS_POR_QUINCENA = 15;
+const DIAS_POR_MES = 30;
+
+const obtenerDiasReferencia = (tipoPago) =>
+  tipoPago === "Mensual" ? DIAS_POR_MES : DIAS_POR_QUINCENA;
 
 const isEmptyValue = (value) => value === "" || value === null || value === undefined;
 
@@ -747,7 +752,10 @@ export const usePlanilla = () => {
       (empleado) => String(empleado.id_empleado) === String(id_empleado),
     );
 
-    if (!empleadoSeleccionado || empleadoSeleccionado.tipo_pago !== "Quincenal") {
+    if (
+      !empleadoSeleccionado ||
+      !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
+    ) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
       return;
     }
@@ -813,7 +821,7 @@ export const usePlanilla = () => {
       tipoPago === "Diario"
         ? salarioBase
         : salarioBase > 0
-          ? Number((salarioBase / 15).toFixed(2))
+          ? Number((salarioBase / obtenerDiasReferencia(tipoPago)).toFixed(2))
           : 0;
 
     const formatter = new Intl.DateTimeFormat("es-CR", { weekday: "long" });
@@ -1671,7 +1679,9 @@ export const usePlanilla = () => {
           montoDoblesPayload = montoDoblesManual;
         } else if ((diasDoblesManual ?? 0) > 0) {
           const salarioReferenciaDobles =
-            tipoPagoEmpleado === "Diario" ? salarioBaseEmpleado : salarioBaseEmpleado / 15;
+            tipoPagoEmpleado === "Diario"
+              ? salarioBaseEmpleado
+              : salarioBaseEmpleado / obtenerDiasReferencia(tipoPagoEmpleado);
           montoDoblesPayload = Number((salarioReferenciaDobles * (diasDoblesManual ?? 0)).toFixed(2));
         } else {
           montoDoblesPayload = 0;
