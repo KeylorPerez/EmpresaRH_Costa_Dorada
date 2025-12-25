@@ -29,6 +29,7 @@ const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 const DIAS_POR_QUINCENA = 15;
+const DIAS_LIBRES_QUINCENA = 2;
 const DIAS_POR_MES = 30;
 
 const obtenerDiasReferencia = (tipoPago) =>
@@ -488,6 +489,10 @@ export const usePlanilla = () => {
     );
   }, [empleados, formData.id_empleado]);
 
+  const tipoPagoDetalle = (empleadoDetalleActivo?.tipo_pago || "Quincenal")
+    .toString()
+    .trim();
+
   const salarioDetalleReferencia = useMemo(() => {
     if (!empleadoDetalleActivo) {
       return 0;
@@ -526,6 +531,65 @@ export const usePlanilla = () => {
       return normalizado;
     },
     [salarioDetalleReferencia],
+  );
+
+  const aplicarDiasLibresQuincenal = useCallback(
+    (detalles) => {
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        return { updated: detalles, changed: false };
+      }
+
+      if (tipoPagoDetalle !== "Quincenal") {
+        return { updated: detalles, changed: false };
+      }
+
+      let faltasNoJustificadas = 0;
+      let changed = false;
+
+      const updated = detalles.map((detalle) => {
+        const esFaltaNoJustificada = !detalle.asistio && !detalle.justificado;
+
+        if (!esFaltaNoJustificada) {
+          return detalle;
+        }
+
+        faltasNoJustificadas += 1;
+        const debePagar = faltasNoJustificadas <= DIAS_LIBRES_QUINCENA;
+
+        if (debePagar) {
+          const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+          const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+          const salarioCalculado = formatMontoPositivo(baseNormalizado);
+
+          if (
+            detalle.salario_dia === salarioCalculado &&
+            Number(detalle.salario_base) === baseNormalizado
+          ) {
+            return detalle;
+          }
+
+          changed = true;
+          return {
+            ...detalle,
+            salario_base: baseNormalizado,
+            salario_dia: salarioCalculado,
+          };
+        }
+
+        if (detalle.salario_dia === SALARIO_CERO_TEXTO) {
+          return detalle;
+        }
+
+        changed = true;
+        return {
+          ...detalle,
+          salario_dia: SALARIO_CERO_TEXTO,
+        };
+      });
+
+      return { updated, changed };
+    },
+    [applySalarioBaseFallback, tipoPagoDetalle],
   );
 
   const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
@@ -1277,6 +1341,24 @@ export const usePlanilla = () => {
     aplicarDiasDoblesAuto,
   ]);
 
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) return;
+    if (tipoPagoDetalle !== "Quincenal") return;
+    if (!Array.isArray(detalleDias) || detalleDias.length === 0) return;
+
+    const { updated, changed } = aplicarDiasLibresQuincenal(detalleDias);
+
+    if (changed) {
+      setDetalleDias(updated);
+    }
+  }, [
+    modalOpen,
+    editingPlanilla,
+    detalleDias,
+    tipoPagoDetalle,
+    aplicarDiasLibresQuincenal,
+  ]);
+
   const updateDetalleDia = useCallback((index, updates) => {
     setDetalleDias((prev) =>
       prev.map((detalle, idx) => {
@@ -1505,7 +1587,7 @@ export const usePlanilla = () => {
       (acumulado, detalle) => {
         const salario = toPositiveNumber(detalle.salario_dia);
         const salarioBase = toPositiveNumber(detalle.salario_base);
-        const pagado = detalle.asistio || detalle.justificado;
+        const pagado = salario > 0;
         const factorAsistencia = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
 
         if (pagado) {
