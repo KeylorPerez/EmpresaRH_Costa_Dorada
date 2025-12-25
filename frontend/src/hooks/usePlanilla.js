@@ -4,6 +4,7 @@ import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
 import diasDoblesService from "../services/diasDoblesService";
+import { parseDateValue } from "../utils/dateUtils";
 import {
   ensurePlanillaArrayCanonical,
   ensurePlanillaCanonical,
@@ -405,11 +406,13 @@ const createEmptyForm = (defaults = {}) => ({
   ...defaults,
 });
 
-const parseDateSafe = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
+const parseDateSafe = (value) => parseDateValue(value);
+
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
@@ -1079,8 +1082,8 @@ export const usePlanilla = () => {
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
-    const fechaInicio = new Date(inicio);
-    const fechaFin = new Date(fin);
+    const fechaInicio = parseDateSafe(inicio);
+    const fechaFin = parseDateSafe(fin);
 
     if (Number.isNaN(fechaInicio.getTime()) || Number.isNaN(fechaFin.getTime()) || fechaFin < fechaInicio) {
       return [];
@@ -1104,7 +1107,7 @@ export const usePlanilla = () => {
       cursor.setDate(cursor.getDate() + 1)
     ) {
       const current = new Date(cursor.getTime());
-      const iso = current.toISOString().split("T")[0];
+      const iso = formatInputDate(current);
       const diaRaw = formatter.format(current);
       const diaSemana = diaRaw.charAt(0).toUpperCase() + diaRaw.slice(1);
 
