@@ -8,6 +8,15 @@ const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
 
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+const MS_POR_DIA = 1000 * 60 * 60 * 24;
+
+const calcularDiasPeriodo = (inicio, fin) => {
+  if (!inicio || !fin) return 0;
+  const fechaInicio = new Date(inicio);
+  const fechaFin = new Date(fin);
+  const diferencia = Math.floor((fechaFin - fechaInicio) / MS_POR_DIA) + 1;
+  return Math.max(diferencia, 0);
+};
 
 const buildDiasDoblesAuto = async ({
   id_empleado,
@@ -232,8 +241,13 @@ class Planilla {
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;
+      const diasPeriodoQuincena = calcularDiasPeriodo(periodo_inicio, periodo_fin);
       const diasReferenciaPago =
-        tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
+        tipo_pago === 'Mensual'
+          ? DIAS_POR_MES
+          : tipo_pago === 'Quincenal' && diasPeriodoQuincena > 0
+            ? diasPeriodoQuincena
+            : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
 
@@ -524,8 +538,13 @@ class Planilla {
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;
+      const diasPeriodoQuincena = calcularDiasPeriodo(periodo_inicio, periodo_fin);
       const diasReferenciaPago =
-        tipo_pago === 'Mensual' ? DIAS_POR_MES : DIAS_POR_QUINCENA;
+        tipo_pago === 'Mensual'
+          ? DIAS_POR_MES
+          : tipo_pago === 'Quincenal' && diasPeriodoQuincena > 0
+            ? diasPeriodoQuincena
+            : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
       const detallesDoblesPresentes = detallesSanitizados.some((detalle) => detalle.es_dia_doble);
