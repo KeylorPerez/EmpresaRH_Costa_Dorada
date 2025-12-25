@@ -68,6 +68,8 @@ const Asistencia = ({ mode }) => {
     handleSubmit,
     submitting,
     resetForm,
+    rangeMode,
+    toggleRangeMode,
     rangeFilters,
     handleRangeChange,
     handleRangeSubmit,
@@ -270,6 +272,21 @@ const Asistencia = ({ mode }) => {
               <p className="text-sm text-gray-500">
                 Completa la información para registrar una nueva marca de asistencia.
               </p>
+              {isAdmin && (
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    id="range_mode"
+                    name="range_mode"
+                    type="checkbox"
+                    checked={rangeMode}
+                    onChange={toggleRangeMode}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label className="text-sm font-medium text-gray-700" htmlFor="range_mode">
+                    Registrar por rango de fechas
+                  </label>
+                </div>
+              )}
             </header>
 
             <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
@@ -339,20 +356,53 @@ const Asistencia = ({ mode }) => {
                 </div>
               )}
 
-              <div className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="fecha">
-                  Fecha
-                </label>
-                <input
-                  id="fecha"
-                  name="fecha"
-                  type="date"
-                  value={formData.fecha}
-                  onChange={handleChange}
-                  disabled={!isAdmin}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
-                />
-              </div>
+              {rangeMode && isAdmin ? (
+                <>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="fecha">
+                      Fecha inicio
+                    </label>
+                    <input
+                      id="fecha"
+                      name="fecha"
+                      type="date"
+                      value={formData.fecha}
+                      onChange={handleChange}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="fecha_fin">
+                      Fecha fin
+                    </label>
+                    <input
+                      id="fecha_fin"
+                      name="fecha_fin"
+                      type="date"
+                      value={formData.fecha_fin}
+                      onChange={handleChange}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="fecha">
+                    Fecha
+                  </label>
+                  <input
+                    id="fecha"
+                    name="fecha"
+                    type="date"
+                    value={formData.fecha}
+                    onChange={handleChange}
+                    disabled={!isAdmin}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:border-gray-200 disabled:cursor-not-allowed"
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col">
                 <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="hora">

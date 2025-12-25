@@ -583,6 +583,35 @@ function parseTimeForSqlServer(timeInput) {
   throw new Error('Formato de hora inválido');
 }
 
+const parseIsoDateValue = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  const [year, month, day] = trimmed.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const buildDateRange = (start, end) => {
+  const startDate = parseIsoDateValue(start);
+  const endDate = parseIsoDateValue(end);
+  if (!startDate || !endDate) {
+    throw new Error('Formato de fecha inválido. Usa YYYY-MM-DD');
+  }
+  if (startDate.getTime() > endDate.getTime()) {
+    throw new Error('La fecha de inicio debe ser anterior o igual a la fecha fin');
+  }
+
+  const dates = [];
+  const current = new Date(startDate.getTime());
+  while (current.getTime() <= endDate.getTime()) {
+    dates.push(formatDateToSql(current));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+};
+
 // GET /api/asistencia
 const getAsistencia = async (req, res) => {
   try {
@@ -741,6 +770,127 @@ const createMarca = async (req, res) => {
     });
 
     return res.status(201).json({ message: 'Marca registrada', id_asistencia: created.id_asistencia });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/asistencia/range
+// body: { id_empleado, tipo_marca, fecha_inicio, fecha_fin, hora?, observaciones?, estado?, justificado?, justificacion?, latitud?, longitud? }
+const createMarcaRange = async (req, res) => {
+  try {
+    const {
+      id_empleado: idEmpleadoBody,
+      tipo_marca,
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      hora: horaBody,
+      observaciones,
+      estado: estadoBody,
+      justificado: justificadoBody,
+      justificacion,
+      latitud: latitudBody,
+      longitud: longitudBody,
+    } = req.body;
+
+    if (!tipo_marca || !allowedTypes.includes(tipo_marca)) {
+      return res.status(400).json({ error: `tipo_marca inválido. Debe ser uno de: ${allowedTypes.join(', ')}` });
+    }
+
+    const idEmpleadoFinal = Number(idEmpleadoBody);
+    if (!Number.isInteger(idEmpleadoFinal) || idEmpleadoFinal <= 0) {
+      return res.status(400).json({ error: 'id_empleado requerido y debe ser un número entero positivo' });
+    }
+
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({ error: 'fecha_inicio y fecha_fin son requeridas (YYYY-MM-DD)' });
+    }
+
+    const empleado = await Empleado.getById(idEmpleadoFinal);
+    if (!empleado) {
+      return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
+    }
+
+    let estadoFinal = 'Presente';
+    if (estadoBody !== undefined && estadoBody !== null && estadoBody !== '') {
+      const estadoTrimmed = estadoBody.toString().trim();
+      if (!allowedStates.includes(estadoTrimmed)) {
+        return res.status(400).json({
+          error: `estado inválido. Debe ser uno de: ${allowedStates.join(', ')}`,
+        });
+      }
+      estadoFinal = estadoTrimmed;
+    }
+
+    let justificadoFinal = false;
+    if (justificadoBody !== undefined && justificadoBody !== null) {
+      justificadoFinal = isTruthy(justificadoBody);
+    }
+
+    let justificacionTexto = '';
+    if (justificadoFinal) {
+      if (justificacion !== undefined && justificacion !== null) {
+        justificacionTexto = justificacion.toString().trim();
+      }
+    } else {
+      justificacionTexto = '';
+    }
+
+    const latitud = parseCoordinate(latitudBody);
+    const longitud = parseCoordinate(longitudBody);
+    if ((latitud === null) !== (longitud === null)) {
+      return res.status(400).json({ error: 'Completa la latitud y la longitud para registrar la ubicación' });
+    }
+
+    let horaSql = parseTimeForSqlServer(horaBody);
+    if (!horaSql) {
+      horaSql = parseTimeForSqlServer(new Date());
+    }
+
+    let fechas;
+    try {
+      fechas = buildDateRange(fechaInicio, fechaFin);
+    } catch (rangeError) {
+      return res.status(400).json({ error: rangeError.message });
+    }
+
+    const created = [];
+    const skipped = [];
+
+    for (const fecha of fechas) {
+      const existingMarca = await Asistencia.findByEmpleadoFechaTipo(idEmpleadoFinal, fecha, tipo_marca);
+      if (existingMarca) {
+        skipped.push(fecha);
+        continue;
+      }
+
+      const createdMarca = await Asistencia.create({
+        id_empleado: idEmpleadoFinal,
+        fecha,
+        hora: horaSql,
+        tipo_marca,
+        observaciones,
+        latitud,
+        longitud,
+        estado: estadoFinal,
+        justificado: justificadoFinal,
+        justificacion: justificacionTexto,
+      });
+
+      created.push({
+        id_asistencia: createdMarca.id_asistencia,
+        fecha,
+      });
+    }
+
+    return res.status(201).json({
+      message: `Se registraron ${created.length} marcas${skipped.length ? `, se omitieron ${skipped.length} por duplicadas` : ''}.`,
+      created,
+      skipped,
+      total: fechas.length,
+      created_count: created.length,
+      skipped_count: skipped.length,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1136,6 +1286,7 @@ module.exports = {
   getAsistencia,
   getByRange,
   createMarca,
+  createMarcaRange,
   updateMarca,
   exportAsistencia,
   createJustificacionManual,
