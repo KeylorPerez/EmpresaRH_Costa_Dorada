@@ -1017,10 +1017,7 @@ export const usePlanilla = () => {
       (empleado) => String(empleado.id_empleado) === String(id_empleado),
     );
 
-    if (
-      !empleadoSeleccionado ||
-      !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
-    ) {
+    if (!empleadoSeleccionado) {
       setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
