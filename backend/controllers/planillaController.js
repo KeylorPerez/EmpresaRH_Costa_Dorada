@@ -896,6 +896,9 @@ const calcularPlanilla = async (req, res) => {
     if (err.statusCode === 409) {
       return res.status(409).json({ error: err.message });
     }
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
     return res.status(500).json({ error: err.message });
   }
 };
