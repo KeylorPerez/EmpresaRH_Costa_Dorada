@@ -101,7 +101,7 @@ const buildJustificacionFragments = (hasJustificacionTable) => ({
 class Asistencia {
   static normalizeHoraSql(hora) {
     if (hora instanceof Date) {
-      return hora.toTimeString().split(' ')[0] + '.000';
+      return hora.toTimeString().split(' ')[0];
     }
 
     if (typeof hora === 'string') {
@@ -140,7 +140,7 @@ class Asistencia {
       const h = String(normalizedHours).padStart(2, '0');
       const m = String(minutes).padStart(2, '0');
       const s = String(seconds).padStart(2, '0');
-      return `${h}:${m}:${s}.000`;
+      return `${h}:${m}:${s}`;
     }
 
     return null;
@@ -422,7 +422,7 @@ ${justificacionFragments.select}
       let horaSql = this.normalizeHoraSql(hora);
       if (!horaSql) {
         const now = new Date();
-        horaSql = now.toTimeString().split(' ')[0] + '.000';
+        horaSql = now.toTimeString().split(' ')[0];
       }
 
       const pool = await poolPromise;
