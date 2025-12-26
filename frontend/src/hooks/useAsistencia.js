@@ -109,6 +109,8 @@ const parseMetersInput = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
+const isEmpleadoActivo = (estado) => estado === 1 || estado === true || estado === "1";
+
 export const businessLocationInfo = Object.freeze({
   latitud: DEFAULT_LATITUDE,
   longitud: DEFAULT_LONGITUDE,
@@ -385,7 +387,8 @@ export const useAsistencia = ({ mode, user } = {}) => {
     const loadEmployees = async () => {
       try {
         const data = await empleadoService.getAll();
-        setEmployees(Array.isArray(data) ? data : []);
+        const empleadosData = Array.isArray(data) ? data : [];
+        setEmployees(empleadosData.filter((empleado) => isEmpleadoActivo(empleado.estado)));
       } catch (err) {
         console.error(err);
       }
