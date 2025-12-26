@@ -561,9 +561,9 @@ function parseTimeForSqlServer(timeInput) {
   if (!timeInput) return null;
 
   const buildFromParts = (hours, minutes, seconds) => {
-    const h = String(Number(hours) || 0).padStart(2, '0');
-    const m = String(Number(minutes) || 0).padStart(2, '0');
-    const s = String(Number(seconds) || 0).padStart(2, '0');
+    const h = String(hours).padStart(2, '0');
+    const m = String(minutes).padStart(2, '0');
+    const s = String(seconds).padStart(2, '0');
     return `${h}:${m}:${s}.000`;
   };
 
@@ -575,9 +575,35 @@ function parseTimeForSqlServer(timeInput) {
     const trimmed = timeInput.trim();
     if (!trimmed) return null;
 
-    const [h = '0', m = '0', rest = '0'] = trimmed.split(':');
-    const s = rest.includes('.') ? rest.split('.')[0] : rest;
-    return buildFromParts(h, m, s);
+    const meridianMatch = trimmed.match(/(a\.?m\.?|p\.?m\.?)/i);
+    const meridian = meridianMatch ? meridianMatch[0].toLowerCase() : null;
+    const timePart = trimmed.replace(/(a\.?m\.?|p\.?m\.?)/gi, '').trim();
+
+    const parts = timePart.split(':');
+    if (parts.length < 2 || parts.length > 3) return null;
+
+    const [hoursRaw, minutesRaw = '0', secondsRaw = '0'] = parts;
+    const secondsClean = secondsRaw.split('.')[0];
+
+    const hours = Number(hoursRaw);
+    const minutes = Number(minutesRaw);
+    const seconds = Number(secondsClean);
+
+    if (![hours, minutes, seconds].every((value) => Number.isFinite(value))) return null;
+
+    let normalizedHours = hours;
+    if (meridian) {
+      if (normalizedHours < 1 || normalizedHours > 12) return null;
+      const isPm = meridian.startsWith('p');
+      if (isPm && normalizedHours < 12) normalizedHours += 12;
+      if (!isPm && normalizedHours === 12) normalizedHours = 0;
+    }
+
+    if (normalizedHours < 0 || normalizedHours > 23) return null;
+    if (minutes < 0 || minutes > 59) return null;
+    if (seconds < 0 || seconds > 59) return null;
+
+    return buildFromParts(normalizedHours, minutes, seconds);
   }
 
   throw new Error('Formato de hora inválido');
