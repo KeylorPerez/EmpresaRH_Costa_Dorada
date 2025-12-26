@@ -348,8 +348,8 @@ class Planilla {
               ? diasTrabajadosCalculados
               : 0;
           const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
-          const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
-          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          const diasPagadosPorAusencia = Math.min(diasLibres, DIAS_LIBRES_QUINCENA);
+          const diasPago = Math.max(diasTrabajadosNormalizados + diasPagadosPorAusencia, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
         } else {
@@ -621,8 +621,8 @@ class Planilla {
 
         if (tipo_pago === 'Quincenal' && diasTrabajadosNormalizados !== null) {
           const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
-          const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
-          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          const diasPagadosPorAusencia = Math.min(diasLibres, DIAS_LIBRES_QUINCENA);
+          const diasPago = Math.max(diasTrabajadosNormalizados + diasPagadosPorAusencia, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
         } else {
