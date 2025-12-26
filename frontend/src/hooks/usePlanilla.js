@@ -543,6 +543,15 @@ export const usePlanilla = () => {
     return tipoPago === "quincenal";
   }, [empleadoDetalleActivo]);
 
+  const esPagoDiario = useMemo(() => {
+    if (!empleadoDetalleActivo) {
+      return false;
+    }
+
+    const tipoPago = (empleadoDetalleActivo.tipo_pago || "").toString().trim().toLowerCase();
+    return tipoPago === "diario";
+  }, [empleadoDetalleActivo]);
+
   const applySalarioBaseFallback = useCallback(
     (valor) => {
       const normalizado = normalizeSalarioBase(valor);
@@ -564,18 +573,54 @@ export const usePlanilla = () => {
     (detalle) => {
       const baseReferencia = obtenerSalarioBaseDetalle(detalle);
       const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+      if (esPagoDiario) {
+        return {
+          salario: SALARIO_CERO_TEXTO,
+          salarioBase: baseNormalizado,
+        };
+      }
       return {
         salario: formatMontoPositivo(baseNormalizado),
         salarioBase: baseNormalizado,
       };
     },
-    [applySalarioBaseFallback],
+    [applySalarioBaseFallback, esPagoDiario],
   );
 
   const aplicarPoliticaAusencias = useCallback(
     (detalles) => {
       if (!Array.isArray(detalles) || detalles.length === 0) {
         return detalles;
+      }
+
+      if (esPagoDiario) {
+        const updates = new Map();
+
+        detalles.forEach((detalle, index) => {
+          if (detalle.asistio) {
+            return;
+          }
+
+          const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+          const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+          const salarioTexto = SALARIO_CERO_TEXTO;
+
+          if (detalle.salario_dia !== salarioTexto || detalle.salario_base !== baseNormalizado) {
+            updates.set(index, {
+              salario_dia: salarioTexto,
+              salario_base: baseNormalizado,
+            });
+          }
+        });
+
+        if (updates.size === 0) {
+          return detalles;
+        }
+
+        return detalles.map((detalle, index) => {
+          const update = updates.get(index);
+          return update ? { ...detalle, ...update } : detalle;
+        });
       }
 
       const ordenados = detalles
@@ -638,7 +683,7 @@ export const usePlanilla = () => {
         return update ? { ...detalle, ...update } : detalle;
       });
     },
-    [applySalarioBaseFallback],
+    [applySalarioBaseFallback, esPagoDiario],
   );
 
   const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
