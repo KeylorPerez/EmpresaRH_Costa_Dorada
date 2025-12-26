@@ -142,6 +142,30 @@ const Asistencia = ({ mode }) => {
     officeLatDisplay !== null &&
     officeLonDisplay !== null &&
     (officeRadiusEffectiveDisplay !== null || officeRadiusDisplay !== null);
+  const estadosConConfirmacion = useMemo(() => new Set(["Ausente", "Permiso", "Incapacidad"]), []);
+
+  const buildFechaConfirmacion = (value, fallback) => {
+    const formatted = value ? formatearFecha(value) : "";
+    return formatted || fallback;
+  };
+
+  const handleAdminSubmit = (event) => {
+    if (isAdmin) {
+      const estadoActual = (formData.estado || "Presente").toString().trim();
+      if (estadosConConfirmacion.has(estadoActual)) {
+        const fechaInicio = buildFechaConfirmacion(formData.fecha, "la fecha seleccionada");
+        const fechaFin = buildFechaConfirmacion(formData.fecha_fin, "la fecha final");
+        const mensaje = rangeMode
+          ? `Vas a registrar ${estadoActual} del ${fechaInicio} al ${fechaFin}. ¿Deseas continuar?`
+          : `Vas a registrar ${estadoActual} para ${fechaInicio}. ¿Deseas continuar?`;
+        if (!window.confirm(mensaje)) {
+          event.preventDefault();
+          return;
+        }
+      }
+    }
+    handleSubmit(event);
+  };
 
   // Construye el menú según el rol para reutilizar el mismo componente de
   // página tanto en modo admin como empleado.
@@ -356,7 +380,7 @@ const Asistencia = ({ mode }) => {
               )}
             </header>
 
-            <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+            <form onSubmit={handleAdminSubmit} className="grid gap-4 md:grid-cols-2">
               {isAdmin && (
                 <div className="flex flex-col">
                   <label className="text-sm font-medium text-gray-700 mb-1" htmlFor="id_empleado">
