@@ -1034,7 +1034,7 @@ const Asistencia = ({ mode }) => {
                         onChange={handleManualJustificacionChange}
                         rows={4}
                         className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Explica brevemente qué ocurrió"
+                        placeholder="Explica brevemente qué ocurrió (número de incapacidad si aplica)"
                       />
                     </div>
                   </div>
