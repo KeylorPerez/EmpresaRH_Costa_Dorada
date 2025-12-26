@@ -447,7 +447,10 @@ ${justificacionFragments.select}
   }
 
   // Actualizar tipo_marca u observaciones
-  static async update(id_asistencia, { tipo_marca, observaciones = null, estado, justificado, justificacion }) {
+  static async update(
+    id_asistencia,
+    { tipo_marca, fecha, hora, observaciones = null, estado, justificado, justificacion }
+  ) {
     try {
       const state = await this.ensureSchema();
       if (tipo_marca && !TIPOS_MARCA.includes(tipo_marca)) {
@@ -490,11 +493,15 @@ ${justificacionFragments.select}
         .request()
         .input('id_asistencia', sql.Int, id_asistencia)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
+        .input('fecha', sql.VarChar(10), fecha ?? null)
+        .input('hora', sql.Time, hora ?? null)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
         .input('estado', sql.NVarChar(20), estadoNormalizado);
 
       const setClauses = [
         'tipo_marca = @tipo_marca',
+        'fecha = COALESCE(CONVERT(date, @fecha, 23), fecha)',
+        'hora = COALESCE(@hora, hora)',
         'observaciones = @observaciones',
         'estado = COALESCE(@estado, estado)',
       ];
