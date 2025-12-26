@@ -53,6 +53,7 @@ const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [tipoMarcaFilter, setTipoMarcaFilter] = useState("");
   const editableEstadoOptions = useMemo(
     () => estadoOptions.filter((option) => option.value !== "Ausente"),
     []
@@ -155,6 +156,20 @@ const Asistencia = ({ mode }) => {
   const isExportingPdf = exportingFormat === "pdf";
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = submitting || loading || (isAdmin && !selectedEmpleado);
+  const registrosFiltrados = useMemo(() => {
+    const selectedTipo = (tipoMarcaFilter || "").toString().trim().toLowerCase();
+    if (!selectedTipo) return registros;
+
+    const matchedOption = tipoMarcaOptions.find((option) => option.value === selectedTipo);
+    const labelCandidate = matchedOption?.label?.toLowerCase();
+
+    return registros.filter((registro) => {
+      const tipoMarca = registro?.tipo_marca ?? "";
+      const normalized = tipoMarca.toString().trim().toLowerCase();
+      if (!normalized) return false;
+      return normalized === selectedTipo || (labelCandidate && normalized === labelCandidate);
+    });
+  }, [registros, tipoMarcaFilter]);
 
   const formatUbicacion = (latitud, longitud) => {
     if (latitud === null || latitud === undefined || longitud === null || longitud === undefined) {
@@ -217,6 +232,15 @@ const Asistencia = ({ mode }) => {
         ? window.prompt("Agrega un motivo de rechazo (opcional):", "")
         : "";
     rechazarJustificacion(solicitud, respuesta || "");
+  };
+
+  const handleTipoMarcaFilterChange = (event) => {
+    setTipoMarcaFilter(event.target.value);
+  };
+
+  const handleClearFilters = () => {
+    setTipoMarcaFilter("");
+    clearRangeFilters();
   };
 
   if (!user) {
@@ -710,6 +734,25 @@ const Asistencia = ({ mode }) => {
                     className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
+                <div className="flex flex-col min-w-[180px]">
+                  <label className="text-xs text-gray-600 mb-1" htmlFor="tipo_marca_filter">
+                    Tipo de marca
+                  </label>
+                  <select
+                    id="tipo_marca_filter"
+                    name="tipo_marca_filter"
+                    value={tipoMarcaFilter}
+                    onChange={handleTipoMarcaFilterChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Todas las marcas</option>
+                    {tipoMarcaOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex items-end gap-2">
                   <Button type="submit" variant="primary" size="md">
                     Aplicar
@@ -718,7 +761,7 @@ const Asistencia = ({ mode }) => {
                     type="button"
                     variant="secondary"
                     size="md"
-                    onClick={clearRangeFilters}
+                    onClick={handleClearFilters}
                   >
                     Limpiar
                   </Button>
@@ -757,7 +800,7 @@ const Asistencia = ({ mode }) => {
 
             {loading ? (
               <p className="text-sm text-gray-500">Cargando registros...</p>
-            ) : registros.length === 0 ? (
+            ) : registrosFiltrados.length === 0 ? (
               <p className="text-sm text-gray-500">No hay marcas registradas para el criterio seleccionado.</p>
             ) : (
               <div className="overflow-x-auto">
@@ -779,7 +822,7 @@ const Asistencia = ({ mode }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {registros.map((registro) => {
+                    {registrosFiltrados.map((registro) => {
                       const solicitud = registro.justificacionSolicitud;
                       const estadoSolicitud = solicitud?.estado || "";
                       const isSolicitudPendiente = estadoSolicitud === "pendiente";
