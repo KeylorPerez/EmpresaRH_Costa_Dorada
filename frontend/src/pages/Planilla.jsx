@@ -150,6 +150,7 @@ const Planilla = () => {
     toggleDetalleDiaDoble,
     detalleDiasResumen,
     detalleEstadoOptions,
+    quincenaPolicy,
   } = usePlanilla();
 
   const navigate = useNavigate();
@@ -800,6 +801,10 @@ const Planilla = () => {
       : diasReferenciaPago > 0
         ? salarioBaseReferencia / diasReferenciaPago
         : 0;
+  const extraDiaDobleQuincenal =
+    tipoPago === "Quincenal" && usaDetalleParaCalculos && quincenaPolicy?.aplicarDiaDoble
+      ? salarioDiarioReferencia
+      : 0;
   const diasDoblesValor = Number(formData.dias_dobles);
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
   const ingresoManualDiasDobles =
@@ -833,10 +838,10 @@ const Planilla = () => {
       if (usaDoblesManual) {
         const resumenExtra = Number(detalleDiasResumen.montoDiasDobles) || 0;
         const baseSinExtra = resumenTotal - resumenExtra;
-        const ajustado = baseSinExtra + pagoExtraDiasDobles;
+        const ajustado = baseSinExtra + pagoExtraDiasDobles + extraDiaDobleQuincenal;
         return Math.max(ajustado, 0);
       }
-      return Math.max(resumenTotal, 0);
+      return Math.max(resumenTotal + extraDiaDobleQuincenal, 0);
     }
     if (tipoPago === "Diario") {
       const base = salarioDiarioReferencia * diasTrabajadosAplicados + pagoExtraDiasDobles;
@@ -1729,6 +1734,16 @@ const Planilla = () => {
                                 className="mt-1"
                                 attendanceState={attendanceState}
                               />
+                              {quincenaPolicy?.mensajes?.length > 0 && (
+                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                  <p className="font-semibold">Notas de quincena</p>
+                                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                                    {quincenaPolicy.mensajes.map((mensaje, index) => (
+                                      <li key={`${index}-${mensaje}`}>{mensaje}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <DetalleResumenBadges
