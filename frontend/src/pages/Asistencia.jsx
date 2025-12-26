@@ -869,7 +869,7 @@ const Asistencia = ({ mode }) => {
           </section>
 
           {manualJustificacionModalOpen && (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
               <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
                 <header className="flex items-center justify-between border-b px-6 py-4">
                   <div>
@@ -993,7 +993,7 @@ const Asistencia = ({ mode }) => {
           )}
 
           {justificacionModalOpen && (
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
               <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
                 <header className="flex items-center justify-between border-b px-6 py-4">
                   <div>
@@ -1070,7 +1070,7 @@ const Asistencia = ({ mode }) => {
 
           {isAdmin && editingRegistro && (
             <div
-              className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
               role="dialog"
               aria-modal="true"
               aria-labelledby="edit-attendance-title"
