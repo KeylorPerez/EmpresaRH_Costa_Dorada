@@ -1109,11 +1109,6 @@ const Asistencia = ({ mode }) => {
                   onSubmit={handleEditSubmit}
                   className="grid flex-1 gap-4 overflow-y-auto px-6 py-4 md:grid-cols-2"
                 >
-                  {error && (
-                    <div className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
-                    </div>
-                  )}
                   <div className="flex flex-col">
                     <label className="mb-1 text-sm font-medium text-gray-700" htmlFor="edit_fecha">
                       Fecha
