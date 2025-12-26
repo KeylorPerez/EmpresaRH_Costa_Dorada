@@ -315,8 +315,8 @@ ${justificacionFragments.select}
             observaciones,
             latitud,
             longitud
-          FROM Asistencia
-          WHERE id_asistencia = @id_asistencia
+          FROM Asistencia a
+          WHERE a.id_asistencia = @id_asistencia
         `);
       return result.recordset[0] || null;
     } catch (err) {
