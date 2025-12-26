@@ -558,21 +558,14 @@ export const usePlanilla = () => {
 
   const resolveAusenciaSalario = useCallback(
     (detalle) => {
-      if (esPagoQuincenal && detalle.es_dia_doble) {
-        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-        return {
-          salario: formatMontoPositivo(baseNormalizado),
-          salarioBase: baseNormalizado,
-        };
-      }
-
+      const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+      const baseNormalizado = applySalarioBaseFallback(baseReferencia);
       return {
-        salario: SALARIO_CERO_TEXTO,
-        salarioBase: null,
+        salario: formatMontoPositivo(baseNormalizado),
+        salarioBase: baseNormalizado,
       };
     },
-    [applySalarioBaseFallback, esPagoQuincenal],
+    [applySalarioBaseFallback],
   );
 
   const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
@@ -713,13 +706,9 @@ export const usePlanilla = () => {
         const baseNormalizado = applySalarioBaseFallback(baseReferencia);
         const factorDobles = es_dia_doble ? 2 : 1;
         const factorAplicado = detalle.asistio ? factorDobles : 1;
-        const debePagar =
-          detalle.asistio ||
-          detalle.justificado ||
-          (esPagoQuincenal && es_dia_doble && !detalle.asistio && !detalle.justificado);
-        const salarioCalculado = debePagar
+        const salarioCalculado = detalle.asistio
           ? formatMontoPositivo(baseNormalizado * factorAplicado)
-          : SALARIO_CERO_TEXTO;
+          : formatMontoPositivo(baseNormalizado);
 
         return {
           ...detalle,
@@ -729,7 +718,7 @@ export const usePlanilla = () => {
         };
       });
     },
-    [applySalarioBaseFallback, esPagoQuincenal],
+    [applySalarioBaseFallback],
   );
 
   const fetchPlanillas = useCallback(async () => {
@@ -1392,10 +1381,7 @@ export const usePlanilla = () => {
               const positivo = Math.max(numero, 0);
               const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
               const base = factorBase > 0 ? positivo / factorBase : positivo;
-
-              if (detalle.asistio || detalle.justificado) {
-                siguiente.salario_base = applySalarioBaseFallback(base);
-              }
+              siguiente.salario_base = applySalarioBaseFallback(base);
             }
           }
         }
@@ -1521,13 +1507,9 @@ export const usePlanilla = () => {
                 const baseNormalizado = applySalarioBaseFallback(baseReferencia);
                 const factorDobles = detalle.es_dia_doble ? 2 : 1;
                 const factorAplicado = asistio ? factorDobles : 1;
-                const debePagar =
-                  asistio ||
-                  detalle.justificado ||
-                  (esPagoQuincenal && detalle.es_dia_doble && !asistio && !detalle.justificado);
-                const salarioCalculado = debePagar
+                const salarioCalculado = asistio
                   ? formatMontoPositivo(baseNormalizado * factorAplicado)
-                  : SALARIO_CERO_TEXTO;
+                  : formatMontoPositivo(baseNormalizado);
                 const autoAsistio = attendanceFechas.has(detalle.fecha);
                 const asistenciaManual = attendanceDisponible ? asistio !== autoAsistio : true;
 
@@ -1545,7 +1527,7 @@ export const usePlanilla = () => {
         )
       );
     },
-    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback, esPagoQuincenal]
+    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback]
   );
 
   const toggleDetalleDiaDoble = useCallback((index) => {
@@ -1558,13 +1540,9 @@ export const usePlanilla = () => {
               const baseNormalizado = applySalarioBaseFallback(baseReferencia);
               const factorDobles = es_dia_doble ? 2 : 1;
               const factorAplicado = detalle.asistio ? factorDobles : 1;
-              const debePagar =
-                detalle.asistio ||
-                detalle.justificado ||
-                (esPagoQuincenal && es_dia_doble && !detalle.asistio && !detalle.justificado);
-              const salarioCalculado = debePagar
+              const salarioCalculado = detalle.asistio
                 ? formatMontoPositivo(baseNormalizado * factorAplicado)
-                : SALARIO_CERO_TEXTO;
+                : formatMontoPositivo(baseNormalizado);
 
               return {
                 ...detalle,
@@ -1577,7 +1555,7 @@ export const usePlanilla = () => {
           : detalle
       )
     );
-  }, [applySalarioBaseFallback, esPagoQuincenal]);
+  }, [applySalarioBaseFallback]);
 
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
