@@ -900,11 +900,37 @@ const createMarcaRange = async (req, res) => {
 const updateMarca = async (req, res) => {
   try {
     const id_asistencia = parseInt(req.params.id, 10);
-    const { observaciones, justificado: justificadoBody, justificacion, estado } = req.body;
+    const {
+      observaciones,
+      justificado: justificadoBody,
+      justificacion,
+      estado,
+      fecha: fechaBody,
+      hora: horaBody,
+      tipo_marca: tipoMarcaBody,
+    } = req.body;
 
     const existingMarca = await Asistencia.findById(id_asistencia);
     if (!existingMarca) {
       return res.status(404).json({ error: 'Marca de asistencia no encontrada' });
+    }
+
+    const tipoMarcaTexto = typeof tipoMarcaBody === 'string' ? tipoMarcaBody.trim() : '';
+    const tipoMarcaFinal = tipoMarcaTexto ? tipoMarcaTexto : existingMarca.tipo_marca;
+    if (tipoMarcaTexto && !allowedTypes.includes(tipoMarcaTexto)) {
+      return res.status(400).json({ error: `tipo_marca inválido. Debe ser uno de: ${allowedTypes.join(', ')}` });
+    }
+
+    const fechaTexto =
+      fechaBody !== undefined && fechaBody !== null && fechaBody !== '' ? fechaBody : null;
+    const fechaSql = fechaTexto ? formatDateToSql(fechaTexto) : null;
+
+    let horaSql = null;
+    if (horaBody !== undefined && horaBody !== null && horaBody !== '') {
+      horaSql = parseTimeForSqlServer(horaBody);
+      if (!horaSql) {
+        return res.status(400).json({ error: 'Formato de hora inválido' });
+      }
     }
 
     const observacionesActualizadas =
@@ -929,8 +955,25 @@ const updateMarca = async (req, res) => {
       estado !== null &&
       (typeof estado !== 'string' || estado.trim() !== '');
     const estadoActualizado = estadoTieneValor ? estado : existingMarca.estado;
+
+    const fechaFinal = fechaSql || existingMarca.fecha;
+    if (fechaFinal && tipoMarcaFinal) {
+      const existingByDateType = await Asistencia.findByEmpleadoFechaTipo(
+        existingMarca.id_empleado,
+        fechaFinal,
+        tipoMarcaFinal,
+      );
+      if (existingByDateType && existingByDateType.id_asistencia !== id_asistencia) {
+        return res
+          .status(409)
+          .json({ error: 'Ya existe una marca para la fecha y tipo seleccionados' });
+      }
+    }
+
     const payload = {
-      tipo_marca: existingMarca.tipo_marca,
+      tipo_marca: tipoMarcaFinal,
+      fecha: fechaSql,
+      hora: horaSql,
       observaciones: observacionesActualizadas,
       estado: estadoActualizado,
     };

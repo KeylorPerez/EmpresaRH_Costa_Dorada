@@ -1086,8 +1086,8 @@ const Asistencia = ({ mode }) => {
                       Editar marca #{editingRegistro.id_asistencia}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Solo puedes actualizar observaciones, justificación y el estado de asistencia. La fecha, hora
-                      y tipo de marca se mantienen como solo lectura.
+                      Puedes actualizar fecha, hora, tipo de marca, observaciones, justificación y el estado de
+                      asistencia.
                     </p>
                   </div>
                   <div className="flex items-center gap-3 self-end md:self-start">
@@ -1118,9 +1118,8 @@ const Asistencia = ({ mode }) => {
                       name="fecha"
                       type="date"
                       value={editForm.fecha}
-                      readOnly
-                      disabled
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-gray-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
@@ -1134,9 +1133,8 @@ const Asistencia = ({ mode }) => {
                       name="hora"
                       type="time"
                       value={editForm.hora}
-                      readOnly
-                      disabled
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-gray-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
@@ -1149,8 +1147,8 @@ const Asistencia = ({ mode }) => {
                       id="edit_tipo_marca"
                       name="tipo_marca"
                       value={editForm.tipo_marca}
-                      disabled
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-gray-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     >
                       <option value="">Selecciona una opción</option>

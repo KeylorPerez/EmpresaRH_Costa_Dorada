@@ -811,6 +811,9 @@ export const useAsistencia = ({ mode, user } = {}) => {
       setError("");
       setSuccessMessage("");
       const payload = {
+        fecha: editForm.fecha,
+        hora: editForm.hora,
+        tipo_marca: editForm.tipo_marca,
         observaciones: editForm.observaciones,
         justificado: Boolean(editForm.justificado),
         estado: editForm.estado,
@@ -827,6 +830,9 @@ export const useAsistencia = ({ mode, user } = {}) => {
           registro.id_asistencia === editingRegistro.id_asistencia
             ? {
                 ...registro,
+                fecha: editForm.fecha,
+                hora: editForm.hora,
+                tipo_marca: editForm.tipo_marca,
                 observaciones: editForm.observaciones,
                 estado: editForm.estado || "Presente",
                 justificado: payload.justificado,
