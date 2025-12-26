@@ -575,9 +575,10 @@ function parseTimeForSqlServer(timeInput) {
     const trimmed = timeInput.trim();
     if (!trimmed) return null;
 
-    const meridianMatch = trimmed.match(/(a\.?m\.?|p\.?m\.?)/i);
+    const normalized = trimmed.toLowerCase().replace(/\s+/g, '');
+    const meridianMatch = normalized.match(/(a\.?m\.?|p\.?m\.?)/i);
     const meridian = meridianMatch ? meridianMatch[0].toLowerCase() : null;
-    const timePart = trimmed.replace(/(a\.?m\.?|p\.?m\.?)/gi, '').trim();
+    const timePart = normalized.replace(/(a\.?m\.?|p\.?m\.?)/gi, '').trim();
 
     const parts = timePart.split(':');
     if (parts.length < 2 || parts.length > 3) return null;
