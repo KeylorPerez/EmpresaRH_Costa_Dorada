@@ -27,10 +27,14 @@ export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
 const estadoAsistenciaSet = new Set(ESTADOS_ASISTENCIA);
 const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
+const ESTADO_VACACIONES = "Vacaciones";
+const ESTADO_INCAPACIDAD = "Incapacidad";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 const DIAS_POR_QUINCENA = 15;
 const DIAS_POR_MES = 30;
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
+const MAX_AUSENCIAS_PAGADAS = 2;
+const MAX_AUSENCIAS_SIN_JUSTIFICAR = 3;
 
 const obtenerDiasReferencia = (tipoPago) =>
   tipoPago === "Mensual" ? DIAS_POR_MES : DIAS_POR_QUINCENA;
@@ -564,6 +568,75 @@ export const usePlanilla = () => {
         salario: formatMontoPositivo(baseNormalizado),
         salarioBase: baseNormalizado,
       };
+    },
+    [applySalarioBaseFallback],
+  );
+
+  const aplicarPoliticaAusencias = useCallback(
+    (detalles) => {
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        return detalles;
+      }
+
+      const ordenados = detalles
+        .map((detalle, index) => ({ detalle, index }))
+        .sort((a, b) => a.detalle.fecha.localeCompare(b.detalle.fecha));
+
+      let ausenciasPagadas = 0;
+      let ausenciasSinJustificar = 0;
+      const updates = new Map();
+
+      ordenados.forEach(({ detalle, index }) => {
+        if (detalle.asistio) {
+          return;
+        }
+
+        const estado = normalizeEstado(detalle.estado);
+        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+        let salarioCalculado = baseNormalizado;
+
+        const esVacaciones = estado === ESTADO_VACACIONES;
+        const esIncapacidad = estado === ESTADO_INCAPACIDAD;
+        const esAusenteSinJustificar = estado === ESTADO_AUSENTE && !detalle.justificado;
+
+        if (esAusenteSinJustificar) {
+          ausenciasSinJustificar += 1;
+        }
+
+        if (esVacaciones) {
+          salarioCalculado = baseNormalizado;
+        } else if (esIncapacidad) {
+          salarioCalculado = baseNormalizado / 2;
+        } else if (detalle.es_dia_doble) {
+          salarioCalculado = baseNormalizado;
+        } else if (ausenciasPagadas < MAX_AUSENCIAS_PAGADAS) {
+          salarioCalculado = baseNormalizado;
+          ausenciasPagadas += 1;
+        } else if (esAusenteSinJustificar && ausenciasSinJustificar > MAX_AUSENCIAS_SIN_JUSTIFICAR) {
+          salarioCalculado = 0;
+        } else {
+          salarioCalculado = 0;
+        }
+
+        const salarioTexto = formatMontoPositivo(salarioCalculado);
+
+        if (detalle.salario_dia !== salarioTexto || detalle.salario_base !== baseNormalizado) {
+          updates.set(index, {
+            salario_dia: salarioTexto,
+            salario_base: baseNormalizado,
+          });
+        }
+      });
+
+      if (updates.size === 0) {
+        return detalles;
+      }
+
+      return detalles.map((detalle, index) => {
+        const update = updates.get(index);
+        return update ? { ...detalle, ...update } : detalle;
+      });
     },
     [applySalarioBaseFallback],
   );
@@ -1198,11 +1271,12 @@ export const usePlanilla = () => {
         return prev;
       }
 
-      const updated = aplicarAsistenciaDetalle(prev, fechasAsistidas);
+      let updated = aplicarAsistenciaDetalle(prev, fechasAsistidas);
+      updated = aplicarPoliticaAusencias(updated);
       const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
       return hasChanges ? updated : prev;
     });
-  }, [aplicarAsistenciaDetalle]);
+  }, [aplicarAsistenciaDetalle, aplicarPoliticaAusencias]);
 
   useEffect(() => {
     if (!modalOpen || editingPlanilla) return;
@@ -1250,6 +1324,7 @@ export const usePlanilla = () => {
       nuevosDetalles = aplicarJustificacionesAuto(nuevosDetalles, detalleJustificaciones.registros);
     }
 
+    nuevosDetalles = aplicarPoliticaAusencias(nuevosDetalles);
     setDetalleDias(nuevosDetalles);
     detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
   }, [
@@ -1270,6 +1345,7 @@ export const usePlanilla = () => {
     detalleDiasDobles.fechas,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
+    aplicarPoliticaAusencias,
   ]);
 
   useEffect(() => {
@@ -1300,6 +1376,7 @@ export const usePlanilla = () => {
           if (fechasAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
           }
+          restaurados = aplicarPoliticaAusencias(restaurados);
           const cambio = restaurados.some((detalle, index) => detalle !== prev[index]);
           return cambio ? restaurados : prev;
         });
@@ -1324,6 +1401,7 @@ export const usePlanilla = () => {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
       }
       aplicados = aplicarJustificacionesAuto(aplicados, registrosJustificados);
+      aplicados = aplicarPoliticaAusencias(aplicados);
 
       const cambio = aplicados.some((detalle, index) => detalle !== prev[index]);
       return cambio ? aplicados : prev;
@@ -1340,122 +1418,125 @@ export const usePlanilla = () => {
     detalleDiasDobles.fechas,
     aplicarAsistenciaDetalle,
     aplicarDiasDoblesAuto,
+    aplicarPoliticaAusencias,
   ]);
 
   const updateDetalleDia = useCallback((index, updates) => {
     setDetalleDias((prev) =>
-      prev.map((detalle, idx) => {
-        if (idx !== index) return detalle;
+      aplicarPoliticaAusencias(
+        prev.map((detalle, idx) => {
+          if (idx !== index) return detalle;
 
-        const siguiente = { ...detalle, ...updates };
+          const siguiente = { ...detalle, ...updates };
 
-        const manualOverrideKeys = [
-          "asistio",
-          "estado",
-          "justificado",
-          "justificacion",
-          "salario_dia",
-          "observacion",
-        ];
+          const manualOverrideKeys = [
+            "asistio",
+            "estado",
+            "justificado",
+            "justificacion",
+            "salario_dia",
+            "observacion",
+          ];
 
-        const shouldMarkManual = manualOverrideKeys.some((key) =>
-          Object.prototype.hasOwnProperty.call(updates, key)
-        );
+          const shouldMarkManual = manualOverrideKeys.some((key) =>
+            Object.prototype.hasOwnProperty.call(updates, key)
+          );
 
-        if (shouldMarkManual) {
-          siguiente.asistenciaManual = true;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
-          const valor = updates.salario_dia;
-
-          if (isEmptyValue(valor)) {
-            siguiente.salario_dia = "";
-            siguiente.salario_base = 0;
-          } else {
-            const texto = typeof valor === "string" ? valor : String(valor);
-            siguiente.salario_dia = texto;
-            const numero = parseNumberInput(valor);
-
-            if (!Number.isNaN(numero)) {
-              const positivo = Math.max(numero, 0);
-              const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
-              const base = factorBase > 0 ? positivo / factorBase : positivo;
-              siguiente.salario_base = applySalarioBaseFallback(base);
-            }
+          if (shouldMarkManual) {
+            siguiente.asistenciaManual = true;
           }
-        }
 
-        if (Object.prototype.hasOwnProperty.call(updates, "justificacion")) {
-          const valor = updates.justificacion;
-          if (valor === null || valor === undefined) {
-            siguiente.justificacion = "";
-          } else {
-            siguiente.justificacion = String(valor);
-          }
-        }
+          if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
+            const valor = updates.salario_dia;
 
-        if (Object.prototype.hasOwnProperty.call(updates, "justificado")) {
-          const nuevoJustificado = Boolean(updates.justificado);
-          siguiente.justificado = nuevoJustificado;
-          if (!nuevoJustificado) {
-            siguiente.justificacion = "";
-            if (!siguiente.asistio) {
-              const ausenciaSalario = resolveAusenciaSalario(siguiente);
-              siguiente.salario_dia = ausenciaSalario.salario;
-              if (ausenciaSalario.salarioBase !== null) {
-                siguiente.salario_base = ausenciaSalario.salarioBase;
+            if (isEmptyValue(valor)) {
+              siguiente.salario_dia = "";
+              siguiente.salario_base = 0;
+            } else {
+              const texto = typeof valor === "string" ? valor : String(valor);
+              siguiente.salario_dia = texto;
+              const numero = parseNumberInput(valor);
+
+              if (!Number.isNaN(numero)) {
+                const positivo = Math.max(numero, 0);
+                const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
+                const base = factorBase > 0 ? positivo / factorBase : positivo;
+                siguiente.salario_base = applySalarioBaseFallback(base);
               }
             }
-          } else {
-            const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
-            const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-            if (baseNormalizado > 0) {
-              const factor = siguiente.asistio ? (siguiente.es_dia_doble ? 2 : 1) : 1;
-              siguiente.salario_base = baseNormalizado;
-              siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
-            } else if (!siguiente.asistio) {
-              siguiente.salario_dia = SALARIO_CERO_TEXTO;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(updates, "justificacion")) {
+            const valor = updates.justificacion;
+            if (valor === null || valor === undefined) {
+              siguiente.justificacion = "";
+            } else {
+              siguiente.justificacion = String(valor);
             }
           }
-        }
 
-        if (Object.prototype.hasOwnProperty.call(updates, "estado")) {
-          const nuevoEstado = normalizeEstado(updates.estado);
-          siguiente.estado = nuevoEstado;
-
-          if (nuevoEstado === ESTADO_PRESENTE) {
-            const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
-            const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-            const factor = siguiente.es_dia_doble ? 2 : 1;
-            siguiente.asistio = true;
-            siguiente.salario_base = baseNormalizado;
-            siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
-          } else if (nuevoEstado === ESTADO_AUSENTE) {
-            siguiente.asistio = false;
-            if (siguiente.justificado) {
+          if (Object.prototype.hasOwnProperty.call(updates, "justificado")) {
+            const nuevoJustificado = Boolean(updates.justificado);
+            siguiente.justificado = nuevoJustificado;
+            if (!nuevoJustificado) {
+              siguiente.justificacion = "";
+              if (!siguiente.asistio) {
+                const ausenciaSalario = resolveAusenciaSalario(siguiente);
+                siguiente.salario_dia = ausenciaSalario.salario;
+                if (ausenciaSalario.salarioBase !== null) {
+                  siguiente.salario_base = ausenciaSalario.salarioBase;
+                }
+              }
+            } else {
               const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
               const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-              siguiente.salario_base = baseNormalizado;
-              siguiente.salario_dia = formatMontoPositivo(baseNormalizado);
-            } else {
-              const ausenciaSalario = resolveAusenciaSalario(siguiente);
-              siguiente.salario_dia = ausenciaSalario.salario;
-              if (ausenciaSalario.salarioBase !== null) {
-                siguiente.salario_base = ausenciaSalario.salarioBase;
+              if (baseNormalizado > 0) {
+                const factor = siguiente.asistio ? (siguiente.es_dia_doble ? 2 : 1) : 1;
+                siguiente.salario_base = baseNormalizado;
+                siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
+              } else if (!siguiente.asistio) {
+                siguiente.salario_dia = SALARIO_CERO_TEXTO;
               }
             }
           }
-        }
 
-        if (shouldMarkManual) {
-          siguiente.autoJustificacion = false;
-        }
+          if (Object.prototype.hasOwnProperty.call(updates, "estado")) {
+            const nuevoEstado = normalizeEstado(updates.estado);
+            siguiente.estado = nuevoEstado;
 
-        return siguiente;
-      })
+            if (nuevoEstado === ESTADO_PRESENTE) {
+              const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
+              const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+              const factor = siguiente.es_dia_doble ? 2 : 1;
+              siguiente.asistio = true;
+              siguiente.salario_base = baseNormalizado;
+              siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
+            } else if (nuevoEstado === ESTADO_AUSENTE) {
+              siguiente.asistio = false;
+              if (siguiente.justificado) {
+                const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
+                const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+                siguiente.salario_base = baseNormalizado;
+                siguiente.salario_dia = formatMontoPositivo(baseNormalizado);
+              } else {
+                const ausenciaSalario = resolveAusenciaSalario(siguiente);
+                siguiente.salario_dia = ausenciaSalario.salario;
+                if (ausenciaSalario.salarioBase !== null) {
+                  siguiente.salario_base = ausenciaSalario.salarioBase;
+                }
+              }
+            }
+          }
+
+          if (shouldMarkManual) {
+            siguiente.autoJustificacion = false;
+          }
+
+          return siguiente;
+        })
+      )
     );
-  }, [applySalarioBaseFallback, resolveAusenciaSalario]);
+  }, [applySalarioBaseFallback, resolveAusenciaSalario, aplicarPoliticaAusencias]);
 
   const normalizeDetalleSalario = useCallback((index) => {
     setDetalleDias((prev) =>
@@ -1498,7 +1579,8 @@ export const usePlanilla = () => {
       const attendanceFechas = new Set(attendanceState.fechas || []);
       const attendanceDisponible = attendanceState.dias !== null;
 
-      setDetalleDias((prev) =>
+    setDetalleDias((prev) =>
+      aplicarPoliticaAusencias(
         prev.map((detalle, idx) =>
           idx === index
             ? (() => {
@@ -1525,37 +1607,40 @@ export const usePlanilla = () => {
               })()
             : detalle
         )
-      );
-    },
-    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback]
+      )
+    );
+  },
+    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback, aplicarPoliticaAusencias]
   );
 
   const toggleDetalleDiaDoble = useCallback((index) => {
     setDetalleDias((prev) =>
-      prev.map((detalle, idx) =>
-        idx === index
-          ? (() => {
-              const es_dia_doble = !detalle.es_dia_doble;
-              const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-              const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-              const factorDobles = es_dia_doble ? 2 : 1;
-              const factorAplicado = detalle.asistio ? factorDobles : 1;
-              const salarioCalculado = detalle.asistio
-                ? formatMontoPositivo(baseNormalizado * factorAplicado)
-                : formatMontoPositivo(baseNormalizado);
+      aplicarPoliticaAusencias(
+        prev.map((detalle, idx) =>
+          idx === index
+            ? (() => {
+                const es_dia_doble = !detalle.es_dia_doble;
+                const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+                const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+                const factorDobles = es_dia_doble ? 2 : 1;
+                const factorAplicado = detalle.asistio ? factorDobles : 1;
+                const salarioCalculado = detalle.asistio
+                  ? formatMontoPositivo(baseNormalizado * factorAplicado)
+                  : formatMontoPositivo(baseNormalizado);
 
-              return {
-                ...detalle,
-                es_dia_doble,
-                salario_base: baseNormalizado,
-                salario_dia: salarioCalculado,
-                autoJustificacion: false,
-              };
-            })()
-          : detalle
+                return {
+                  ...detalle,
+                  es_dia_doble,
+                  salario_base: baseNormalizado,
+                  salario_dia: salarioCalculado,
+                  autoJustificacion: false,
+                };
+              })()
+            : detalle
+        )
       )
     );
-  }, [applySalarioBaseFallback]);
+  }, [applySalarioBaseFallback, aplicarPoliticaAusencias]);
 
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
@@ -1573,10 +1658,7 @@ export const usePlanilla = () => {
       (acumulado, detalle) => {
         const salario = toPositiveNumber(detalle.salario_dia);
         const salarioBase = toPositiveNumber(detalle.salario_base);
-        const pagado =
-          detalle.asistio ||
-          detalle.justificado ||
-          (esPagoQuincenal && detalle.es_dia_doble && salario > 0);
+        const pagado = salario > 0;
         const factorAsistencia = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
 
         if (pagado) {
@@ -1888,6 +1970,7 @@ export const usePlanilla = () => {
           detalleJustificaciones.registros,
         );
       }
+      detallesRestaurados = aplicarPoliticaAusencias(detallesRestaurados);
 
       setDetalleDias(detallesRestaurados);
       detalleContextRef.current = {
@@ -1923,6 +2006,7 @@ export const usePlanilla = () => {
     detalleDiasDobles.fechas,
     aplicarAsistenciaDetalle,
     aplicarDiasDoblesAuto,
+    aplicarPoliticaAusencias,
   ]);
 
   const handleSubmit = async (event) => {
