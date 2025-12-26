@@ -99,6 +99,53 @@ const buildJustificacionFragments = (hasJustificacionTable) => ({
 });
 
 class Asistencia {
+  static normalizeHoraSql(hora) {
+    if (hora instanceof Date) {
+      return hora.toTimeString().split(' ')[0] + '.000';
+    }
+
+    if (typeof hora === 'string') {
+      const trimmed = hora.trim();
+      if (!trimmed) return null;
+
+      const normalized = trimmed.toLowerCase().replace(/\s+/g, '');
+      const meridianMatch = normalized.match(/(a\.?m\.?|p\.?m\.?)/i);
+      const meridian = meridianMatch ? meridianMatch[0].toLowerCase() : null;
+      const timePart = normalized.replace(/(a\.?m\.?|p\.?m\.?)/gi, '').trim();
+
+      const parts = timePart.split(':');
+      if (parts.length < 2 || parts.length > 3) return null;
+
+      const [hoursRaw, minutesRaw = '0', secondsRaw = '0'] = parts;
+      const secondsClean = secondsRaw.split('.')[0];
+
+      const hours = Number(hoursRaw);
+      const minutes = Number(minutesRaw);
+      const seconds = Number(secondsClean);
+
+      if (![hours, minutes, seconds].every((value) => Number.isFinite(value))) return null;
+
+      let normalizedHours = hours;
+      if (meridian) {
+        if (normalizedHours < 1 || normalizedHours > 12) return null;
+        const isPm = meridian.startsWith('p');
+        if (isPm && normalizedHours < 12) normalizedHours += 12;
+        if (!isPm && normalizedHours === 12) normalizedHours = 0;
+      }
+
+      if (normalizedHours < 0 || normalizedHours > 23) return null;
+      if (minutes < 0 || minutes > 59) return null;
+      if (seconds < 0 || seconds > 59) return null;
+
+      const h = String(normalizedHours).padStart(2, '0');
+      const m = String(minutes).padStart(2, '0');
+      const s = String(seconds).padStart(2, '0');
+      return `${h}:${m}:${s}.000`;
+    }
+
+    return null;
+  }
+
   static async ensureSchema({ force = false } = {}) {
     if (schemaState.checked && !force) {
       return schemaState;
@@ -372,17 +419,8 @@ ${justificacionFragments.select}
           : String(justificacion).trim() || null;
 
       // 🔹 Formatear hora para SQL Server
-      let horaSql;
-      if (hora instanceof Date) {
-        horaSql = hora.toTimeString().split(' ')[0] + '.000';
-      } else if (typeof hora === 'string') {
-        const parts = hora.split(':');
-        const h = parts[0] || '00';
-        const m = parts[1] || '00';
-        const s = parts[2] || '00';
-        horaSql = `${h.padStart(2,'0')}:${m.padStart(2,'0')}:${s.padStart(2,'0')}.000`;
-      } else {
-        // Si no viene hora, usar ahora
+      let horaSql = this.normalizeHoraSql(hora);
+      if (!horaSql) {
         const now = new Date();
         horaSql = now.toTimeString().split(' ')[0] + '.000';
       }
@@ -488,13 +526,21 @@ ${justificacionFragments.select}
         }
       }
 
+      let horaSql = null;
+      if (hora !== undefined && hora !== null && hora !== '') {
+        horaSql = this.normalizeHoraSql(hora);
+        if (!horaSql) {
+          throw new Error('Formato de hora inválido');
+        }
+      }
+
       const pool = await poolPromise;
       const request = pool
         .request()
         .input('id_asistencia', sql.Int, id_asistencia)
         .input('tipo_marca', sql.VarChar(20), tipo_marca)
         .input('fecha', sql.VarChar(10), fecha ?? null)
-        .input('hora', sql.Time, hora ?? null)
+        .input('hora', sql.Time, horaSql)
         .input('observaciones', sql.NVarChar(sql.MAX), observaciones)
         .input('estado', sql.NVarChar(20), estadoNormalizado);
 
