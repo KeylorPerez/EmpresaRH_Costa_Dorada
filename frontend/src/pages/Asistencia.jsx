@@ -54,6 +54,7 @@ const Asistencia = ({ mode }) => {
   const isAdmin = mode === "admin";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tipoMarcaFilter, setTipoMarcaFilter] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState("");
   const editableEstadoOptions = useMemo(
     () => estadoOptions.filter((option) => option.value !== "Ausente"),
     []
@@ -158,18 +159,34 @@ const Asistencia = ({ mode }) => {
   const exportDisabled = submitting || loading || (isAdmin && !selectedEmpleado);
   const registrosFiltrados = useMemo(() => {
     const selectedTipo = (tipoMarcaFilter || "").toString().trim().toLowerCase();
-    if (!selectedTipo) return registros;
+    const selectedEstado = (estadoFilter || "").toString().trim().toLowerCase();
+
+    if (!selectedTipo && !selectedEstado) return registros;
 
     const matchedOption = tipoMarcaOptions.find((option) => option.value === selectedTipo);
     const labelCandidate = matchedOption?.label?.toLowerCase();
+    const matchedEstado = estadoOptions.find((option) => option.value.toLowerCase() === selectedEstado);
+    const estadoLabelCandidate = matchedEstado?.label?.toLowerCase();
 
     return registros.filter((registro) => {
       const tipoMarca = registro?.tipo_marca ?? "";
-      const normalized = tipoMarca.toString().trim().toLowerCase();
-      if (!normalized) return false;
-      return normalized === selectedTipo || (labelCandidate && normalized === labelCandidate);
+      const normalizedTipo = tipoMarca.toString().trim().toLowerCase();
+      const estadoActual = registro?.estado ?? "";
+      const normalizedEstado = estadoActual.toString().trim().toLowerCase();
+
+      const matchesTipo =
+        !selectedTipo ||
+        (normalizedTipo &&
+          (normalizedTipo === selectedTipo || (labelCandidate && normalizedTipo === labelCandidate)));
+      const matchesEstado =
+        !selectedEstado ||
+        (normalizedEstado &&
+          (normalizedEstado === selectedEstado ||
+            (estadoLabelCandidate && normalizedEstado === estadoLabelCandidate)));
+
+      return matchesTipo && matchesEstado;
     });
-  }, [registros, tipoMarcaFilter]);
+  }, [registros, tipoMarcaFilter, estadoFilter]);
 
   const formatUbicacion = (latitud, longitud) => {
     if (latitud === null || latitud === undefined || longitud === null || longitud === undefined) {
@@ -238,8 +255,13 @@ const Asistencia = ({ mode }) => {
     setTipoMarcaFilter(event.target.value);
   };
 
+  const handleEstadoFilterChange = (event) => {
+    setEstadoFilter(event.target.value);
+  };
+
   const handleClearFilters = () => {
     setTipoMarcaFilter("");
+    setEstadoFilter("");
     clearRangeFilters();
   };
 
@@ -747,6 +769,25 @@ const Asistencia = ({ mode }) => {
                   >
                     <option value="">Todas las marcas</option>
                     {tipoMarcaOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col min-w-[180px]">
+                  <label className="text-xs text-gray-600 mb-1" htmlFor="estado_filter">
+                    Estado
+                  </label>
+                  <select
+                    id="estado_filter"
+                    name="estado_filter"
+                    value={estadoFilter}
+                    onChange={handleEstadoFilterChange}
+                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Todos los estados</option>
+                    {estadoOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
