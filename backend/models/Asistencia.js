@@ -100,11 +100,17 @@ const buildJustificacionFragments = (hasJustificacionTable) => ({
 
 class Asistencia {
   static normalizeHoraSql(hora) {
+    const buildTimeDate = (hours, minutes, seconds) => {
+      const date = new Date();
+      date.setHours(Number(hours), Number(minutes), Number(seconds), 0);
+      return date;
+    };
+
     if (hora instanceof Date) {
       if (Number.isNaN(hora.getTime())) {
         return null;
       }
-      return hora.toTimeString().split(' ')[0];
+      return buildTimeDate(hora.getHours(), hora.getMinutes(), hora.getSeconds());
     }
 
     if (typeof hora === 'string') {
@@ -141,10 +147,7 @@ class Asistencia {
       if (minutes < 0 || minutes > 59) return null;
       if (seconds < 0 || seconds > 59) return null;
 
-      const h = String(normalizedHours).padStart(2, '0');
-      const m = String(minutes).padStart(2, '0');
-      const s = String(seconds).padStart(2, '0');
-      return `${h}:${m}:${s}`;
+      return buildTimeDate(normalizedHours, minutes, seconds);
     }
 
     return null;
@@ -425,8 +428,7 @@ ${justificacionFragments.select}
       // 🔹 Formatear hora para SQL Server
       let horaSql = this.normalizeHoraSql(hora);
       if (!horaSql) {
-        const now = new Date();
-        horaSql = now.toTimeString().split(' ')[0];
+        horaSql = new Date();
       }
 
       const pool = await poolPromise;
