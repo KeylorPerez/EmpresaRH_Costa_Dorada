@@ -807,6 +807,8 @@ export const useAsistencia = ({ mode, user } = {}) => {
 
     try {
       setEditLoading(true);
+      setError("");
+      setSuccessMessage("");
       const payload = {
         observaciones: editForm.observaciones,
         justificado: Boolean(editForm.justificado),
@@ -818,6 +820,19 @@ export const useAsistencia = ({ mode, user } = {}) => {
       payload.justificacion = payload.justificado ? justificacionTexto : "";
 
       await asistenciaService.updateMarca(editingRegistro.id_asistencia, payload);
+      setRegistros((prev) =>
+        prev.map((registro) =>
+          registro.id_asistencia === editingRegistro.id_asistencia
+            ? {
+                ...registro,
+                observaciones: editForm.observaciones,
+                estado: editForm.estado || "Presente",
+                justificado: payload.justificado,
+                justificacion: payload.justificacion,
+              }
+            : registro
+        )
+      );
       setSuccessMessage("Marca actualizada correctamente");
       cancelEdit();
       await fetchRegistros({
