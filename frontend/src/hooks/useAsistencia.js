@@ -805,6 +805,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
     event.preventDefault();
     if (!editingRegistro) return;
 
+    let updated = false;
     try {
       setEditLoading(true);
       setError("");
@@ -820,6 +821,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
       payload.justificacion = payload.justificado ? justificacionTexto : "";
 
       await asistenciaService.updateMarca(editingRegistro.id_asistencia, payload);
+      updated = true;
       setRegistros((prev) =>
         prev.map((registro) =>
           registro.id_asistencia === editingRegistro.id_asistencia
@@ -834,7 +836,6 @@ export const useAsistencia = ({ mode, user } = {}) => {
         )
       );
       setSuccessMessage("Marca actualizada correctamente");
-      cancelEdit();
       await fetchRegistros({
         ...(appliedRange?.start && appliedRange?.end
           ? appliedRange
@@ -848,6 +849,9 @@ export const useAsistencia = ({ mode, user } = {}) => {
       const message = err.response?.data?.error || "No fue posible actualizar la marca";
       setError(message);
     } finally {
+      if (updated) {
+        cancelEdit();
+      }
       setEditLoading(false);
     }
   };
