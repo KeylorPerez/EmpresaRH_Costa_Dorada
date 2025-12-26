@@ -34,7 +34,6 @@ const DIAS_POR_QUINCENA = 15;
 const DIAS_POR_MES = 30;
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const MAX_AUSENCIAS_PAGADAS = 2;
-const MAX_AUSENCIAS_SIN_JUSTIFICAR = 3;
 
 const obtenerDiasReferencia = (tipoPago) =>
   tipoPago === "Mensual" ? DIAS_POR_MES : DIAS_POR_QUINCENA;
@@ -628,7 +627,6 @@ export const usePlanilla = () => {
         .sort((a, b) => a.detalle.fecha.localeCompare(b.detalle.fecha));
 
       let ausenciasPagadas = 0;
-      let ausenciasSinJustificar = 0;
       const updates = new Map();
 
       ordenados.forEach(({ detalle, index }) => {
@@ -643,12 +641,6 @@ export const usePlanilla = () => {
 
         const esVacaciones = estado === ESTADO_VACACIONES;
         const esIncapacidad = estado === ESTADO_INCAPACIDAD;
-        const esAusenteSinJustificar = estado === ESTADO_AUSENTE && !detalle.justificado;
-
-        if (esAusenteSinJustificar) {
-          ausenciasSinJustificar += 1;
-        }
-
         if (esVacaciones) {
           salarioCalculado = baseNormalizado;
         } else if (esIncapacidad) {
@@ -658,8 +650,6 @@ export const usePlanilla = () => {
         } else if (ausenciasPagadas < MAX_AUSENCIAS_PAGADAS) {
           salarioCalculado = baseNormalizado;
           ausenciasPagadas += 1;
-        } else if (esAusenteSinJustificar && ausenciasSinJustificar >= MAX_AUSENCIAS_SIN_JUSTIFICAR) {
-          salarioCalculado = 0;
         } else {
           salarioCalculado = 0;
         }
@@ -1738,7 +1728,7 @@ export const usePlanilla = () => {
     if (!esPagoQuincenal || !Array.isArray(detalleDias) || detalleDias.length === 0) {
       return {
         diasLibres: 0,
-        ausenciasSinJustificar: 0,
+        ausenciasNoPagadas: 0,
         aplicarRebaja: false,
         aplicarDiaDoble: false,
         mensajes: [],
@@ -1746,27 +1736,34 @@ export const usePlanilla = () => {
     }
 
     let diasLibres = 0;
-    let ausenciasSinJustificar = 0;
+    let ausenciasTotales = 0;
 
     detalleDias.forEach((detalle) => {
       if (!detalle || detalle.asistio) {
         return;
       }
 
-      diasLibres += 1;
       const estado = normalizeEstado(detalle.estado);
-      if (estado === ESTADO_AUSENTE && !detalle.justificado) {
-        ausenciasSinJustificar += 1;
+      const esVacaciones = estado === ESTADO_VACACIONES;
+      const esIncapacidad = estado === ESTADO_INCAPACIDAD;
+
+      diasLibres += 1;
+
+      if (!esVacaciones && !esIncapacidad) {
+        ausenciasTotales += 1;
       }
     });
 
-    const aplicarRebaja = ausenciasSinJustificar >= MAX_AUSENCIAS_SIN_JUSTIFICAR;
+    const ausenciasNoPagadas = Math.max(ausenciasTotales - MAX_AUSENCIAS_PAGADAS, 0);
+    const aplicarRebaja = ausenciasNoPagadas > 0;
     const aplicarDiaDoble = diasLibres === 1;
     const mensajes = [];
 
     if (aplicarRebaja) {
       mensajes.push(
-        `El colaborador tiene ${ausenciasSinJustificar} faltas sin justificar. Se rebajará 1 día en esta quincena.`,
+        `El colaborador tiene ${ausenciasTotales} faltas en la quincena. Se rebajará${
+          ausenciasNoPagadas === 1 ? "" : "n"
+        } ${ausenciasNoPagadas} día${ausenciasNoPagadas === 1 ? "" : "s"} en esta quincena.`,
       );
     }
 
@@ -1778,7 +1775,7 @@ export const usePlanilla = () => {
 
     return {
       diasLibres,
-      ausenciasSinJustificar,
+      ausenciasNoPagadas,
       aplicarRebaja,
       aplicarDiaDoble,
       mensajes,
