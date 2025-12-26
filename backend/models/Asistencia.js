@@ -101,6 +101,9 @@ const buildJustificacionFragments = (hasJustificacionTable) => ({
 class Asistencia {
   static normalizeHoraSql(hora) {
     if (hora instanceof Date) {
+      if (Number.isNaN(hora.getTime())) {
+        return null;
+      }
       return hora.toTimeString().split(' ')[0];
     }
 
@@ -124,6 +127,7 @@ class Asistencia {
       const seconds = Number(secondsClean);
 
       if (![hours, minutes, seconds].every((value) => Number.isFinite(value))) return null;
+      if (![hours, minutes, seconds].every((value) => Number.isInteger(value))) return null;
 
       let normalizedHours = hours;
       if (meridian) {

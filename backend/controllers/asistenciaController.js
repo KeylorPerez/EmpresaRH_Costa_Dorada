@@ -568,6 +568,9 @@ function parseTimeForSqlServer(timeInput) {
   };
 
   if (timeInput instanceof Date) {
+    if (Number.isNaN(timeInput.getTime())) {
+      return null;
+    }
     return buildFromParts(timeInput.getHours(), timeInput.getMinutes(), timeInput.getSeconds());
   }
 
@@ -591,6 +594,7 @@ function parseTimeForSqlServer(timeInput) {
     const seconds = Number(secondsClean);
 
     if (![hours, minutes, seconds].every((value) => Number.isFinite(value))) return null;
+    if (![hours, minutes, seconds].every((value) => Number.isInteger(value))) return null;
 
     let normalizedHours = hours;
     if (meridian) {
