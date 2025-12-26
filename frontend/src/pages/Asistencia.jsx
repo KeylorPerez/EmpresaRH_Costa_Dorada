@@ -191,6 +191,23 @@ const Asistencia = ({ mode }) => {
     }
   };
 
+  const getEstadoBadgeClass = (estado) => {
+    switch ((estado || "").toString().toLowerCase()) {
+      case "presente":
+        return "bg-emerald-100 text-emerald-700";
+      case "permiso":
+        return "bg-blue-100 text-blue-700";
+      case "vacaciones":
+        return "bg-amber-100 text-amber-700";
+      case "incapacidad":
+        return "bg-purple-100 text-purple-700";
+      case "ausente":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   // Solicita un motivo opcional antes de rechazar una solicitud de
   // justificación; evita cerrar el flujo sin contexto para el colaborador.
   const handleRechazarSolicitud = (solicitud) => {
@@ -782,7 +799,11 @@ const Asistencia = ({ mode }) => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-600">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-semibold">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getEstadoBadgeClass(
+                                registro.estado
+                              )}`}
+                            >
                               {obtenerEtiquetaEstado(registro.estado)}
                             </span>
                           </td>
