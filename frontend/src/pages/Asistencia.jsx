@@ -53,6 +53,10 @@ const Asistencia = ({ mode }) => {
   const { user, logoutUser } = useAuth();
   const isAdmin = mode === "admin";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const editableEstadoOptions = useMemo(
+    () => estadoOptions.filter((option) => option.value !== "Ausente"),
+    []
+  );
 
   // El hook devuelve tanto el estado como los handlers para cada subsección
   // (marcación, filtros, exportación, edición y justificaciones). Mantener el
@@ -1082,8 +1086,8 @@ const Asistencia = ({ mode }) => {
                       Editar marca #{editingRegistro.id_asistencia}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Solo puedes actualizar observaciones o la justificación. La fecha, hora, tipo de marca y
-                      estado se mantienen como solo lectura.
+                      Solo puedes actualizar observaciones, justificación y el estado de asistencia. La fecha, hora
+                      y tipo de marca se mantienen como solo lectura.
                     </p>
                   </div>
                   <div className="flex items-center gap-3 self-end md:self-start">
@@ -1166,11 +1170,11 @@ const Asistencia = ({ mode }) => {
                       id="edit_estado"
                       name="estado"
                       value={editForm.estado || "Presente"}
-                      disabled
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-gray-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      onChange={handleEditChange}
+                      className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     >
-                      {estadoOptions.map((option) => (
+                      {editableEstadoOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
