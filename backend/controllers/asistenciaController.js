@@ -924,7 +924,11 @@ const updateMarca = async (req, res) => {
       justificacionTexto = justificacion.toString().trim();
     }
 
-    const estadoActualizado = estado === undefined ? existingMarca.estado : estado;
+    const estadoTieneValor =
+      estado !== undefined &&
+      estado !== null &&
+      (typeof estado !== 'string' || estado.trim() !== '');
+    const estadoActualizado = estadoTieneValor ? estado : existingMarca.estado;
     const payload = {
       tipo_marca: existingMarca.tipo_marca,
       observaciones: observacionesActualizadas,

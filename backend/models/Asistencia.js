@@ -8,6 +8,20 @@ const JustificacionAsistencia = require('./JustificacionAsistencia');
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 
+const normalizeEstadoAsistencia = (estado) => {
+  if (typeof estado !== 'string') {
+    return null;
+  }
+  const trimmed = estado.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const normalized = ESTADOS_ASISTENCIA.find(
+    (value) => value.toLowerCase() === trimmed.toLowerCase()
+  );
+  return normalized || null;
+};
+
 const schemaState = {
   checked: false,
   hasJustificadoColumn: false,
@@ -350,10 +364,7 @@ ${justificacionFragments.select}
         throw new Error(`tipo_marca inválido. Debe ser uno de: ${TIPOS_MARCA.join(', ')}`);
       }
 
-      const estadoNormalizado =
-        typeof estado === 'string' && ESTADOS_ASISTENCIA.includes(estado.trim())
-          ? estado.trim()
-          : 'Presente';
+      const estadoNormalizado = normalizeEstadoAsistencia(estado) ?? 'Presente';
       const justificadoValor = justificado === true || justificado === 1 || justificado === '1';
       const justificacionValor =
         justificacion === undefined || justificacion === null
@@ -451,11 +462,10 @@ ${justificacionFragments.select}
         if (typeof estado !== 'string') {
           throw new Error(`estado inválido. Debe ser uno de: ${ESTADOS_ASISTENCIA.join(', ')}`);
         }
-        const trimmed = estado.trim();
-        if (!ESTADOS_ASISTENCIA.includes(trimmed)) {
+        estadoNormalizado = normalizeEstadoAsistencia(estado);
+        if (!estadoNormalizado) {
           throw new Error(`estado inválido. Debe ser uno de: ${ESTADOS_ASISTENCIA.join(', ')}`);
         }
-        estadoNormalizado = trimmed;
       }
 
       let justificadoValor = null;
