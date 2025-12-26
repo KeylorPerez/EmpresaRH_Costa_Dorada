@@ -810,6 +810,7 @@ export const useAsistencia = ({ mode, user } = {}) => {
       const payload = {
         observaciones: editForm.observaciones,
         justificado: Boolean(editForm.justificado),
+        estado: editForm.estado,
       };
 
       const justificacionTexto =

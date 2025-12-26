@@ -900,7 +900,7 @@ const createMarcaRange = async (req, res) => {
 const updateMarca = async (req, res) => {
   try {
     const id_asistencia = parseInt(req.params.id, 10);
-    const { observaciones, justificado: justificadoBody, justificacion } = req.body;
+    const { observaciones, justificado: justificadoBody, justificacion, estado } = req.body;
 
     const existingMarca = await Asistencia.findById(id_asistencia);
     if (!existingMarca) {
@@ -924,12 +924,11 @@ const updateMarca = async (req, res) => {
       justificacionTexto = justificacion.toString().trim();
     }
 
+    const estadoActualizado = estado === undefined ? existingMarca.estado : estado;
     const payload = {
-      // Se mantiene la integridad de la marca original: solo se permite modificar
-      // observaciones y la sección de justificación.
       tipo_marca: existingMarca.tipo_marca,
       observaciones: observacionesActualizadas,
-      estado: existingMarca.estado,
+      estado: estadoActualizado,
     };
 
     if (justificadoBody !== undefined) {
