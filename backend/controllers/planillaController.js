@@ -50,6 +50,19 @@ const formatDateDisplay = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const formatHourDisplay = (value) => {
+  if (!value) return '-';
+  if (typeof value === 'string') {
+    const clean = value.split('.')[0]?.trim() || '';
+    if (!clean) return '-';
+    const match = clean.match(/^(\d{2}:\d{2})/);
+    return match ? match[1] : clean;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+};
+
 const capitalize = (text = '') => {
   if (!text) return '';
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -264,6 +277,8 @@ const buildPdfLines = (planilla, detalles) => {
   const defaultColumnWidths = {
     fecha: 10,
     dia: 10,
+    horaEntrada: 8,
+    horaSalida: 8,
     asistencia: 10,
     tipo: 10,
     estado: 9,
@@ -274,6 +289,8 @@ const buildPdfLines = (planilla, detalles) => {
   const maxColumnWidths = {
     fecha: 10,
     dia: 12,
+    horaEntrada: 12,
+    horaSalida: 12,
     asistencia: 12,
     tipo: 12,
     estado: 12,
@@ -287,6 +304,8 @@ const buildPdfLines = (planilla, detalles) => {
     const longestByColumn = {
       fecha: 'Fecha',
       dia: 'Día',
+      horaEntrada: 'Hora entrada',
+      horaSalida: 'Hora salida',
       asistencia: 'Asistencia',
       tipo: 'Tipo',
       estado: 'Estado',
@@ -302,6 +321,14 @@ const buildPdfLines = (planilla, detalles) => {
       longestByColumn.dia = Math.max(
         longestByColumn.dia.length,
         sanitizePdfText(capitalize(detalle.dia_semana || '')).length,
+      );
+      longestByColumn.horaEntrada = Math.max(
+        longestByColumn.horaEntrada.length,
+        sanitizePdfText(formatHourDisplay(detalle.hora_entrada)).length,
+      );
+      longestByColumn.horaSalida = Math.max(
+        longestByColumn.horaSalida.length,
+        sanitizePdfText(formatHourDisplay(detalle.hora_salida)).length,
       );
       const asistenciaBase = (() => {
         const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
@@ -356,6 +383,8 @@ const buildPdfLines = (planilla, detalles) => {
   const headerLine = [
     padColumn('Fecha', columnWidths.fecha),
     padColumn('Día', columnWidths.dia),
+    padColumn('Hora entrada', columnWidths.horaEntrada),
+    padColumn('Hora salida', columnWidths.horaSalida),
     padColumn('Asistencia', columnWidths.asistencia),
     padColumn('Tipo', columnWidths.tipo),
     padColumn('Estado', columnWidths.estado),
@@ -374,6 +403,8 @@ const buildPdfLines = (planilla, detalles) => {
   detalles.forEach((detalle) => {
     const fecha = padColumn(formatDateDisplay(detalle.fecha), columnWidths.fecha);
     const dia = padColumn(capitalize(detalle.dia_semana || ''), columnWidths.dia);
+    const horaEntrada = padColumn(formatHourDisplay(detalle.hora_entrada), columnWidths.horaEntrada);
+    const horaSalida = padColumn(formatHourDisplay(detalle.hora_salida), columnWidths.horaSalida);
     const asistenciaBase = (() => {
       const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
       if (texto) return texto;
@@ -400,8 +431,18 @@ const buildPdfLines = (planilla, detalles) => {
     ]
       .filter(Boolean)
       .join(' | ');
-    const basePrefix = [fecha, dia, asistencia, tipo, estado, justificado, salario].join(' | ');
-    const maxNotesWidth = Math.max(0, 115 - (basePrefix.length + 3));
+    const basePrefix = [
+      fecha,
+      dia,
+      horaEntrada,
+      horaSalida,
+      asistencia,
+      tipo,
+      estado,
+      justificado,
+      salario,
+    ].join(' | ');
+    const maxNotesWidth = Math.max(0, 140 - (basePrefix.length + 3));
     const notesLines =
       notas && maxNotesWidth > 0 ? wrapText(notas, maxNotesWidth) : [notas];
 
@@ -561,13 +602,17 @@ const createCsvFile = async (filePath, planilla, detalles) => {
   lines.push(`Pago neto;${formatCurrency(planilla.pago_neto)}`);
   lines.push('');
   lines.push('Detalle');
-  lines.push('Fecha;Día;Asistencia;Tipo;Estado;Justificado;Salario día;Justificación;Observación');
+  lines.push(
+    'Fecha;Día;Hora entrada;Hora salida;Asistencia;Tipo;Estado;Justificado;Salario día;Justificación;Observación',
+  );
 
   if (Array.isArray(detalles) && detalles.length > 0) {
     detalles.forEach((detalle) => {
       const fila = [
         formatDateValue(detalle.fecha),
         capitalize(detalle.dia_semana || ''),
+        formatHourDisplay(detalle.hora_entrada),
+        formatHourDisplay(detalle.hora_salida),
         (() => {
           const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
           return texto || (detalle.asistio ? 'Asistió' : 'Faltó');
@@ -585,7 +630,7 @@ const createCsvFile = async (filePath, planilla, detalles) => {
       lines.push(fila);
     });
   } else {
-    lines.push('Sin registros;;;;;');
+    lines.push('Sin registros;;;;;;;;;');
   }
 
   const sanitizedLines = lines.map((line) => sanitizeCsvLine(line));
