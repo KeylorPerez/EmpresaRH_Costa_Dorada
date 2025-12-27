@@ -7,7 +7,7 @@ const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
 
-const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 const calcularDiasPeriodo = (inicio, fin) => {
@@ -69,6 +69,9 @@ function sanitizeDetallePlanilla(detalles) {
           if (texto.length > 0) {
             return texto.length > 50 ? texto.slice(0, 50) : texto;
           }
+        }
+        if (estadoNormalizado === 'Descanso') {
+          return 'Descanso';
         }
         return detalle.asistio ? 'Asistió' : 'Faltó';
       })();
