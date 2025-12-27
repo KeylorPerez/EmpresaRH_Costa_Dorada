@@ -4,6 +4,7 @@ import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
 import diasDoblesService from "../services/diasDoblesService";
+import descansosService from "../services/descansosService";
 import { parseDateValue } from "../utils/dateUtils";
 import { parseNumberInput, toPositiveNumber } from "../utils/numberUtils";
 import {
@@ -18,6 +19,7 @@ const ESTADOS_ASISTENCIA = [
   "Permiso",
   "Vacaciones",
   "Incapacidad",
+  "Descanso",
 ];
 
 export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
@@ -30,6 +32,7 @@ const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
 const ESTADO_VACACIONES = "Vacaciones";
 const ESTADO_INCAPACIDAD = "Incapacidad";
+const ESTADO_DESCANSO = "Descanso";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 const DIAS_POR_QUINCENA = 15;
 const DIAS_POR_MES = 30;
@@ -138,6 +141,8 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     return asistio ? ESTADO_PRESENTE : ESTADO_AUSENTE;
   })();
 
+  const esDescanso = estado === ESTADO_DESCANSO;
+
   const justificado = Boolean(
     detalle.justificado === true || Number(detalle.justificado) === 1,
   );
@@ -160,6 +165,7 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     salario_dia: salarioDiaTexto,
     asistio,
     es_dia_doble: esDiaDoble,
+    es_descanso: esDescanso,
     estado,
     justificado,
     justificacion,
@@ -201,10 +207,17 @@ const normalizeEstado = (value) => {
 const ajustarEstadoPorAsistencia = (estadoActual, asistio) => {
   const normalizado = normalizeEstado(estadoActual);
   if (asistio) {
+    if (normalizado === ESTADO_DESCANSO) {
+      return ESTADO_PRESENTE;
+    }
     if (!estadoAsistenciaSet.has(normalizado) || normalizado === ESTADO_AUSENTE) {
       return ESTADO_PRESENTE;
     }
     return normalizado;
+  }
+
+  if (normalizado === ESTADO_DESCANSO) {
+    return ESTADO_DESCANSO;
   }
 
   if (!estadoAsistenciaSet.has(normalizado) || normalizado === ESTADO_PRESENTE) {
@@ -432,6 +445,12 @@ export const usePlanilla = () => {
     fechas: [],
     error: "",
   });
+  const [detalleDescansos, setDetalleDescansos] = useState({
+    key: "",
+    loading: false,
+    fechas: [],
+    error: "",
+  });
   const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
   const [detalleJustificaciones, setDetalleJustificaciones] = useState(
@@ -585,6 +604,20 @@ export const usePlanilla = () => {
           return;
         }
 
+        if (detalle.es_descanso) {
+          const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+          const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+          const salarioTexto = formatMontoPositivo(baseNormalizado);
+
+          if (detalle.salario_dia !== salarioTexto || detalle.salario_base !== baseNormalizado) {
+            updates.set(index, {
+              salario_dia: salarioTexto,
+              salario_base: baseNormalizado,
+            });
+          }
+          return;
+        }
+
         const estado = normalizeEstado(detalle.estado);
         const baseReferencia = obtenerSalarioBaseDetalle(detalle);
         const baseNormalizado = applySalarioBaseFallback(baseReferencia);
@@ -693,6 +726,10 @@ export const usePlanilla = () => {
 
       const asistio = asistenciaSet.has(detalle.fecha);
 
+      if (!asistio && detalle.es_descanso) {
+        return detalle;
+      }
+
       if (!asistio) {
         const ausenciaSalario = resolveAusenciaSalario(detalle);
 
@@ -747,6 +784,63 @@ export const usePlanilla = () => {
       };
     });
   }, [resolveAusenciaSalario]);
+
+  const aplicarDescansosAuto = useCallback(
+    (detalles, fechasDescanso) => {
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        return detalles;
+      }
+
+      const fechasNormalizadas = Array.isArray(fechasDescanso)
+        ? fechasDescanso
+            .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+            .filter((fecha) => fecha.length > 0)
+        : [];
+
+      const descansoSet = new Set(fechasNormalizadas);
+
+      return detalles.map((detalle) => {
+        if (detalle.asistenciaManual) {
+          return detalle;
+        }
+
+        const es_descanso = descansoSet.has(detalle.fecha);
+
+        if (detalle.es_descanso === es_descanso) {
+          return detalle;
+        }
+
+        if (!es_descanso) {
+          return {
+            ...detalle,
+            es_descanso: false,
+            justificado: false,
+            justificacion: "",
+            estado: ajustarEstadoPorAsistencia(detalle.estado, detalle.asistio),
+          };
+        }
+
+        const ausenciaSalario = resolveAusenciaSalario({
+          ...detalle,
+          asistio: false,
+        });
+
+        return {
+          ...detalle,
+          asistio: false,
+          es_descanso: true,
+          estado: ESTADO_DESCANSO,
+          justificado: true,
+          justificacion: detalle.justificacion || "Descanso programado",
+          salario_dia: ausenciaSalario.salario,
+          ...(ausenciaSalario.salarioBase !== null && {
+            salario_base: ausenciaSalario.salarioBase,
+          }),
+        };
+      });
+    },
+    [resolveAusenciaSalario],
+  );
 
   const aplicarDiasDoblesAuto = useCallback(
     (detalles, fechasDobles) => {
@@ -1207,6 +1301,75 @@ export const usePlanilla = () => {
     detalleNonDiarioReloadKey,
   ]);
 
+  useEffect(() => {
+    if (!modalOpen || editingPlanilla) {
+      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const { id_empleado, periodo_inicio, periodo_fin } = formData;
+
+    if (!id_empleado || !periodo_inicio || !periodo_fin) {
+      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const empleadoSeleccionado = empleados.find(
+      (empleado) => String(empleado.id_empleado) === String(id_empleado),
+    );
+
+    if (!empleadoSeleccionado) {
+      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
+      return;
+    }
+
+    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+    let cancelado = false;
+
+    const fetchDescansos = async () => {
+      setDetalleDescansos({ key, loading: true, fechas: [], error: "" });
+
+      try {
+        const data = await descansosService.getSummary({
+          id_empleado,
+          periodo_inicio,
+          periodo_fin,
+        });
+        if (cancelado) return;
+
+        const fechasDescanso = Array.isArray(data?.fechas)
+          ? data.fechas
+              .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+              .filter((fecha) => fecha.length > 0)
+          : [];
+
+        setDetalleDescansos({ key, loading: false, fechas: fechasDescanso, error: "" });
+      } catch (err) {
+        if (cancelado) return;
+
+        const message =
+          err?.response?.data?.error ||
+          err?.message ||
+          "No se pudieron obtener los días de descanso del periodo.";
+        setDetalleDescansos({ key, loading: false, fechas: [], error: message });
+      }
+    };
+
+    fetchDescansos();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    modalOpen,
+    editingPlanilla,
+    formData,
+    formData.id_empleado,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+    empleados,
+  ]);
+
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
@@ -1256,6 +1419,7 @@ export const usePlanilla = () => {
         salario_dia: salarioDiarioReferencia.toFixed(2),
         asistio: true,
         es_dia_doble: false,
+        es_descanso: false,
         estado: ESTADO_PRESENTE,
         justificado: false,
         justificacion: "",
@@ -1319,8 +1483,11 @@ export const usePlanilla = () => {
       detalleAsistencia.key === keyNuevo ? detalleAsistencia.fechas : [];
     const fechasDobles =
       detalleDiasDobles.key === keyNuevo ? detalleDiasDobles.fechas : [];
+    const fechasDescanso =
+      detalleDescansos.key === keyNuevo ? detalleDescansos.fechas : [];
 
     let nuevosDetalles = aplicarDiasDoblesAuto(nuevosDetallesBase, fechasDobles);
+    nuevosDetalles = aplicarDescansosAuto(nuevosDetalles, fechasDescanso);
     nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
 
     if (detalleJustificaciones.key === keyNuevo) {
@@ -1346,9 +1513,12 @@ export const usePlanilla = () => {
     detalleAsistencia.fechas,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
+    detalleDescansos.key,
+    detalleDescansos.fechas,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     aplicarPoliticaAusencias,
+    aplicarDescansosAuto,
   ]);
 
   useEffect(() => {
@@ -1364,6 +1534,8 @@ export const usePlanilla = () => {
       detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : null;
     const fechasDobles =
       detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : null;
+    const fechasDescanso =
+      detalleDescansos.key === keyActual ? detalleDescansos.fechas : null;
 
     if (!keyJustificaciones || keyActual !== keyJustificaciones) {
       if (!keyJustificaciones && detalleDias.length > 0) {
@@ -1375,6 +1547,9 @@ export const usePlanilla = () => {
           let restaurados = aplicarJustificacionesAuto(prev, []);
           if (fechasDobles) {
             restaurados = aplicarDiasDoblesAuto(restaurados, fechasDobles);
+          }
+          if (fechasDescanso) {
+            restaurados = aplicarDescansosAuto(restaurados, fechasDescanso);
           }
           if (fechasAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
@@ -1400,6 +1575,9 @@ export const usePlanilla = () => {
       if (fechasDobles) {
         aplicados = aplicarDiasDoblesAuto(aplicados, fechasDobles);
       }
+      if (fechasDescanso) {
+        aplicados = aplicarDescansosAuto(aplicados, fechasDescanso);
+      }
       if (fechasAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
       }
@@ -1419,8 +1597,11 @@ export const usePlanilla = () => {
     detalleAsistencia.fechas,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
+    detalleDescansos.key,
+    detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
     aplicarDiasDoblesAuto,
+    aplicarDescansosAuto,
     aplicarPoliticaAusencias,
   ]);
 
@@ -1711,6 +1892,11 @@ export const usePlanilla = () => {
         return;
       }
 
+      if (detalle.es_descanso) {
+        diasLibres += 1;
+        return;
+      }
+
       diasLibres += 1;
       const estado = normalizeEstado(detalle.estado);
       if (estado === ESTADO_AUSENTE && !detalle.justificado) {
@@ -1987,8 +2173,11 @@ export const usePlanilla = () => {
         detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : [];
       const fechasDobles =
         detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : [];
+      const fechasDescanso =
+        detalleDescansos.key === keyActual ? detalleDescansos.fechas : [];
 
       let detallesRestaurados = aplicarDiasDoblesAuto(detallesBase, fechasDobles);
+      detallesRestaurados = aplicarDescansosAuto(detallesRestaurados, fechasDescanso);
       detallesRestaurados = aplicarAsistenciaDetalle(detallesRestaurados, fechasAsistencia);
       if (debeAplicarJustificaciones) {
         detallesRestaurados = aplicarJustificacionesAuto(
@@ -2030,8 +2219,11 @@ export const usePlanilla = () => {
     detalleAsistencia.fechas,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
+    detalleDescansos.key,
+    detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
     aplicarDiasDoblesAuto,
+    aplicarDescansosAuto,
     aplicarPoliticaAusencias,
   ]);
 

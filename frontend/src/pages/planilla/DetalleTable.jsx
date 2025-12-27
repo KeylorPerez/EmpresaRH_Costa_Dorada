@@ -60,6 +60,8 @@ const DetalleTable = ({
         return "bg-amber-100 text-amber-700";
       case "incapacidad":
         return "bg-purple-100 text-purple-700";
+      case "descanso":
+        return "bg-slate-100 text-slate-700";
       case "ausente":
         return "bg-red-100 text-red-700";
       default:
@@ -80,6 +82,22 @@ const DetalleTable = ({
       return value.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
     }
     return String(value);
+  };
+
+  const resolveAsistenciaLabel = (detalle) => {
+    if (detalle.es_descanso && !detalle.asistio) {
+      return "Descanso";
+    }
+    return detalle.asistio ? "Asistió" : "Faltó";
+  };
+
+  const resolveAsistenciaClass = (detalle) => {
+    if (detalle.es_descanso && !detalle.asistio) {
+      return "bg-slate-100 text-slate-700 hover:bg-slate-200";
+    }
+    return detalle.asistio
+      ? "bg-green-100 text-green-700 hover:bg-green-200"
+      : "bg-red-100 text-red-600 hover:bg-red-200";
   };
 
   return (
@@ -117,13 +135,11 @@ const DetalleTable = ({
                 <button
                   type="button"
                   onClick={() => toggleDetalleAsistencia(index)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    detalle.asistio
-                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                      : "bg-red-100 text-red-600 hover:bg-red-200"
-                  }`}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${resolveAsistenciaClass(
+                    detalle
+                  )}`}
                 >
-                  {detalle.asistio ? "Asistió" : "Faltó"}
+                  {resolveAsistenciaLabel(detalle)}
                 </button>
               </td>
               <td className="px-4 py-3 text-center">
