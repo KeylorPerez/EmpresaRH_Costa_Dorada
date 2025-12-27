@@ -27,6 +27,7 @@ import {
   resolveEmpleadoId,
   resolvePlanillaId,
 } from "../utils/planillaUtils";
+import { parseNumberInput } from "../utils/numberUtils";
 
 const normalizeFileUrl = (url) => {
   if (!url) return "";
@@ -116,6 +117,11 @@ const parseDateSafe = (value) => {
   if (Number.isNaN(date.getTime())) return null;
 
   return date;
+};
+
+const parseNumberValue = (value) => {
+  const parsed = parseNumberInput(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
 };
 
 const Planilla = () => {
@@ -760,7 +766,7 @@ const Planilla = () => {
   }, [detalleDias, autoResizeTextarea]);
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
-  const salarioBaseReferencia = Number(selectedEmpleado?.salario_monto) || 0;
+  const salarioBaseReferencia = parseNumberValue(selectedEmpleado?.salario_monto);
   const diasPeriodoQuincena = calcularDiasPeriodo(formData.periodo_inicio, formData.periodo_fin);
   const diasReferenciaPago =
     tipoPago === "Mensual"
@@ -768,11 +774,11 @@ const Planilla = () => {
       : tipoPago === "Quincenal" && diasPeriodoQuincena > 0
         ? diasPeriodoQuincena
         : DIAS_POR_QUINCENA;
-  const montoHorasExtras = Math.max(Number(formData.horas_extras || 0), 0);
-  const bonificaciones = Number(formData.bonificaciones || 0);
-  const deduccionesManualInput = Number(formData.deducciones || 0);
+  const montoHorasExtras = Math.max(parseNumberValue(formData.horas_extras), 0);
+  const bonificaciones = parseNumberValue(formData.bonificaciones);
+  const deduccionesManualInput = parseNumberValue(formData.deducciones);
   const usaDetalleParaCalculos = detalleDias.length > 0;
-  const diasTrabajadosValor = Number(formData.dias_trabajados);
+  const diasTrabajadosValor = parseNumberValue(formData.dias_trabajados);
   const diasTrabajadosAplicados = usaDetalleParaCalculos
     ? detalleDiasResumen.diasAsistidos
     : Number.isNaN(diasTrabajadosValor) || diasTrabajadosValor < 0
@@ -784,13 +790,13 @@ const Planilla = () => {
     formData.dias_trabajados !== "" &&
     Number.isFinite(diasTrabajadosValor) &&
     diasTrabajadosValor >= 0;
-  const diasDescuentoValor = Number(formData.dias_descuento);
+  const diasDescuentoValor = parseNumberValue(formData.dias_descuento);
   const diasDescuentoAplicados =
     Number.isNaN(diasDescuentoValor) || diasDescuentoValor < 0 ? 0 : diasDescuentoValor;
   const montoDescuentoDiasValor =
     formData.monto_descuento_dias === "" || formData.monto_descuento_dias === null
       ? null
-      : Number(formData.monto_descuento_dias);
+      : parseNumberValue(formData.monto_descuento_dias);
   const montoDescuentoDiasAplicado =
     montoDescuentoDiasValor === null || Number.isNaN(montoDescuentoDiasValor) || montoDescuentoDiasValor < 0
       ? null
@@ -805,7 +811,7 @@ const Planilla = () => {
     tipoPago === "Quincenal" && usaDetalleParaCalculos && quincenaPolicy?.aplicarDiaDoble
       ? salarioDiarioReferencia
       : 0;
-  const diasDoblesValor = Number(formData.dias_dobles);
+  const diasDoblesValor = parseNumberValue(formData.dias_dobles);
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
   const ingresoManualDiasDobles =
     (formData.monto_dias_dobles !== "" && formData.monto_dias_dobles !== null) || diasDoblesManual > 0;
@@ -816,7 +822,7 @@ const Planilla = () => {
   const montoDiasDoblesValor =
     formData.monto_dias_dobles === "" || formData.monto_dias_dobles === null
       ? null
-      : Number(formData.monto_dias_dobles);
+      : parseNumberValue(formData.monto_dias_dobles);
   const montoDiasDoblesManual =
     montoDiasDoblesValor === null || Number.isNaN(montoDiasDoblesValor) || montoDiasDoblesValor < 0
       ? null
