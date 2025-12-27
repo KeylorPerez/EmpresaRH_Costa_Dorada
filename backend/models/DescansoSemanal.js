@@ -64,6 +64,47 @@ class DescansoSemanal {
       throw err;
     }
   }
+
+  static async getByEmpleado(id_empleado) {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, id_empleado)
+        .query(`
+          SELECT
+            id_descanso,
+            id_empleado,
+            semana_tipo,
+            dia_semana,
+            es_descanso,
+            CONVERT(varchar(10), fecha_inicio_vigencia, 23) AS fecha_inicio_vigencia,
+            CONVERT(varchar(10), fecha_fin_vigencia, 23) AS fecha_fin_vigencia
+          FROM DescansoSemanal
+          WHERE id_empleado = @id_empleado
+            AND es_descanso = 1
+          ORDER BY fecha_inicio_vigencia DESC, semana_tipo, dia_semana
+        `);
+      return result.recordset;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  static async deleteByEmpleado(id_empleado, { transaction } = {}) {
+    try {
+      const pool = await poolPromise;
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      await request
+        .input('id_empleado', sql.Int, id_empleado)
+        .query(`
+          DELETE FROM DescansoSemanal
+          WHERE id_empleado = @id_empleado
+            AND es_descanso = 1
+        `);
+    } catch (err) {
+      throw err;
+    }
+  }
 }
 
 module.exports = DescansoSemanal;

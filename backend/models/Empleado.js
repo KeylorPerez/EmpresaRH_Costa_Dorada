@@ -114,11 +114,13 @@ class Empleado {
       deduccion_fija,
       permitir_marcacion_fuera,
       estado,
-    }
+    },
+    { transaction } = {}
   ) {
     try {
       const pool = await poolPromise;
-      await pool.request()
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      await request
         .input('id_empleado', sql.Int, id_empleado)
         .input('nombre', sql.NVarChar(150), nombre)
         .input('apellido', sql.NVarChar(150), apellido)

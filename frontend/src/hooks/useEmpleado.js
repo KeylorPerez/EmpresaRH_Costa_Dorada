@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../api/axiosConfig";
+import descansoSemanalService from "../services/descansoSemanalService";
 import empleadoService from "../services/empleadoService";
 import puestoService from "../services/puestoService";
 
@@ -157,56 +158,52 @@ export const useEmpleado = () => {
         return;
       }
 
-      if (!editingEmpleado) {
-        const descansos = Array.isArray(formData.descansos) ? formData.descansos : [];
-        if (descansos.length === 0) {
-          setError("Configura al menos un descanso semanal del empleado.");
+      const descansos = Array.isArray(formData.descansos) ? formData.descansos : [];
+      if (descansos.length === 0) {
+        setError("Configura al menos un descanso semanal del empleado.");
+        return;
+      }
+
+      for (let index = 0; index < descansos.length; index += 1) {
+        const descanso = descansos[index];
+        const descansoLabel = `Descanso ${index + 1}`;
+
+        if (!descanso?.semana_tipo || descanso.dia_semana === "") {
+          setError(`${descansoLabel}: selecciona semana tipo y día de descanso.`);
           return;
         }
 
-        for (let index = 0; index < descansos.length; index += 1) {
-          const descanso = descansos[index];
-          const descansoLabel = `Descanso ${index + 1}`;
+        const semanaTipo = String(descanso.semana_tipo).toUpperCase();
+        if (!["A", "B"].includes(semanaTipo)) {
+          setError(`${descansoLabel}: selecciona una semana tipo válida.`);
+          return;
+        }
 
-          if (!descanso?.semana_tipo || descanso.dia_semana === "") {
-            setError(`${descansoLabel}: selecciona semana tipo y día de descanso.`);
-            return;
-          }
+        const diaSemanaValue = Number(descanso.dia_semana);
+        if (
+          !Number.isInteger(diaSemanaValue) ||
+          diaSemanaValue < 0 ||
+          diaSemanaValue > 6
+        ) {
+          setError(`${descansoLabel}: selecciona un día de descanso válido.`);
+          return;
+        }
 
-          const semanaTipo = String(descanso.semana_tipo).toUpperCase();
-          if (!["A", "B"].includes(semanaTipo)) {
-            setError(`${descansoLabel}: selecciona una semana tipo válida.`);
-            return;
-          }
+        if (!descanso.fecha_inicio_vigencia) {
+          setError(`${descansoLabel}: indica la fecha de inicio de vigencia.`);
+          return;
+        }
 
-          const diaSemanaValue = Number(descanso.dia_semana);
+        if (descanso.fecha_fin_vigencia) {
+          const inicio = new Date(descanso.fecha_inicio_vigencia);
+          const fin = new Date(descanso.fecha_fin_vigencia);
           if (
-            !Number.isInteger(diaSemanaValue) ||
-            diaSemanaValue < 0 ||
-            diaSemanaValue > 6
+            Number.isNaN(inicio.getTime()) ||
+            Number.isNaN(fin.getTime()) ||
+            fin < inicio
           ) {
-            setError(`${descansoLabel}: selecciona un día de descanso válido.`);
+            setError(`${descansoLabel}: la fecha fin debe ser posterior al inicio.`);
             return;
-          }
-
-          if (!descanso.fecha_inicio_vigencia) {
-            setError(`${descansoLabel}: indica la fecha de inicio de vigencia.`);
-            return;
-          }
-
-          if (descanso.fecha_fin_vigencia) {
-            const inicio = new Date(descanso.fecha_inicio_vigencia);
-            const fin = new Date(descanso.fecha_fin_vigencia);
-            if (
-              Number.isNaN(inicio.getTime()) ||
-              Number.isNaN(fin.getTime()) ||
-              fin < inicio
-            ) {
-              setError(
-                `${descansoLabel}: la fecha fin debe ser posterior al inicio.`
-              );
-              return;
-            }
           }
         }
       }
@@ -267,14 +264,12 @@ export const useEmpleado = () => {
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
       if (editingEmpleado) payload.estado = Number(formData.estado);
-      if (!editingEmpleado) {
-        payload.descansos = (formData.descansos || []).map((descanso) => ({
-          semana_tipo: String(descanso.semana_tipo).toUpperCase(),
-          dia_semana: Number(descanso.dia_semana),
-          fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
-          fecha_fin_vigencia: descanso.fecha_fin_vigencia || null,
-        }));
-      }
+      payload.descansos = (formData.descansos || []).map((descanso) => ({
+        semana_tipo: String(descanso.semana_tipo).toUpperCase(),
+        dia_semana: Number(descanso.dia_semana),
+        fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
+        fecha_fin_vigencia: descanso.fecha_fin_vigencia || null,
+      }));
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
@@ -294,7 +289,7 @@ export const useEmpleado = () => {
     }
   };
 
-  const handleEdit = (empleado) => {
+  const handleEdit = async (empleado) => {
     setEditingEmpleado(empleado);
     setFormData({
       nombre: empleado.nombre || "",
@@ -334,8 +329,23 @@ export const useEmpleado = () => {
         empleado.estado !== undefined && empleado.estado !== null
           ? String(Number(empleado.estado))
           : "0",
+      descansos: [createEmptyDescanso(normalizeDate(empleado.fecha_ingreso))],
     });
     setModalOpen(true);
+
+    try {
+      const descansos = await descansoSemanalService.getByEmpleado(
+        empleado.id_empleado
+      );
+      const descansosNormalizados = normalizeDescansos(descansos, empleado);
+      setFormData((prev) => ({
+        ...prev,
+        descansos: descansosNormalizados,
+      }));
+    } catch (err) {
+      console.error(err);
+      setError("No fue posible cargar los descansos semanales.");
+    }
   };
 
   const resetForm = () => {
@@ -496,6 +506,27 @@ export const useEmpleado = () => {
     exportEmpleados,
     shareEmpleados,
   };
+};
+
+const normalizeDescansos = (descansos, empleado) => {
+  const fechaIngreso = normalizeDate(empleado?.fecha_ingreso);
+  if (!Array.isArray(descansos) || descansos.length === 0) {
+    return [createEmptyDescanso(fechaIngreso)];
+  }
+
+  const normalized = descansos
+    .map((descanso) => ({
+      semana_tipo: descanso?.semana_tipo ? String(descanso.semana_tipo).toUpperCase() : "A",
+      dia_semana:
+        descanso?.dia_semana !== undefined && descanso?.dia_semana !== null
+          ? String(descanso.dia_semana)
+          : "0",
+      fecha_inicio_vigencia: normalizeDate(descanso?.fecha_inicio_vigencia) || fechaIngreso,
+      fecha_fin_vigencia: normalizeDate(descanso?.fecha_fin_vigencia),
+    }))
+    .filter((descanso) => descanso.semana_tipo && descanso.dia_semana !== "");
+
+  return normalized.length > 0 ? normalized : [createEmptyDescanso(fechaIngreso)];
 };
 
 const normalizeDate = (value) => {

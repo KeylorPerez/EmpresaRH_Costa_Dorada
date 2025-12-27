@@ -691,7 +691,8 @@ const updateEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
-      estado
+      estado,
+      descansos
     } = req.body;
 
     if (tipo_pago && !['Diario', 'Quincenal', 'Mensual'].includes(tipo_pago)) {
@@ -733,7 +734,61 @@ const updateEmpleado = async (req, res) => {
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
         : null;
 
-    await Empleado.update(id, {
+    const shouldUpdateDescansos = Array.isArray(descansos);
+    const descansosNormalizados = [];
+
+    if (shouldUpdateDescansos) {
+      if (descansos.length === 0) {
+        return res.status(400).json({ error: 'Debes configurar al menos un descanso semanal.' });
+      }
+
+      for (let index = 0; index < descansos.length; index += 1) {
+        const descanso = descansos[index] || {};
+        const descansoLabel = `Descanso ${index + 1}`;
+
+        if (!descanso.semana_tipo || descanso.dia_semana === undefined || descanso.dia_semana === null) {
+          return res.status(400).json({ error: `${descansoLabel}: debes indicar semana tipo y día.` });
+        }
+
+        const semanaTipo = String(descanso.semana_tipo).trim().toUpperCase();
+        if (!['A', 'B'].includes(semanaTipo)) {
+          return res.status(400).json({ error: `${descansoLabel}: semana tipo inválida.` });
+        }
+
+        const diaSemanaValue = Number(descanso.dia_semana);
+        if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
+          return res.status(400).json({ error: `${descansoLabel}: día de descanso inválido.` });
+        }
+
+        const descansoInicio = descanso.fecha_inicio_vigencia || fecha_ingreso;
+        if (!descansoInicio) {
+          return res.status(400).json({ error: `${descansoLabel}: fecha de inicio requerida.` });
+        }
+
+        const descansoFin = descanso.fecha_fin_vigencia || null;
+        if (descansoFin) {
+          const inicio = new Date(descansoInicio);
+          const fin = new Date(descansoFin);
+          if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+            return res.status(400).json({ error: `${descansoLabel}: rango de vigencia inválido.` });
+          }
+        }
+
+        descansosNormalizados.push({
+          semana_tipo: semanaTipo,
+          dia_semana: diaSemanaValue,
+          fecha_inicio_vigencia: descansoInicio,
+          fecha_fin_vigencia: descansoFin,
+        });
+      }
+    }
+
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      await Empleado.update(id, {
       nombre,
       apellido,
       id_puesto,
@@ -765,7 +820,31 @@ const updateEmpleado = async (req, res) => {
           ? 1
           : 0,
       estado
-    });
+      }, { transaction });
+
+      if (shouldUpdateDescansos) {
+        await DescansoSemanal.deleteByEmpleado(id, { transaction });
+
+        for (const descanso of descansosNormalizados) {
+          await DescansoSemanal.create(
+            {
+              id_empleado: id,
+              semana_tipo: descanso.semana_tipo,
+              dia_semana: descanso.dia_semana,
+              es_descanso: 1,
+              fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
+              fecha_fin_vigencia: descanso.fecha_fin_vigencia,
+            },
+            { transaction }
+          );
+        }
+      }
+
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
 
     res.json({ message: 'Empleado actualizado correctamente' });
   } catch (err) {
