@@ -45,6 +45,15 @@ const Empleados = ({ mode = "admin" }) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const weekDayOptions = [
+    { value: "0", label: "Domingo" },
+    { value: "1", label: "Lunes" },
+    { value: "2", label: "Martes" },
+    { value: "3", label: "Miércoles" },
+    { value: "4", label: "Jueves" },
+    { value: "5", label: "Viernes" },
+    { value: "6", label: "Sábado" },
+  ];
 
   const currentEmpleadoId = useMemo(() => {
     const possibleIds = [
@@ -469,6 +478,72 @@ const Empleados = ({ mode = "admin" }) => {
                         <option value="Mensual">Mensual</option>
                       </select>
                     </div>
+                    {!editingEmpleado && (
+                      <>
+                        <div className="md:col-span-2 mt-2">
+                          <h3 className="text-sm font-semibold text-gray-700">
+                            Descanso semanal
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            Configura el ciclo A/B y el día libre para el colaborador.
+                          </p>
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-sm font-medium text-gray-700 mb-1">
+                            Semana tipo<span className="text-red-500"> *</span>
+                          </label>
+                          <select
+                            name="descanso_semana_tipo"
+                            value={formData.descanso_semana_tipo}
+                            onChange={handleChange}
+                            required
+                            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="A">Semana A</option>
+                            <option value="B">Semana B</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-sm font-medium text-gray-700 mb-1">
+                            Día de descanso<span className="text-red-500"> *</span>
+                          </label>
+                          <select
+                            name="descanso_dia_semana"
+                            value={formData.descanso_dia_semana}
+                            onChange={handleChange}
+                            required
+                            className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {weekDayOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <FormField
+                          label="Inicio de vigencia"
+                          name="descanso_fecha_inicio_vigencia"
+                          type="date"
+                          value={formData.descanso_fecha_inicio_vigencia}
+                          onChange={handleChange}
+                          required
+                        />
+                        <FormField
+                          label="Fin de vigencia"
+                          name="descanso_fecha_fin_vigencia"
+                          type="date"
+                          value={formData.descanso_fecha_fin_vigencia}
+                          onChange={handleChange}
+                          optional
+                        />
+                        <div className="md:col-span-2 -mt-2">
+                          <p className="text-xs text-gray-500">
+                            Si no defines fin de vigencia, el descanso se mantiene vigente.
+                          </p>
+                        </div>
+                      </>
+                    )}
                     <FormField
                       label="Bonificación fija"
                       name="bonificacion_fija"

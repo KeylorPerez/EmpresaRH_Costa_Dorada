@@ -41,26 +41,30 @@ class Empleado {
   }
 
   // Crear un nuevo empleado
-  static async create({
-    nombre,
-    apellido,
-    id_puesto,
-    cedula,
-    fecha_nacimiento,
-    telefono,
-    email,
-    fecha_ingreso,
-    salario_monto,
-    tipo_pago,
-    bonificacion_fija,
-    porcentaje_ccss,
-    usa_deduccion_fija,
-    deduccion_fija,
-    permitir_marcacion_fuera = 0,
-  }) {
+  static async create(
+    {
+      nombre,
+      apellido,
+      id_puesto,
+      cedula,
+      fecha_nacimiento,
+      telefono,
+      email,
+      fecha_ingreso,
+      salario_monto,
+      tipo_pago,
+      bonificacion_fija,
+      porcentaje_ccss,
+      usa_deduccion_fija,
+      deduccion_fija,
+      permitir_marcacion_fuera = 0,
+    },
+    { transaction } = {}
+  ) {
     try {
       const pool = await poolPromise;
-      const result = await pool.request()
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      const result = await request
         .input('nombre', sql.NVarChar(150), nombre)
         .input('apellido', sql.NVarChar(150), apellido)
         .input('id_puesto', sql.Int, id_puesto)
@@ -198,4 +202,3 @@ class Empleado {
 }
 
 module.exports = Empleado;
-

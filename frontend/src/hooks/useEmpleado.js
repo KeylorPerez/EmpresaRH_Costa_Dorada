@@ -26,6 +26,10 @@ const createEmptyFormData = () => ({
   usa_deduccion_fija: "0",
   deduccion_fija: "0",
   permitir_marcacion_fuera: "0",
+  descanso_semana_tipo: "A",
+  descanso_dia_semana: "0",
+  descanso_fecha_inicio_vigencia: "",
+  descanso_fecha_fin_vigencia: "",
   estado: "1", // 👈 por defecto activo
 });
 
@@ -74,6 +78,13 @@ export const useEmpleado = () => {
       if (name === "usa_deduccion_fija" && value !== "1") {
         return { ...prev, [name]: value, deduccion_fija: "0" };
       }
+      if (
+        name === "fecha_ingreso" &&
+        !editingEmpleado &&
+        !prev.descanso_fecha_inicio_vigencia
+      ) {
+        return { ...prev, [name]: value, descanso_fecha_inicio_vigencia: value };
+      }
       return { ...prev, [name]: value };
     });
   };
@@ -101,6 +112,43 @@ export const useEmpleado = () => {
         const fieldsList = missingFields.join(", ");
         setError(`Completa los campos obligatorios: ${fieldsList}.`);
         return;
+      }
+
+      if (!editingEmpleado) {
+        if (!formData.descanso_semana_tipo || formData.descanso_dia_semana === "") {
+          setError("Configura el descanso semanal del empleado.");
+          return;
+        }
+
+        const semanaTipo = String(formData.descanso_semana_tipo).toUpperCase();
+        if (!["A", "B"].includes(semanaTipo)) {
+          setError("Selecciona una semana tipo válida para el descanso.");
+          return;
+        }
+
+        const diaSemanaValue = Number(formData.descanso_dia_semana);
+        if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
+          setError("Selecciona un día de descanso válido.");
+          return;
+        }
+
+        if (!formData.descanso_fecha_inicio_vigencia) {
+          setError("Indica la fecha de inicio de la vigencia del descanso.");
+          return;
+        }
+
+        if (formData.descanso_fecha_fin_vigencia) {
+          const inicio = new Date(formData.descanso_fecha_inicio_vigencia);
+          const fin = new Date(formData.descanso_fecha_fin_vigencia);
+          if (
+            Number.isNaN(inicio.getTime()) ||
+            Number.isNaN(fin.getTime()) ||
+            fin < inicio
+          ) {
+            setError("La fecha de fin de vigencia debe ser posterior al inicio.");
+            return;
+          }
+        }
       }
 
       const salarioValue = Number(String(formData.salario_monto).trim());
@@ -159,6 +207,13 @@ export const useEmpleado = () => {
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
       if (editingEmpleado) payload.estado = Number(formData.estado);
+      if (!editingEmpleado) {
+        payload.descanso_semana_tipo = String(formData.descanso_semana_tipo).toUpperCase();
+        payload.descanso_dia_semana = Number(formData.descanso_dia_semana);
+        payload.descanso_fecha_inicio_vigencia = formData.descanso_fecha_inicio_vigencia;
+        payload.descanso_fecha_fin_vigencia =
+          formData.descanso_fecha_fin_vigencia || null;
+      }
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
