@@ -492,6 +492,7 @@ const createEmpleado = async (req, res) => {
       descanso_dia_semana,
       descanso_fecha_inicio_vigencia,
       descanso_fecha_fin_vigencia,
+      descansos,
     } = req.body;
 
     const puestoId = Number(id_puesto);
@@ -515,32 +516,61 @@ const createEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Tipo de pago inválido' });
     }
 
-    if (!descanso_semana_tipo || descanso_dia_semana === undefined || descanso_dia_semana === null) {
-      return res.status(400).json({ error: 'Debes configurar el descanso semanal del empleado.' });
+    const descansoItems =
+      Array.isArray(descansos) && descansos.length > 0
+        ? descansos
+        : [
+            {
+              semana_tipo: descanso_semana_tipo,
+              dia_semana: descanso_dia_semana,
+              fecha_inicio_vigencia: descanso_fecha_inicio_vigencia,
+              fecha_fin_vigencia: descanso_fecha_fin_vigencia,
+            },
+          ];
+
+    if (!descansoItems.length) {
+      return res.status(400).json({ error: 'Debes configurar al menos un descanso semanal.' });
     }
 
-    const semanaTipo = String(descanso_semana_tipo).trim().toUpperCase();
-    if (!['A', 'B'].includes(semanaTipo)) {
-      return res.status(400).json({ error: 'Semana tipo inválida para descanso.' });
-    }
+    const descansosNormalizados = [];
+    for (let index = 0; index < descansoItems.length; index += 1) {
+      const descanso = descansoItems[index] || {};
+      const descansoLabel = `Descanso ${index + 1}`;
 
-    const diaSemanaValue = Number(descanso_dia_semana);
-    if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
-      return res.status(400).json({ error: 'Día de descanso inválido.' });
-    }
-
-    const descansoInicio = descanso_fecha_inicio_vigencia || fecha_ingreso;
-    if (!descansoInicio) {
-      return res.status(400).json({ error: 'Fecha de inicio de descanso requerida.' });
-    }
-
-    const descansoFin = descanso_fecha_fin_vigencia || null;
-    if (descansoFin) {
-      const inicio = new Date(descansoInicio);
-      const fin = new Date(descansoFin);
-      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
-        return res.status(400).json({ error: 'Rango de vigencia de descanso inválido.' });
+      if (!descanso.semana_tipo || descanso.dia_semana === undefined || descanso.dia_semana === null) {
+        return res.status(400).json({ error: `${descansoLabel}: debes indicar semana tipo y día.` });
       }
+
+      const semanaTipo = String(descanso.semana_tipo).trim().toUpperCase();
+      if (!['A', 'B'].includes(semanaTipo)) {
+        return res.status(400).json({ error: `${descansoLabel}: semana tipo inválida.` });
+      }
+
+      const diaSemanaValue = Number(descanso.dia_semana);
+      if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
+        return res.status(400).json({ error: `${descansoLabel}: día de descanso inválido.` });
+      }
+
+      const descansoInicio = descanso.fecha_inicio_vigencia || fecha_ingreso;
+      if (!descansoInicio) {
+        return res.status(400).json({ error: `${descansoLabel}: fecha de inicio requerida.` });
+      }
+
+      const descansoFin = descanso.fecha_fin_vigencia || null;
+      if (descansoFin) {
+        const inicio = new Date(descansoInicio);
+        const fin = new Date(descansoFin);
+        if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+          return res.status(400).json({ error: `${descansoLabel}: rango de vigencia inválido.` });
+        }
+      }
+
+      descansosNormalizados.push({
+        semana_tipo: semanaTipo,
+        dia_semana: diaSemanaValue,
+        fecha_inicio_vigencia: descansoInicio,
+        fecha_fin_vigencia: descansoFin,
+      });
     }
 
     const bonificacionValue =
@@ -605,17 +635,19 @@ const createEmpleado = async (req, res) => {
         { transaction }
       );
 
-      await DescansoSemanal.create(
-        {
-          id_empleado: empleado.id_empleado,
-          semana_tipo: semanaTipo,
-          dia_semana: diaSemanaValue,
-          es_descanso: 1,
-          fecha_inicio_vigencia: descansoInicio,
-          fecha_fin_vigencia: descansoFin,
-        },
-        { transaction }
-      );
+      for (const descanso of descansosNormalizados) {
+        await DescansoSemanal.create(
+          {
+            id_empleado: empleado.id_empleado,
+            semana_tipo: descanso.semana_tipo,
+            dia_semana: descanso.dia_semana,
+            es_descanso: 1,
+            fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
+            fecha_fin_vigencia: descanso.fecha_fin_vigencia,
+          },
+          { transaction }
+        );
+      }
 
       await transaction.commit();
     } catch (err) {
