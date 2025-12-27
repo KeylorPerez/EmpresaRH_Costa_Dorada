@@ -830,11 +830,20 @@ export const usePlanilla = () => {
     const { name, value } = event.target;
 
     if (name === "id_empleado") {
+      const empleadoSeleccionado = empleados.find(
+        (empleado) => String(empleado.id_empleado) === String(value)
+      );
+      const bonificacionDefault = empleadoSeleccionado?.bonificacion_fija;
+      const bonificacionNormalizada =
+        bonificacionDefault === undefined || bonificacionDefault === null
+          ? "0"
+          : normalizeNumber(bonificacionDefault);
       autoDiasRef.current = null;
       setAttendanceState({ loading: false, dias: null, fechas: [], error: "", message: "" });
       setFormData((prev) => ({
         ...prev,
         id_empleado: value,
+        bonificaciones: bonificacionNormalizada,
         dias_trabajados: "",
         dias_descuento: "0",
         monto_descuento_dias: "",
@@ -850,7 +859,7 @@ export const usePlanilla = () => {
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
-  }, []);
+  }, [empleados]);
 
   const resetForm = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
@@ -1791,34 +1800,6 @@ export const usePlanilla = () => {
   const totalPrestamosSeleccionados = useMemo(() => {
     return prestamosSeleccionados.reduce((sum, prestamo) => sum + prestamo.monto_pago, 0);
   }, [prestamosSeleccionados]);
-
-  useEffect(() => {
-    if (!modalOpen || editingPlanilla) return;
-    if (!formData.id_empleado) return;
-
-    const empleadoSeleccionado = empleados.find(
-      (empleado) => String(empleado.id_empleado) === formData.id_empleado
-    );
-
-    if (!empleadoSeleccionado) return;
-
-    const bonificacionDefault = empleadoSeleccionado.bonificacion_fija;
-
-    if (bonificacionDefault === undefined || bonificacionDefault === null) return;
-
-    const valorNormalizado = normalizeNumber(bonificacionDefault);
-
-    setFormData((prev) => {
-      if (prev.bonificaciones === valorNormalizado) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        bonificaciones: valorNormalizado,
-      };
-    });
-  }, [modalOpen, editingPlanilla, formData.id_empleado, empleados]);
 
   useEffect(() => {
     if (!modalOpen || editingPlanilla) return;
