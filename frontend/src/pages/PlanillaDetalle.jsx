@@ -199,20 +199,27 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
         const data = await planillaService.getDetalle(planillaId);
         if (cancelled) return;
         const dias = Array.isArray(data)
-          ? data.map((item) => ({
-              ...item,
-              asistio: Boolean(item.asistio),
-              es_dia_doble: Boolean(item.es_dia_doble),
-              estado: typeof item.estado === "string" && item.estado.trim() !== ""
-                ? item.estado
-                : "Presente",
-              justificado:
-                item.justificado === true || item.justificado === 1 || item.justificado === "1",
-              justificacion:
-                item.justificacion === undefined || item.justificacion === null
-                  ? ""
-                  : String(item.justificacion),
-            }))
+          ? data.map((item) => {
+              const estadoNormalizado =
+                typeof item.estado === "string" && item.estado.trim() !== ""
+                  ? item.estado.trim()
+                  : "Presente";
+              const esDescanso = estadoNormalizado.toLowerCase() === "descanso";
+
+              return {
+                ...item,
+                asistio: Boolean(item.asistio),
+                es_dia_doble: Boolean(item.es_dia_doble),
+                estado: estadoNormalizado,
+                es_descanso: esDescanso,
+                justificado:
+                  item.justificado === true || item.justificado === 1 || item.justificado === "1",
+                justificacion:
+                  item.justificacion === undefined || item.justificacion === null
+                    ? ""
+                    : String(item.justificacion),
+              };
+            })
           : [];
         setDetalle(dias);
       } catch (err) {
@@ -400,6 +407,25 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
       { dias: 0, asistencias: 0, total: 0 }
     );
   }, [detalle]);
+
+  const resolveAsistenciaBadge = (item) => {
+    if (item.es_descanso && !item.asistio) {
+      return {
+        label: "Descanso",
+        className: "bg-slate-100 text-slate-700",
+      };
+    }
+
+    const asistenciaTexto =
+      (typeof item.asistencia === "string" && item.asistencia.trim().length > 0
+        ? item.asistencia.trim()
+        : null) || (item.asistio ? "Asistió" : "Faltó");
+
+    return {
+      label: asistenciaTexto,
+      className: item.asistio ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600",
+    };
+  };
 
   const planillaDisplayName = useMemo(
     () => (planillaInfo ? buildPlanillaDisplayName(planillaInfo) : ""),
@@ -694,20 +720,12 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                             </td>
                             <td className="px-4 py-3 text-center">
                               {(() => {
-                                const asistenciaTexto =
-                                  (typeof item.asistencia === "string" && item.asistencia.trim().length > 0
-                                    ? item.asistencia.trim()
-                                    : null) || (item.asistio ? "Asistió" : "Faltó");
-
+                                const asistenciaBadge = resolveAsistenciaBadge(item);
                                 return (
                                   <span
-                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                      item.asistio
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-red-100 text-red-600"
-                                    }`}
+                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${asistenciaBadge.className}`}
                                   >
-                                    {asistenciaTexto}
+                                    {asistenciaBadge.label}
                                   </span>
                                 );
                               })()}
