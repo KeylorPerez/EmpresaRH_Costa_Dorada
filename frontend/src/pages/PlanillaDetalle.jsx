@@ -82,6 +82,22 @@ const formatPeriodo = (inicio, fin) => {
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
 };
 
+const formatHora = (value) => {
+  if (!value) return "-";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "-";
+    const [hours, minutes] = trimmed.split(":");
+    if (hours && minutes) {
+      return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+    }
+    return trimmed;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+};
+
 const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();
 
 const formatearTipoPago = (valor, { etiquetaPorDefecto = "Sin tipo" } = {}) => {
@@ -650,6 +666,12 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                         <tr>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Fecha</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Día</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">
+                            Hora entrada
+                          </th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">
+                            Hora salida
+                          </th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Asistencia</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Tipo</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Estado</th>
@@ -664,6 +686,12 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                           <tr key={`${item.id_detalle}-${item.fecha}`} className="hover:bg-gray-50/70">
                             <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(item.fecha)}</td>
                             <td className="px-4 py-3 capitalize text-gray-600">{item.dia_semana}</td>
+                            <td className="px-4 py-3 text-center text-gray-600">
+                              {formatHora(item.hora_entrada)}
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-600">
+                              {formatHora(item.hora_salida)}
+                            </td>
                             <td className="px-4 py-3 text-center">
                               {(() => {
                                 const asistenciaTexto =

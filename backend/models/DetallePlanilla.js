@@ -290,44 +290,57 @@ class DetallePlanilla {
     } = await resolveSchemaState();
 
     const justificacionSelect = hasJustificacionColumn
-      ? 'justificacion'
+      ? 'dp.justificacion'
       : 'NULL AS justificacion';
 
-    const justificadoSelect = hasJustificadoColumn ? 'justificado' : 'NULL AS justificado';
+    const justificadoSelect = hasJustificadoColumn ? 'dp.justificado' : 'NULL AS justificado';
 
     const estadoSelect = hasEstadoColumn
-      ? 'estado'
-      : "CASE WHEN asistio = 1 THEN 'Presente' ELSE 'Ausente' END AS estado";
+      ? 'dp.estado'
+      : "CASE WHEN dp.asistio = 1 THEN 'Presente' ELSE 'Ausente' END AS estado";
 
     const asistenciaSelect = hasAsistenciaColumn
-      ? 'asistencia'
-      : "CASE WHEN asistio = 1 THEN 'Asistió' ELSE 'Faltó' END AS asistencia";
+      ? 'dp.asistencia'
+      : "CASE WHEN dp.asistio = 1 THEN 'Asistió' ELSE 'Faltó' END AS asistencia";
 
     const tipoSelect = hasTipoColumn
-      ? 'tipo'
-      : "CASE WHEN es_dia_doble = 1 THEN 'Día doble' ELSE 'Normal' END AS tipo";
+      ? 'dp.tipo'
+      : "CASE WHEN dp.es_dia_doble = 1 THEN 'Día doble' ELSE 'Normal' END AS tipo";
 
     const result = await pool
       .request()
       .input('id_planilla', sql.Int, id_planilla)
       .query(`
         SELECT
-          id_detalle,
-          id_planilla,
-          fecha,
-          dia_semana,
-          salario_dia,
-          asistio,
-          es_dia_doble,
+          dp.id_detalle,
+          dp.id_planilla,
+          dp.fecha,
+          dp.dia_semana,
+          dp.salario_dia,
+          dp.asistio,
+          dp.es_dia_doble,
           ${asistenciaSelect},
           ${tipoSelect},
           ${estadoSelect},
           ${justificadoSelect},
           ${justificacionSelect},
-          observacion
-        FROM DetallePlanilla
-        WHERE id_planilla = @id_planilla
-        ORDER BY fecha ASC
+          dp.observacion,
+          marcas.hora_entrada,
+          marcas.hora_salida
+        FROM DetallePlanilla dp
+        INNER JOIN Planilla p ON p.id_planilla = dp.id_planilla
+        LEFT JOIN (
+          SELECT
+            a.fecha,
+            a.id_empleado,
+            MIN(CASE WHEN a.tipo_marca = 'entrada' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_entrada,
+            MAX(CASE WHEN a.tipo_marca = 'salida' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_salida
+          FROM Asistencia a
+          WHERE a.tipo_marca IN ('entrada', 'salida')
+          GROUP BY a.fecha, a.id_empleado
+        ) AS marcas ON marcas.fecha = dp.fecha AND marcas.id_empleado = p.id_empleado
+        WHERE dp.id_planilla = @id_planilla
+        ORDER BY dp.fecha ASC
       `);
     return result.recordset;
   }
