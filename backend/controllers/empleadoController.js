@@ -6,6 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const Empleado = require('../models/Empleado');
+const DescansoSemanal = require('../models/DescansoSemanal');
+const { sql, poolPromise } = require('../db/db');
 
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
@@ -486,6 +488,10 @@ const createEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
+      descanso_semana_tipo,
+      descanso_dia_semana,
+      descanso_fecha_inicio_vigencia,
+      descanso_fecha_fin_vigencia,
     } = req.body;
 
     const puestoId = Number(id_puesto);
@@ -507,6 +513,34 @@ const createEmpleado = async (req, res) => {
 
     if (!['Diario', 'Quincenal', 'Mensual'].includes(tipo_pago)) {
       return res.status(400).json({ error: 'Tipo de pago inválido' });
+    }
+
+    if (!descanso_semana_tipo || descanso_dia_semana === undefined || descanso_dia_semana === null) {
+      return res.status(400).json({ error: 'Debes configurar el descanso semanal del empleado.' });
+    }
+
+    const semanaTipo = String(descanso_semana_tipo).trim().toUpperCase();
+    if (!['A', 'B'].includes(semanaTipo)) {
+      return res.status(400).json({ error: 'Semana tipo inválida para descanso.' });
+    }
+
+    const diaSemanaValue = Number(descanso_dia_semana);
+    if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
+      return res.status(400).json({ error: 'Día de descanso inválido.' });
+    }
+
+    const descansoInicio = descanso_fecha_inicio_vigencia || fecha_ingreso;
+    if (!descansoInicio) {
+      return res.status(400).json({ error: 'Fecha de inicio de descanso requerida.' });
+    }
+
+    const descansoFin = descanso_fecha_fin_vigencia || null;
+    if (descansoFin) {
+      const inicio = new Date(descansoInicio);
+      const fin = new Date(descansoFin);
+      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+        return res.status(400).json({ error: 'Rango de vigencia de descanso inválido.' });
+      }
     }
 
     const bonificacionValue =
@@ -544,23 +578,50 @@ const createEmpleado = async (req, res) => {
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
         : false;
 
-    const empleado = await Empleado.create({
-      nombre,
-      apellido,
-      id_puesto: puestoId,
-      cedula,
-      fecha_nacimiento: fecha_nacimiento || null,
-      telefono: telefono || null,
-      email: email || null,
-      fecha_ingreso,
-      salario_monto: salarioValue,
-      tipo_pago,
-      bonificacion_fija: bonificacionValue,
-      porcentaje_ccss: porcentajeValue,
-      usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
-      deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
-      permitir_marcacion_fuera: permitirMarcacionFueraValue ? 1 : 0,
-    });
+    const pool = await poolPromise;
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    let empleado;
+    try {
+      empleado = await Empleado.create(
+        {
+          nombre,
+          apellido,
+          id_puesto: puestoId,
+          cedula,
+          fecha_nacimiento: fecha_nacimiento || null,
+          telefono: telefono || null,
+          email: email || null,
+          fecha_ingreso,
+          salario_monto: salarioValue,
+          tipo_pago,
+          bonificacion_fija: bonificacionValue,
+          porcentaje_ccss: porcentajeValue,
+          usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
+          deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
+          permitir_marcacion_fuera: permitirMarcacionFueraValue ? 1 : 0,
+        },
+        { transaction }
+      );
+
+      await DescansoSemanal.create(
+        {
+          id_empleado: empleado.id_empleado,
+          semana_tipo: semanaTipo,
+          dia_semana: diaSemanaValue,
+          es_descanso: 1,
+          fecha_inicio_vigencia: descansoInicio,
+          fecha_fin_vigencia: descansoFin,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
+    }
 
     res.status(201).json({
       message: 'Empleado creado correctamente',

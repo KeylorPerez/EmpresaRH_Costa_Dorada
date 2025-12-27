@@ -5,6 +5,38 @@
 const { poolPromise, sql } = require('../db/db');
 
 class DescansoSemanal {
+  static async create(
+    {
+      id_empleado,
+      semana_tipo,
+      dia_semana,
+      es_descanso = 1,
+      fecha_inicio_vigencia,
+      fecha_fin_vigencia = null,
+    },
+    { transaction } = {}
+  ) {
+    try {
+      const pool = await poolPromise;
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      await request
+        .input('id_empleado', sql.Int, id_empleado)
+        .input('semana_tipo', sql.Char(1), semana_tipo)
+        .input('dia_semana', sql.TinyInt, dia_semana)
+        .input('es_descanso', sql.Bit, es_descanso)
+        .input('fecha_inicio_vigencia', sql.Date, fecha_inicio_vigencia)
+        .input('fecha_fin_vigencia', sql.Date, fecha_fin_vigencia)
+        .query(`
+          INSERT INTO DescansoSemanal
+            (id_empleado, semana_tipo, dia_semana, es_descanso, fecha_inicio_vigencia, fecha_fin_vigencia, created_at, updated_at)
+          VALUES
+            (@id_empleado, @semana_tipo, @dia_semana, @es_descanso, @fecha_inicio_vigencia, @fecha_fin_vigencia, GETDATE(), GETDATE());
+        `);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   static async getByEmpleadoInRange(id_empleado, periodo_inicio, periodo_fin) {
     try {
       const pool = await poolPromise;
