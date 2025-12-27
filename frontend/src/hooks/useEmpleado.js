@@ -34,6 +34,7 @@ const createEmptyFormData = () => ({
   usa_deduccion_fija: "1",
   deduccion_fija: "0",
   permitir_marcacion_fuera: "0",
+  descanso_semanal_habilitado: false,
   descansos: [createEmptyDescanso()],
   estado: "1", // 👈 por defecto activo
 });
@@ -108,6 +109,19 @@ export const useEmpleado = () => {
     });
   };
 
+  const handleToggleDescanso = (enabled) => {
+    setFormData((prev) => {
+      if (enabled && (!prev.descansos || prev.descansos.length === 0)) {
+        return {
+          ...prev,
+          descanso_semanal_habilitado: true,
+          descansos: [createEmptyDescanso(prev.fecha_ingreso || "")],
+        };
+      }
+      return { ...prev, descanso_semanal_habilitado: enabled };
+    });
+  };
+
   const addDescanso = () => {
     setFormData((prev) => ({
       ...prev,
@@ -158,52 +172,54 @@ export const useEmpleado = () => {
         return;
       }
 
-      const descansos = Array.isArray(formData.descansos) ? formData.descansos : [];
-      if (descansos.length === 0) {
-        setError("Configura al menos un descanso semanal del empleado.");
-        return;
-      }
-
-      for (let index = 0; index < descansos.length; index += 1) {
-        const descanso = descansos[index];
-        const descansoLabel = `Descanso ${index + 1}`;
-
-        if (!descanso?.semana_tipo || descanso.dia_semana === "") {
-          setError(`${descansoLabel}: selecciona semana tipo y día de descanso.`);
+      if (formData.descanso_semanal_habilitado) {
+        const descansos = Array.isArray(formData.descansos) ? formData.descansos : [];
+        if (descansos.length === 0) {
+          setError("Configura al menos un descanso semanal del empleado.");
           return;
         }
 
-        const semanaTipo = String(descanso.semana_tipo).toUpperCase();
-        if (!["A", "B"].includes(semanaTipo)) {
-          setError(`${descansoLabel}: selecciona una semana tipo válida.`);
-          return;
-        }
+        for (let index = 0; index < descansos.length; index += 1) {
+          const descanso = descansos[index];
+          const descansoLabel = `Descanso ${index + 1}`;
 
-        const diaSemanaValue = Number(descanso.dia_semana);
-        if (
-          !Number.isInteger(diaSemanaValue) ||
-          diaSemanaValue < 0 ||
-          diaSemanaValue > 6
-        ) {
-          setError(`${descansoLabel}: selecciona un día de descanso válido.`);
-          return;
-        }
-
-        if (!descanso.fecha_inicio_vigencia) {
-          setError(`${descansoLabel}: indica la fecha de inicio de vigencia.`);
-          return;
-        }
-
-        if (descanso.fecha_fin_vigencia) {
-          const inicio = new Date(descanso.fecha_inicio_vigencia);
-          const fin = new Date(descanso.fecha_fin_vigencia);
-          if (
-            Number.isNaN(inicio.getTime()) ||
-            Number.isNaN(fin.getTime()) ||
-            fin < inicio
-          ) {
-            setError(`${descansoLabel}: la fecha fin debe ser posterior al inicio.`);
+          if (!descanso?.semana_tipo || descanso.dia_semana === "") {
+            setError(`${descansoLabel}: selecciona semana tipo y día de descanso.`);
             return;
+          }
+
+          const semanaTipo = String(descanso.semana_tipo).toUpperCase();
+          if (!["A", "B"].includes(semanaTipo)) {
+            setError(`${descansoLabel}: selecciona una semana tipo válida.`);
+            return;
+          }
+
+          const diaSemanaValue = Number(descanso.dia_semana);
+          if (
+            !Number.isInteger(diaSemanaValue) ||
+            diaSemanaValue < 0 ||
+            diaSemanaValue > 6
+          ) {
+            setError(`${descansoLabel}: selecciona un día de descanso válido.`);
+            return;
+          }
+
+          if (!descanso.fecha_inicio_vigencia) {
+            setError(`${descansoLabel}: indica la fecha de inicio de vigencia.`);
+            return;
+          }
+
+          if (descanso.fecha_fin_vigencia) {
+            const inicio = new Date(descanso.fecha_inicio_vigencia);
+            const fin = new Date(descanso.fecha_fin_vigencia);
+            if (
+              Number.isNaN(inicio.getTime()) ||
+              Number.isNaN(fin.getTime()) ||
+              fin < inicio
+            ) {
+              setError(`${descansoLabel}: la fecha fin debe ser posterior al inicio.`);
+              return;
+            }
           }
         }
       }
@@ -264,12 +280,14 @@ export const useEmpleado = () => {
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
       if (editingEmpleado) payload.estado = Number(formData.estado);
-      payload.descansos = (formData.descansos || []).map((descanso) => ({
-        semana_tipo: String(descanso.semana_tipo).toUpperCase(),
-        dia_semana: Number(descanso.dia_semana),
-        fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
-        fecha_fin_vigencia: descanso.fecha_fin_vigencia || null,
-      }));
+      payload.descansos = formData.descanso_semanal_habilitado
+        ? (formData.descansos || []).map((descanso) => ({
+            semana_tipo: String(descanso.semana_tipo).toUpperCase(),
+            dia_semana: Number(descanso.dia_semana),
+            fecha_inicio_vigencia: descanso.fecha_inicio_vigencia,
+            fecha_fin_vigencia: descanso.fecha_fin_vigencia || null,
+          }))
+        : [];
 
       if (editingEmpleado) {
         await empleadoService.update(editingEmpleado.id_empleado, payload);
@@ -329,6 +347,7 @@ export const useEmpleado = () => {
         empleado.estado !== undefined && empleado.estado !== null
           ? String(Number(empleado.estado))
           : "0",
+      descanso_semanal_habilitado: false,
       descansos: [createEmptyDescanso(normalizeDate(empleado.fecha_ingreso))],
     });
     setModalOpen(true);
@@ -341,6 +360,7 @@ export const useEmpleado = () => {
       setFormData((prev) => ({
         ...prev,
         descansos: descansosNormalizados,
+        descanso_semanal_habilitado: descansosNormalizados.length > 0,
       }));
     } catch (err) {
       console.error(err);
@@ -492,6 +512,7 @@ export const useEmpleado = () => {
     formData,
     handleChange,
     handleDescansoChange,
+    handleToggleDescanso,
     addDescanso,
     removeDescanso,
     handleSubmit,
@@ -511,7 +532,7 @@ export const useEmpleado = () => {
 const normalizeDescansos = (descansos, empleado) => {
   const fechaIngreso = normalizeDate(empleado?.fecha_ingreso);
   if (!Array.isArray(descansos) || descansos.length === 0) {
-    return [createEmptyDescanso(fechaIngreso)];
+    return [];
   }
 
   const normalized = descansos
@@ -526,7 +547,7 @@ const normalizeDescansos = (descansos, empleado) => {
     }))
     .filter((descanso) => descanso.semana_tipo && descanso.dia_semana !== "");
 
-  return normalized.length > 0 ? normalized : [createEmptyDescanso(fechaIngreso)];
+  return normalized;
 };
 
 const normalizeDate = (value) => {
