@@ -481,123 +481,121 @@ const Empleados = ({ mode = "admin" }) => {
                         <option value="Mensual">Mensual</option>
                       </select>
                     </div>
-                    {!editingEmpleado && (
-                      <>
-                        <div className="md:col-span-2 mt-2">
-                          <h3 className="text-sm font-semibold text-gray-700">
-                            Descanso semanal
-                          </h3>
-                          <p className="text-xs text-gray-500">
-                            Configura los ciclos A/B y los días libres para el colaborador.
-                          </p>
-                        </div>
-                        <div className="md:col-span-2 flex flex-col gap-3">
-                          {formData.descansos.map((descanso, index) => (
-                            <div
-                              key={`descanso-${index}`}
-                              className="rounded-lg border border-gray-200 p-3"
-                            >
-                              <div className="flex items-center justify-between mb-3">
-                                <p className="text-sm font-semibold text-gray-700">
-                                  Descanso {index + 1}
-                                </p>
-                                <button
-                                  type="button"
-                                  className="text-xs text-red-600 hover:text-red-700 disabled:text-gray-300"
-                                  onClick={() => removeDescanso(index)}
-                                  disabled={formData.descansos.length === 1}
-                                >
-                                  Quitar
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col">
-                                  <label className="text-sm font-medium text-gray-700 mb-1">
-                                    Semana tipo<span className="text-red-500"> *</span>
-                                  </label>
-                                  <select
-                                    value={descanso.semana_tipo}
-                                    onChange={(event) =>
-                                      handleDescansoChange(
-                                        index,
-                                        "semana_tipo",
-                                        event.target.value
-                                      )
-                                    }
-                                    required
-                                    className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  >
-                                    <option value="A">Semana A</option>
-                                    <option value="B">Semana B</option>
-                                  </select>
-                                </div>
-                                <div className="flex flex-col">
-                                  <label className="text-sm font-medium text-gray-700 mb-1">
-                                    Día de descanso<span className="text-red-500"> *</span>
-                                  </label>
-                                  <select
-                                    value={descanso.dia_semana}
-                                    onChange={(event) =>
-                                      handleDescansoChange(
-                                        index,
-                                        "dia_semana",
-                                        event.target.value
-                                      )
-                                    }
-                                    required
-                                    className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  >
-                                    {weekDayOptions.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <FormField
-                                  label="Inicio de vigencia"
-                                  name={`descanso_fecha_inicio_vigencia_${index}`}
-                                  type="date"
-                                  value={descanso.fecha_inicio_vigencia}
+                    <>
+                      <div className="md:col-span-2 mt-2">
+                        <h3 className="text-sm font-semibold text-gray-700">
+                          Descanso semanal
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Configura los ciclos A/B y los días libres para el colaborador.
+                        </p>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col gap-3">
+                        {formData.descansos.map((descanso, index) => (
+                          <div
+                            key={`descanso-${index}`}
+                            className="rounded-lg border border-gray-200 p-3"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-sm font-semibold text-gray-700">
+                                Descanso {index + 1}
+                              </p>
+                              <button
+                                type="button"
+                                className="text-xs text-red-600 hover:text-red-700 disabled:text-gray-300"
+                                onClick={() => removeDescanso(index)}
+                                disabled={formData.descansos.length === 1}
+                              >
+                                Quitar
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex flex-col">
+                                <label className="text-sm font-medium text-gray-700 mb-1">
+                                  Semana tipo<span className="text-red-500"> *</span>
+                                </label>
+                                <select
+                                  value={descanso.semana_tipo}
                                   onChange={(event) =>
                                     handleDescansoChange(
                                       index,
-                                      "fecha_inicio_vigencia",
+                                      "semana_tipo",
                                       event.target.value
                                     )
                                   }
                                   required
-                                />
-                                <FormField
-                                  label="Fin de vigencia"
-                                  name={`descanso_fecha_fin_vigencia_${index}`}
-                                  type="date"
-                                  value={descanso.fecha_fin_vigencia}
+                                  className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="A">Semana A</option>
+                                  <option value="B">Semana B</option>
+                                </select>
+                              </div>
+                              <div className="flex flex-col">
+                                <label className="text-sm font-medium text-gray-700 mb-1">
+                                  Día de descanso<span className="text-red-500"> *</span>
+                                </label>
+                                <select
+                                  value={descanso.dia_semana}
                                   onChange={(event) =>
                                     handleDescansoChange(
                                       index,
-                                      "fecha_fin_vigencia",
+                                      "dia_semana",
                                       event.target.value
                                     )
                                   }
-                                  optional
-                                />
+                                  required
+                                  className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  {weekDayOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
+                              <FormField
+                                label="Inicio de vigencia"
+                                name={`descanso_fecha_inicio_vigencia_${index}`}
+                                type="date"
+                                value={descanso.fecha_inicio_vigencia}
+                                onChange={(event) =>
+                                  handleDescansoChange(
+                                    index,
+                                    "fecha_inicio_vigencia",
+                                    event.target.value
+                                  )
+                                }
+                                required
+                              />
+                              <FormField
+                                label="Fin de vigencia"
+                                name={`descanso_fecha_fin_vigencia_${index}`}
+                                type="date"
+                                value={descanso.fecha_fin_vigencia}
+                                onChange={(event) =>
+                                  handleDescansoChange(
+                                    index,
+                                    "fecha_fin_vigencia",
+                                    event.target.value
+                                  )
+                                }
+                                optional
+                              />
                             </div>
-                          ))}
-                          <div>
-                            <Button variant="secondary" size="sm" onClick={addDescanso}>
-                              Agregar descanso
-                            </Button>
                           </div>
+                        ))}
+                        <div>
+                          <Button variant="secondary" size="sm" onClick={addDescanso}>
+                            Agregar descanso
+                          </Button>
                         </div>
-                        <div className="md:col-span-2 -mt-2">
-                          <p className="text-xs text-gray-500">
-                            Si no defines fin de vigencia, el descanso se mantiene vigente.
-                          </p>
-                        </div>
-                      </>
-                    )}
+                      </div>
+                      <div className="md:col-span-2 -mt-2">
+                        <p className="text-xs text-gray-500">
+                          Si no defines fin de vigencia, el descanso se mantiene vigente.
+                        </p>
+                      </div>
+                    </>
                     <FormField
                       label="Bonificación fija"
                       name="bonificacion_fija"

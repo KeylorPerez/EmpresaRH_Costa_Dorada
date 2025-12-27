@@ -100,6 +100,29 @@ const getDescansosSummary = async (req, res) => {
   }
 };
 
+const getDescansosByEmpleado = async (req, res) => {
+  try {
+    const idEmpleado = Number(req.params.id);
+    if (!Number.isInteger(idEmpleado) || idEmpleado <= 0) {
+      return res.status(400).json({ error: 'ID de empleado inválido.' });
+    }
+
+    if (req.user?.id_rol !== 1) {
+      const empleadoId = Number(req.user?.id_empleado);
+      if (!empleadoId || empleadoId !== idEmpleado) {
+        return res.status(403).json({ error: 'No tienes permisos para ver estos descansos.' });
+      }
+    }
+
+    const descansos = await DescansoSemanal.getByEmpleado(idEmpleado);
+    return res.json(descansos);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'No fue posible obtener los descansos.' });
+  }
+};
+
 module.exports = {
   getDescansosSummary,
+  getDescansosByEmpleado,
 };
