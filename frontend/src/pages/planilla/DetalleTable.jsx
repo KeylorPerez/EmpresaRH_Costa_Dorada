@@ -50,6 +50,23 @@ const DetalleTable = ({
     normalizeDetalleSalario(rowIndex);
   };
 
+  const getEstadoBadgeClass = (estado) => {
+    switch ((estado || "").toString().toLowerCase()) {
+      case "presente":
+        return "bg-emerald-100 text-emerald-700";
+      case "permiso":
+        return "bg-blue-100 text-blue-700";
+      case "vacaciones":
+        return "bg-amber-100 text-amber-700";
+      case "incapacidad":
+        return "bg-purple-100 text-purple-700";
+      case "ausente":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   return (
     <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
       <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -103,7 +120,9 @@ const DetalleTable = ({
                 <select
                   value={detalle.estado || "Presente"}
                   onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className={`w-full rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold ${getEstadoBadgeClass(
+                    detalle.estado || "Presente"
+                  )} focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300`}
                 >
                   {detalleEstadoOptions.map((option) => (
                     <option key={option.value} value={option.value}>
