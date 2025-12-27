@@ -67,6 +67,21 @@ const DetalleTable = ({
     }
   };
 
+  const formatHora = (value) => {
+    if (!value) return "-";
+    if (typeof value === "string") {
+      const clean = value.split(".")[0]?.trim() || "";
+      if (/^\d{2}:\d{2}/.test(clean)) {
+        return clean.slice(0, 5);
+      }
+      return clean.length > 0 ? clean : "-";
+    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+    }
+    return String(value);
+  };
+
   return (
     <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
       <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -74,6 +89,8 @@ const DetalleTable = ({
           <tr>
             <th className="px-4 py-3 text-left">Fecha</th>
             <th className="px-4 py-3 text-left">Día</th>
+            <th className="px-4 py-3 text-center">Hora entrada</th>
+            <th className="px-4 py-3 text-center">Hora salida</th>
             <th className="px-4 py-3 text-center">Asistencia</th>
             <th className="px-4 py-3 text-center">Tipo</th>
             <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
@@ -90,6 +107,12 @@ const DetalleTable = ({
                 {formatDate(detalle.fecha)}
               </td>
               <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
+              <td className="px-4 py-3 text-center text-gray-600">
+                {formatHora(detalle.hora_entrada)}
+              </td>
+              <td className="px-4 py-3 text-center text-gray-600">
+                {formatHora(detalle.hora_salida)}
+              </td>
               <td className="px-4 py-3 text-center">
                 <button
                   type="button"
