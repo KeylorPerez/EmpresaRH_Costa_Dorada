@@ -157,6 +157,12 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     detalle.observacion !== undefined && detalle.observacion !== null
       ? String(detalle.observacion)
       : "";
+  const horaEntradaRaw = detalle.hora_entrada ?? detalle.horaEntrada ?? null;
+  const horaSalidaRaw = detalle.hora_salida ?? detalle.horaSalida ?? null;
+  const hora_entrada =
+    typeof horaEntradaRaw === "string" ? horaEntradaRaw.trim() : horaEntradaRaw;
+  const hora_salida =
+    typeof horaSalidaRaw === "string" ? horaSalidaRaw.trim() : horaSalidaRaw;
 
   return {
     fecha,
@@ -170,6 +176,8 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     justificado,
     justificacion,
     observacion,
+    hora_entrada,
+    hora_salida,
     autoJustificacion: false,
     asistenciaManual: true,
   };
