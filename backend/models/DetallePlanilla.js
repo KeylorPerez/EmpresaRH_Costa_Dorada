@@ -338,7 +338,7 @@ class DetallePlanilla {
           FROM Asistencia a
           WHERE a.tipo_marca IN ('entrada', 'salida')
           GROUP BY CONVERT(date, a.fecha), a.id_empleado
-        ) AS marcas ON marcas.fecha = dp.fecha AND marcas.id_empleado = p.id_empleado
+        ) AS marcas ON marcas.fecha = CONVERT(date, dp.fecha) AND marcas.id_empleado = p.id_empleado
         WHERE dp.id_planilla = @id_planilla
         ORDER BY dp.fecha ASC
       `);
