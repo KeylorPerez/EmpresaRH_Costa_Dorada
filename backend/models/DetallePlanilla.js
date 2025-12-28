@@ -331,13 +331,13 @@ class DetallePlanilla {
         INNER JOIN Planilla p ON p.id_planilla = dp.id_planilla
         LEFT JOIN (
           SELECT
-            a.fecha,
+            CONVERT(date, a.fecha) AS fecha,
             a.id_empleado,
             MIN(CASE WHEN a.tipo_marca = 'entrada' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_entrada,
             MAX(CASE WHEN a.tipo_marca = 'salida' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_salida
           FROM Asistencia a
           WHERE a.tipo_marca IN ('entrada', 'salida')
-          GROUP BY a.fecha, a.id_empleado
+          GROUP BY CONVERT(date, a.fecha), a.id_empleado
         ) AS marcas ON marcas.fecha = dp.fecha AND marcas.id_empleado = p.id_empleado
         WHERE dp.id_planilla = @id_planilla
         ORDER BY dp.fecha ASC
