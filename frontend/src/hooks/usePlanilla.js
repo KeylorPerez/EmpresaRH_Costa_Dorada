@@ -478,6 +478,26 @@ export const usePlanilla = () => {
     );
   }, [empleados, formData.id_empleado]);
 
+  const descansoProgramadoActivo = useMemo(() => {
+    if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
+      return false;
+    }
+
+    const keyActual = `${formData.id_empleado}-${formData.periodo_inicio}-${formData.periodo_fin}`;
+
+    if (detalleDescansos.key !== keyActual) {
+      return false;
+    }
+
+    return Array.isArray(detalleDescansos.fechas) && detalleDescansos.fechas.length > 0;
+  }, [
+    detalleDescansos.fechas,
+    detalleDescansos.key,
+    formData.id_empleado,
+    formData.periodo_fin,
+    formData.periodo_inicio,
+  ]);
+
   const salarioDetalleReferencia = useMemo(() => {
     if (!empleadoDetalleActivo) {
       return 0;
@@ -569,6 +589,8 @@ export const usePlanilla = () => {
         return detalles;
       }
 
+      const permitirAusenciasPagadas = !descansoProgramadoActivo;
+
       if (esPagoDiario) {
         const updates = new Map();
 
@@ -645,7 +667,7 @@ export const usePlanilla = () => {
           salarioCalculado = baseNormalizado / 2;
         } else if (detalle.es_dia_doble) {
           salarioCalculado = baseNormalizado;
-        } else if (ausenciasPagadas < MAX_AUSENCIAS_PAGADAS) {
+        } else if (permitirAusenciasPagadas && ausenciasPagadas < MAX_AUSENCIAS_PAGADAS) {
           salarioCalculado = baseNormalizado;
           ausenciasPagadas += 1;
         } else if (esAusenteSinJustificar && ausenciasSinJustificar >= MAX_AUSENCIAS_SIN_JUSTIFICAR) {
@@ -673,7 +695,7 @@ export const usePlanilla = () => {
         return update ? { ...detalle, ...update } : detalle;
       });
     },
-    [applySalarioBaseFallback, esPagoDiario],
+    [applySalarioBaseFallback, descansoProgramadoActivo, esPagoDiario],
   );
 
   const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
