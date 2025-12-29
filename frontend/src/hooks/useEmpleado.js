@@ -18,6 +18,20 @@ const createEmptyDescanso = (fechaIngreso = "") => ({
   fecha_fin_vigencia: "",
 });
 
+const normalizeFlag = (value, fallback = "0") => {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return fallback;
+  }
+  return numericValue === 1 ? "1" : "0";
+};
+
 const createEmptyFormData = () => ({
   nombre: "",
   apellido: "",
@@ -333,28 +347,18 @@ export const useEmpleado = () => {
         empleado.porcentaje_ccss !== undefined && empleado.porcentaje_ccss !== null
           ? String(empleado.porcentaje_ccss)
           : "9.34",
-      usa_deduccion_fija:
-        empleado.usa_deduccion_fija !== undefined && empleado.usa_deduccion_fija !== null
-          ? String(Number(Boolean(empleado.usa_deduccion_fija)))
-          : "0",
+      usa_deduccion_fija: normalizeFlag(empleado.usa_deduccion_fija),
       deduccion_fija:
         empleado.deduccion_fija !== undefined && empleado.deduccion_fija !== null
           ? String(empleado.deduccion_fija)
           : "0",
-      permitir_marcacion_fuera:
-        empleado.permitir_marcacion_fuera !== undefined && empleado.permitir_marcacion_fuera !== null
-          ? String(Number(Boolean(empleado.permitir_marcacion_fuera)))
-          : "0",
+      permitir_marcacion_fuera: normalizeFlag(empleado.permitir_marcacion_fuera),
       planilla_automatica:
-        empleado.planilla_automatica !== undefined && empleado.planilla_automatica !== null
-          ? String(Number(Boolean(empleado.planilla_automatica)))
-          : empleado.es_automatica !== undefined && empleado.es_automatica !== null
-          ? String(Number(Boolean(empleado.es_automatica)))
-          : "0",
-      estado:
-        empleado.estado !== undefined && empleado.estado !== null
-          ? String(Number(empleado.estado))
-          : "0",
+        normalizeFlag(
+          empleado.planilla_automatica,
+          normalizeFlag(empleado.es_automatica)
+        ) || "0",
+      estado: normalizeFlag(empleado.estado),
       descanso_semanal_habilitado: false,
       descansos: [createEmptyDescanso(normalizeDate(empleado.fecha_ingreso))],
     });
