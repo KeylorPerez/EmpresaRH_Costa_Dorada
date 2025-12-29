@@ -3,6 +3,7 @@
  * guarda los montos calculados para cada colaborador.
  */
 const { poolPromise, sql } = require('../db/db');
+const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
@@ -219,10 +220,15 @@ class Planilla {
         throw error;
       }
 
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const planillaColumnSelect = planillaColumn
+        ? `${planillaColumn} AS planilla_automatica`
+        : 'CAST(0 AS bit) AS planilla_automatica';
+
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, planilla_automatica
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, ${planillaColumnSelect}
           FROM Empleados
           WHERE id_empleado = @id_empleado
             AND estado = 1
@@ -540,10 +546,15 @@ class Planilla {
       const { id_empleado, periodo_inicio, periodo_fin, es_automatica: planillaAutomatica } =
         planillaRes.recordset[0];
 
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const planillaColumnSelect = planillaColumn
+        ? `${planillaColumn} AS planilla_automatica`
+        : 'CAST(0 AS bit) AS planilla_automatica';
+
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, planilla_automatica
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, ${planillaColumnSelect}
           FROM Empleados
           WHERE id_empleado = @id_empleado
         `);
