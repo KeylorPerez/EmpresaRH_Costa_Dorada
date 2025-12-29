@@ -34,6 +34,7 @@ const createEmptyFormData = () => ({
   usa_deduccion_fija: "1",
   deduccion_fija: "0",
   permitir_marcacion_fuera: "0",
+  es_automatica: "0",
   descanso_semanal_habilitado: false,
   descansos: [createEmptyDescanso()],
   estado: "1", // 👈 por defecto activo
@@ -274,6 +275,7 @@ export const useEmpleado = () => {
         usa_deduccion_fija: usaDeduccionFija ? 1 : 0,
         deduccion_fija: usaDeduccionFija ? deduccionFijaValue : 0,
         permitir_marcacion_fuera: formData.permitir_marcacion_fuera === "1" ? 1 : 0,
+        es_automatica: formData.es_automatica === "1" ? 1 : 0,
         telefono: normalizedTelefono === "" ? null : normalizedTelefono,
         email: normalizedEmail === "" ? null : normalizedEmail,
       };
@@ -342,6 +344,10 @@ export const useEmpleado = () => {
       permitir_marcacion_fuera:
         empleado.permitir_marcacion_fuera !== undefined && empleado.permitir_marcacion_fuera !== null
           ? String(Number(Boolean(empleado.permitir_marcacion_fuera)))
+          : "0",
+      es_automatica:
+        empleado.es_automatica !== undefined && empleado.es_automatica !== null
+          ? String(Number(Boolean(empleado.es_automatica)))
           : "0",
       estado:
         empleado.estado !== undefined && empleado.estado !== null

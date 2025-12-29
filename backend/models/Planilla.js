@@ -194,6 +194,7 @@ class Planilla {
     dias_dobles = 0,
     monto_dias_dobles = null,
     detalles = [],
+    es_automatica = null,
   }) {
     try {
       const pool = await poolPromise;
@@ -220,7 +221,7 @@ class Planilla {
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, es_automatica
           FROM Empleados
           WHERE id_empleado = @id_empleado
             AND estado = 1
@@ -240,6 +241,10 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
+      const esAutomatica =
+        es_automatica !== null && es_automatica !== undefined
+          ? Boolean(es_automatica)
+          : Boolean(empleado.es_automatica);
 
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
@@ -317,8 +322,16 @@ class Planilla {
         let diasParaPago = diasTrabajadosCalculados;
 
         if (diasParaPago === null) {
-          const diasAsistencia = await Asistencia.countDistinctDays(id_empleado, periodo_inicio, periodo_fin);
-          diasParaPago = diasAsistencia;
+          if (esAutomatica) {
+            const diasAsistencia = await Asistencia.countDistinctDays(
+              id_empleado,
+              periodo_inicio,
+              periodo_fin,
+            );
+            diasParaPago = diasAsistencia;
+          } else {
+            diasParaPago = 0;
+          }
         }
 
         if (!Number.isFinite(diasParaPago) || diasParaPago < 0) {
@@ -424,11 +437,12 @@ class Planilla {
           .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
           .input('horas_extras', sql.Decimal(12, 2), pagoHorasExtras)
           .input('pago_neto', sql.Decimal(12, 2), pago_neto)
-          .input('fecha_pago', sql.Date, fecha_pago);
+          .input('fecha_pago', sql.Date, fecha_pago)
+          .input('es_automatica', sql.Bit, esAutomatica ? 1 : 0);
 
         const result = await request.query(`
-          INSERT INTO Planilla (id_empleado, periodo_inicio, periodo_fin, salario_bruto, deducciones, ccss_deduccion, horas_extras, bonificaciones, pago_neto, fecha_pago, created_at, updated_at)
-          VALUES (@id_empleado, @periodo_inicio, @periodo_fin, @salario_bruto, @deducciones, @ccss_deduccion, @horas_extras, @bonificaciones, @pago_neto, @fecha_pago, GETDATE(), GETDATE());
+          INSERT INTO Planilla (id_empleado, periodo_inicio, periodo_fin, salario_bruto, deducciones, ccss_deduccion, horas_extras, bonificaciones, pago_neto, fecha_pago, es_automatica, created_at, updated_at)
+          VALUES (@id_empleado, @periodo_inicio, @periodo_fin, @salario_bruto, @deducciones, @ccss_deduccion, @horas_extras, @bonificaciones, @pago_neto, @fecha_pago, @es_automatica, GETDATE(), GETDATE());
           SELECT SCOPE_IDENTITY() AS id_planilla;
         `);
 
@@ -502,6 +516,7 @@ class Planilla {
       dias_dobles = 0,
       monto_dias_dobles = null,
       detalles = [],
+      es_automatica = null,
     }
   ) {
     try {
@@ -510,7 +525,7 @@ class Planilla {
       const planillaRes = await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
         .query(
-          `SELECT id_empleado, periodo_inicio, periodo_fin
+          `SELECT id_empleado, periodo_inicio, periodo_fin, es_automatica
            FROM Planilla
            WHERE id_planilla = @id_planilla`
         );
@@ -519,7 +534,8 @@ class Planilla {
         throw new Error('Planilla no encontrada');
       }
 
-      const { id_empleado, periodo_inicio, periodo_fin } = planillaRes.recordset[0];
+      const { id_empleado, periodo_inicio, periodo_fin, es_automatica: planillaAutomatica } =
+        planillaRes.recordset[0];
 
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
@@ -538,6 +554,10 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
+      const esAutomatica =
+        es_automatica !== null && es_automatica !== undefined
+          ? Boolean(es_automatica)
+          : Boolean(planillaAutomatica);
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;
@@ -589,12 +609,16 @@ class Planilla {
         const diasValor = Number(dias_trabajados);
         let diasParaPago;
         if (Number.isNaN(diasValor) || diasValor < 0) {
-          const diasAsistencia = await Asistencia.countDistinctDays(
-            id_empleado,
-            periodo_inicio,
-            periodo_fin,
-          );
-          diasParaPago = Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+          if (esAutomatica) {
+            const diasAsistencia = await Asistencia.countDistinctDays(
+              id_empleado,
+              periodo_inicio,
+              periodo_fin,
+            );
+            diasParaPago = Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+          } else {
+            diasParaPago = 0;
+          }
         } else {
           diasParaPago = diasValor;
         }
@@ -685,6 +709,7 @@ class Planilla {
           .input('salario_bruto', sql.Decimal(12, 2), salario_bruto)
           .input('pago_neto', sql.Decimal(12, 2), pago_neto)
           .input('fecha_pago', sql.Date, fecha_pago)
+          .input('es_automatica', sql.Bit, esAutomatica ? 1 : 0)
           .query(`
             UPDATE Planilla
             SET horas_extras = @horas_extras,
@@ -694,6 +719,7 @@ class Planilla {
                 salario_bruto = @salario_bruto,
                 pago_neto = @pago_neto,
                 fecha_pago = @fecha_pago,
+                es_automatica = COALESCE(@es_automatica, es_automatica),
                 updated_at = GETDATE()
             WHERE id_planilla = @id_planilla
           `);

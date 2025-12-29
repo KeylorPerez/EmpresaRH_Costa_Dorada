@@ -103,7 +103,7 @@ const Empleados = ({ mode = "admin" }) => {
   const isExportingPdf = exportingFormat === "pdf";
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
-  const columnsCount = isAdmin ? 13 : 12;
+  const columnsCount = isAdmin ? 14 : 13;
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -229,6 +229,7 @@ const Empleados = ({ mode = "admin" }) => {
                           <th className="px-4 py-3">Bonificación Fija</th>
                           <th className="px-4 py-3">% CCSS</th>
                           <th className="px-4 py-3">Deducción CCSS</th>
+                          <th className="px-4 py-3">Planilla automática</th>
                           <th className="px-4 py-3">Marcación externa</th>
                           <th className="px-4 py-3">Estado</th>
                           {isAdmin && <th className="px-4 py-3">Acciones</th>}
@@ -290,6 +291,17 @@ const Empleados = ({ mode = "admin" }) => {
                                 </td>
                                 <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">
                                   {formatCurrency(calculateCCSSDeduccion(emp))}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      Number(emp.es_automatica) === 1
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    {Number(emp.es_automatica) === 1 ? "Automática" : "Manual"}
+                                  </span>
                                 </td>
                                 <td className="px-4 py-3">
                                   <span
@@ -695,6 +707,23 @@ const Empleados = ({ mode = "admin" }) => {
                       <p className="text-xs text-gray-500 mt-1">
                         Al activar esta opción, el colaborador podrá registrar asistencia aún si se encuentra fuera del rango de la
                         oficina.
+                      </p>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-sm font-medium text-gray-700 mb-1">
+                        Planilla automática por asistencia
+                      </label>
+                      <select
+                        name="es_automatica"
+                        value={formData.es_automatica}
+                        onChange={handleChange}
+                        className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="0">No</option>
+                        <option value="1">Sí</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Al activarlo, los días pagados se calculan automáticamente desde asistencia.
                       </p>
                     </div>
                     {editingEmpleado && (
