@@ -295,12 +295,14 @@ const Empleados = ({ mode = "admin" }) => {
                                 <td className="px-4 py-3">
                                   <span
                                     className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                      Number(emp.es_automatica) === 1
+                                      Number(emp.planilla_automatica ?? emp.es_automatica) === 1
                                         ? "bg-emerald-100 text-emerald-700"
                                         : "bg-gray-100 text-gray-600"
                                     }`}
                                   >
-                                    {Number(emp.es_automatica) === 1 ? "Automática" : "Manual"}
+                                    {Number(emp.planilla_automatica ?? emp.es_automatica) === 1
+                                      ? "Automática"
+                                      : "Manual"}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
@@ -714,8 +716,8 @@ const Empleados = ({ mode = "admin" }) => {
                         Planilla automática por asistencia
                       </label>
                       <select
-                        name="es_automatica"
-                        value={formData.es_automatica}
+                        name="planilla_automatica"
+                        value={formData.planilla_automatica}
                         onChange={handleChange}
                         className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >

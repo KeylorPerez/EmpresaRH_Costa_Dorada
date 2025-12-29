@@ -221,7 +221,7 @@ class Planilla {
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, es_automatica
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, planilla_automatica
           FROM Empleados
           WHERE id_empleado = @id_empleado
             AND estado = 1
@@ -244,7 +244,7 @@ class Planilla {
       const esAutomatica =
         es_automatica !== null && es_automatica !== undefined
           ? Boolean(es_automatica)
-          : Boolean(empleado.es_automatica);
+          : Boolean(empleado.planilla_automatica);
 
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
