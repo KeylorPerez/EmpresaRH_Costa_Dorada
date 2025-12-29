@@ -1573,6 +1573,27 @@ const Planilla = () => {
                                 />
                               </div>
 
+                              {tipoPago === "Diario" && (
+                                <div className="flex flex-col gap-2">
+                                  <label htmlFor="es_automatica" className="text-sm font-medium text-gray-700">
+                                    Planilla automática por asistencia
+                                  </label>
+                                  <select
+                                    id="es_automatica"
+                                    name="es_automatica"
+                                    value={formData.es_automatica}
+                                    onChange={handleChange}
+                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="0">No</option>
+                                    <option value="1">Sí</option>
+                                  </select>
+                                  <p className="text-xs text-gray-500">
+                                    Actívalo para sincronizar días trabajados con la asistencia registrada.
+                                  </p>
+                                </div>
+                              )}
+
                               <div className="flex flex-col gap-2">
                                 <label htmlFor="horas_extras" className="text-sm font-medium text-gray-700">
                                   Monto horas extras (₡)
@@ -1764,7 +1785,7 @@ const Planilla = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={refreshAttendance}
-                                disabled={attendanceState.loading}
+                                disabled={attendanceState.loading || formData.es_automatica !== "1"}
                               >
                                 {attendanceState.loading ? "Recalculando..." : "Recalcular asistencia"}
                               </Button>

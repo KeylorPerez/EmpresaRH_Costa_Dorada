@@ -488,6 +488,7 @@ const createEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
+      es_automatica,
       descanso_semana_tipo,
       descanso_dia_semana,
       descanso_fecha_inicio_vigencia,
@@ -608,6 +609,11 @@ const createEmpleado = async (req, res) => {
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
         : false;
 
+    const esAutomaticaValue =
+      es_automatica !== undefined && es_automatica !== null
+        ? Number(es_automatica) === 1 || es_automatica === true
+        : false;
+
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -631,6 +637,7 @@ const createEmpleado = async (req, res) => {
           usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
           deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
           permitir_marcacion_fuera: permitirMarcacionFueraValue ? 1 : 0,
+          es_automatica: esAutomaticaValue ? 1 : 0,
         },
         { transaction }
       );
@@ -691,6 +698,7 @@ const updateEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
+      es_automatica,
       estado,
       descansos
     } = req.body;
@@ -732,6 +740,11 @@ const updateEmpleado = async (req, res) => {
     const permitirMarcacionFueraValue =
       permitir_marcacion_fuera !== undefined && permitir_marcacion_fuera !== null
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
+        : null;
+
+    const esAutomaticaValue =
+      es_automatica !== undefined && es_automatica !== null
+        ? Number(es_automatica) === 1 || es_automatica === true
         : null;
 
     const shouldUpdateDescansos = Array.isArray(descansos);
@@ -817,6 +830,12 @@ const updateEmpleado = async (req, res) => {
         permitirMarcacionFueraValue === null
           ? null
           : permitirMarcacionFueraValue
+          ? 1
+          : 0,
+      es_automatica:
+        esAutomaticaValue === null
+          ? null
+          : esAutomaticaValue
           ? 1
           : 0,
       estado

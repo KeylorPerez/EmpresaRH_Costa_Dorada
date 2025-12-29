@@ -389,6 +389,7 @@ const createEmptyForm = (defaults = {}) => ({
   monto_descuento_dias: "",
   dias_dobles: "",
   monto_dias_dobles: "",
+  es_automatica: "0",
   ...defaults,
 });
 
@@ -958,6 +959,11 @@ export const usePlanilla = () => {
         (empleado) => String(empleado.id_empleado) === String(value)
       );
       const bonificacionDefault = empleadoSeleccionado?.bonificacion_fija;
+      const esAutomaticaDefault =
+        empleadoSeleccionado?.es_automatica !== undefined &&
+        empleadoSeleccionado?.es_automatica !== null
+          ? String(Number(Boolean(empleadoSeleccionado.es_automatica)))
+          : "0";
       const bonificacionNormalizada =
         bonificacionDefault === undefined || bonificacionDefault === null
           ? "0"
@@ -968,6 +974,7 @@ export const usePlanilla = () => {
         ...prev,
         id_empleado: value,
         bonificaciones: bonificacionNormalizada,
+        es_automatica: esAutomaticaDefault,
         dias_trabajados: "",
         dias_descuento: "0",
         monto_descuento_dias: "",
@@ -980,6 +987,14 @@ export const usePlanilla = () => {
     if (name === "periodo_inicio" || name === "periodo_fin") {
       autoDiasRef.current = null;
       setAttendanceState((prev) => ({ ...prev, dias: null, fechas: [], error: "", message: "" }));
+    }
+
+    if (name === "es_automatica") {
+      autoDiasRef.current = null;
+      setAttendanceState({ loading: false, dias: null, fechas: [], error: "", message: "" });
+      setDetalleDias((prev) =>
+        prev.map((detalle) => ({ ...detalle, asistenciaManual: true }))
+      );
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -1036,6 +1051,11 @@ export const usePlanilla = () => {
       monto_descuento_dias: "",
       dias_dobles: "",
       monto_dias_dobles: "",
+      es_automatica:
+        canonicalPlanilla?.es_automatica !== undefined &&
+        canonicalPlanilla?.es_automatica !== null
+          ? String(Number(Boolean(canonicalPlanilla.es_automatica)))
+          : "0",
     });
     setError("");
     setPrestamoSelections({});
@@ -2044,6 +2064,18 @@ export const usePlanilla = () => {
       return;
     }
 
+    if (formData.es_automatica !== "1") {
+      setAttendanceState((prev) => ({
+        ...prev,
+        loading: false,
+        dias: null,
+        fechas: [],
+        error: "",
+        message: "Planilla manual: asistencia automática desactivada.",
+      }));
+      return;
+    }
+
     const inicio = parseDateSafe(formData.periodo_inicio);
     const fin = parseDateSafe(formData.periodo_fin);
 
@@ -2117,6 +2149,7 @@ export const usePlanilla = () => {
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
+    formData.es_automatica,
     empleados,
     attendanceReloadKey,
     syncDetalleWithAttendance,
@@ -2135,6 +2168,10 @@ export const usePlanilla = () => {
       return;
     }
 
+    if (formData.es_automatica !== "1") {
+      return;
+    }
+
     if (attendanceState.dias === null) {
       return;
     }
@@ -2144,6 +2181,7 @@ export const usePlanilla = () => {
     modalOpen,
     editingPlanilla,
     formData.id_empleado,
+    formData.es_automatica,
     detalleDias,
     empleados,
     attendanceState.dias,
@@ -2235,6 +2273,15 @@ export const usePlanilla = () => {
       return;
     }
 
+    if (formData.es_automatica !== "1") {
+      setAttendanceState((prev) => ({
+        ...prev,
+        error: "",
+        message: "Planilla manual: asistencia automática desactivada.",
+      }));
+      return;
+    }
+
     setAttendanceState((prev) => ({ ...prev, error: "", message: "" }));
     setAttendanceReloadKey((key) => key + 1);
   }, [
@@ -2242,6 +2289,7 @@ export const usePlanilla = () => {
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
+    formData.es_automatica,
     buildDetalleDias,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
@@ -2378,6 +2426,7 @@ export const usePlanilla = () => {
         monto_descuento_dias: parseOptionalNonNegative(formData.monto_descuento_dias),
         dias_dobles: diasDoblesPayload,
         monto_dias_dobles: montoDoblesPayload,
+        es_automatica: formData.es_automatica === "1" ? 1 : 0,
         detalles: detallesPayload,
       };
 

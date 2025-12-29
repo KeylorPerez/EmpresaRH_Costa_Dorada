@@ -908,6 +908,7 @@ const calcularPlanilla = async (req, res) => {
       dias_dobles = null,
       monto_dias_dobles = null,
       detalles = [],
+      es_automatica = null,
     } = req.body;
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
@@ -931,6 +932,7 @@ const calcularPlanilla = async (req, res) => {
       dias_dobles,
       monto_dias_dobles,
       detalles,
+      es_automatica,
     });
 
     return res.status(201).json({
@@ -968,6 +970,7 @@ const updatePlanilla = async (req, res) => {
       dias_dobles = null,
       monto_dias_dobles = null,
       detalles = [],
+      es_automatica = null,
     } = req.body;
 
     await Planilla.update(id_planilla, {
@@ -981,6 +984,7 @@ const updatePlanilla = async (req, res) => {
       dias_dobles,
       monto_dias_dobles,
       detalles,
+      es_automatica,
     });
 
     return res.json({ message: 'Planilla actualizada correctamente' });
