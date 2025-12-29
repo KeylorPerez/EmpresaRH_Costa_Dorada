@@ -147,6 +147,7 @@ const Planilla = () => {
     togglePrestamo,
     updateMontoPrestamo,
     totalPrestamosSeleccionados,
+    employeeAllowsAutoAttendance,
     attendanceState,
     refreshAttendance,
     detalleDias,
@@ -1584,6 +1585,7 @@ const Planilla = () => {
                                     value={formData.es_automatica}
                                     onChange={handleChange}
                                     className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+                                    disabled={!employeeAllowsAutoAttendance}
                                   >
                                     <option value="0">No</option>
                                     <option value="1">Sí</option>
@@ -1591,6 +1593,11 @@ const Planilla = () => {
                                   <p className="text-xs text-gray-500">
                                     Actívalo para sincronizar días trabajados con la asistencia registrada.
                                   </p>
+                                  {!employeeAllowsAutoAttendance && (
+                                    <p className="text-xs text-amber-600">
+                                      Este colaborador tiene desactivado el cálculo automático por asistencia.
+                                    </p>
+                                  )}
                                 </div>
                               )}
 
