@@ -488,6 +488,7 @@ const createEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
+      planilla_automatica,
       es_automatica,
       descanso_semana_tipo,
       descanso_dia_semana,
@@ -609,9 +610,14 @@ const createEmpleado = async (req, res) => {
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
         : false;
 
-    const esAutomaticaValue =
-      es_automatica !== undefined && es_automatica !== null
-        ? Number(es_automatica) === 1 || es_automatica === true
+    const planillaAutomaticaRaw =
+      planilla_automatica !== undefined && planilla_automatica !== null
+        ? planilla_automatica
+        : es_automatica;
+
+    const planillaAutomaticaValue =
+      planillaAutomaticaRaw !== undefined && planillaAutomaticaRaw !== null
+        ? Number(planillaAutomaticaRaw) === 1 || planillaAutomaticaRaw === true
         : false;
 
     const pool = await poolPromise;
@@ -637,7 +643,7 @@ const createEmpleado = async (req, res) => {
           usa_deduccion_fija: usaDeduccionFijaValue ? 1 : 0,
           deduccion_fija: usaDeduccionFijaValue ? deduccionFijaValue : 0,
           permitir_marcacion_fuera: permitirMarcacionFueraValue ? 1 : 0,
-          es_automatica: esAutomaticaValue ? 1 : 0,
+          planilla_automatica: planillaAutomaticaValue ? 1 : 0,
         },
         { transaction }
       );
@@ -698,6 +704,7 @@ const updateEmpleado = async (req, res) => {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
+      planilla_automatica,
       es_automatica,
       estado,
       descansos
@@ -742,9 +749,14 @@ const updateEmpleado = async (req, res) => {
         ? Number(permitir_marcacion_fuera) === 1 || permitir_marcacion_fuera === true
         : null;
 
-    const esAutomaticaValue =
-      es_automatica !== undefined && es_automatica !== null
-        ? Number(es_automatica) === 1 || es_automatica === true
+    const planillaAutomaticaRaw =
+      planilla_automatica !== undefined && planilla_automatica !== null
+        ? planilla_automatica
+        : es_automatica;
+
+    const planillaAutomaticaValue =
+      planillaAutomaticaRaw !== undefined && planillaAutomaticaRaw !== null
+        ? Number(planillaAutomaticaRaw) === 1 || planillaAutomaticaRaw === true
         : null;
 
     const shouldUpdateDescansos = Array.isArray(descansos);
@@ -832,10 +844,10 @@ const updateEmpleado = async (req, res) => {
           : permitirMarcacionFueraValue
           ? 1
           : 0,
-      es_automatica:
-        esAutomaticaValue === null
+      planilla_automatica:
+        planillaAutomaticaValue === null
           ? null
-          : esAutomaticaValue
+          : planillaAutomaticaValue
           ? 1
           : 0,
       estado

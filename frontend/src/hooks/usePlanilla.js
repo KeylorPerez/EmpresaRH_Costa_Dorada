@@ -960,8 +960,11 @@ export const usePlanilla = () => {
       );
       const bonificacionDefault = empleadoSeleccionado?.bonificacion_fija;
       const esAutomaticaDefault =
-        empleadoSeleccionado?.es_automatica !== undefined &&
-        empleadoSeleccionado?.es_automatica !== null
+        empleadoSeleccionado?.planilla_automatica !== undefined &&
+        empleadoSeleccionado?.planilla_automatica !== null
+          ? String(Number(Boolean(empleadoSeleccionado.planilla_automatica)))
+          : empleadoSeleccionado?.es_automatica !== undefined &&
+            empleadoSeleccionado?.es_automatica !== null
           ? String(Number(Boolean(empleadoSeleccionado.es_automatica)))
           : "0";
       const bonificacionNormalizada =

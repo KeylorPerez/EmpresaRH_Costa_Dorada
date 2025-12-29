@@ -58,7 +58,7 @@ class Empleado {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera = 0,
-      es_automatica = 0,
+      planilla_automatica = 0,
     },
     { transaction } = {}
   ) {
@@ -81,12 +81,12 @@ class Empleado {
         .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija)
         .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija)
         .input('permitir_marcacion_fuera', sql.Bit, permitir_marcacion_fuera)
-        .input('es_automatica', sql.Bit, es_automatica)
+        .input('planilla_automatica', sql.Bit, planilla_automatica)
         .query(`
           INSERT INTO Empleados
-          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera, es_automatica, estado, created_at, updated_at)
+          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera, planilla_automatica, estado, created_at, updated_at)
           VALUES
-          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera, @es_automatica, 1, GETDATE(), GETDATE());
+          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera, @planilla_automatica, 1, GETDATE(), GETDATE());
 
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
@@ -115,7 +115,7 @@ class Empleado {
       usa_deduccion_fija,
       deduccion_fija,
       permitir_marcacion_fuera,
-      es_automatica,
+      planilla_automatica,
       estado,
     },
     { transaction } = {}
@@ -140,7 +140,11 @@ class Empleado {
         .input('usa_deduccion_fija', sql.Bit, usa_deduccion_fija !== undefined ? usa_deduccion_fija : null)
         .input('deduccion_fija', sql.Decimal(10, 2), deduccion_fija !== undefined ? deduccion_fija : null)
         .input('permitir_marcacion_fuera', sql.Bit, permitir_marcacion_fuera !== undefined ? permitir_marcacion_fuera : null)
-        .input('es_automatica', sql.Bit, es_automatica !== undefined ? es_automatica : null)
+        .input(
+          'planilla_automatica',
+          sql.Bit,
+          planilla_automatica !== undefined ? planilla_automatica : null
+        )
         .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
           UPDATE Empleados
@@ -160,7 +164,7 @@ class Empleado {
             usa_deduccion_fija = COALESCE(@usa_deduccion_fija, usa_deduccion_fija),
             deduccion_fija = COALESCE(@deduccion_fija, deduccion_fija),
             permitir_marcacion_fuera = COALESCE(@permitir_marcacion_fuera, permitir_marcacion_fuera),
-            es_automatica = COALESCE(@es_automatica, es_automatica),
+            planilla_automatica = COALESCE(@planilla_automatica, planilla_automatica),
             estado = COALESCE(@estado, estado),
             updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
