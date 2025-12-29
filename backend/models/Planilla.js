@@ -9,6 +9,7 @@ const DiasDobles = require('./DiasDobles');
 
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
+const isTruthyBit = (value) => Number(value) === 1 || value === true;
 
 const calcularDiasPeriodo = (inicio, fin) => {
   if (!inicio || !fin) return 0;
@@ -241,10 +242,10 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
-      const employeeAllowsAuto = Boolean(empleado.planilla_automatica);
+      const employeeAllowsAuto = isTruthyBit(empleado.planilla_automatica);
       const esAutomatica = employeeAllowsAuto
         ? es_automatica !== null && es_automatica !== undefined
-          ? Boolean(es_automatica)
+          ? isTruthyBit(es_automatica)
           : true
         : false;
 
@@ -556,11 +557,11 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
-      const employeeAllowsAuto = Boolean(empleado.planilla_automatica);
+      const employeeAllowsAuto = isTruthyBit(empleado.planilla_automatica);
       const esAutomatica = employeeAllowsAuto
         ? es_automatica !== null && es_automatica !== undefined
-          ? Boolean(es_automatica)
-          : Boolean(planillaAutomatica)
+          ? isTruthyBit(es_automatica)
+          : isTruthyBit(planillaAutomatica)
         : false;
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
