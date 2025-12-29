@@ -393,6 +393,20 @@ const createEmptyForm = (defaults = {}) => ({
   ...defaults,
 });
 
+const normalizeFlag = (value, fallback = "0") => {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return fallback;
+  }
+  return numericValue === 1 ? "1" : "0";
+};
+
 const formatInputDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -967,7 +981,7 @@ export const usePlanilla = () => {
         ? selectedEmpleado.planilla_automatica
         : selectedEmpleado.es_automatica;
     if (value === undefined || value === null) return true;
-    return Number(value) === 1 || value === true;
+    return normalizeFlag(value, "1") === "1";
   }, [selectedEmpleado]);
 
   const handleChange = useCallback((event) => {
@@ -982,10 +996,10 @@ export const usePlanilla = () => {
       const esAutomaticaDefault =
         empleadoSeleccionado?.planilla_automatica !== undefined &&
         empleadoSeleccionado?.planilla_automatica !== null
-          ? String(Number(Boolean(empleadoSeleccionado.planilla_automatica)))
+          ? normalizeFlag(empleadoSeleccionado.planilla_automatica, "0")
           : empleadoSeleccionado?.es_automatica !== undefined &&
             empleadoSeleccionado?.es_automatica !== null
-          ? String(Number(Boolean(empleadoSeleccionado.es_automatica)))
+          ? normalizeFlag(empleadoSeleccionado.es_automatica, "0")
           : "0";
       const bonificacionNormalizada =
         bonificacionDefault === undefined || bonificacionDefault === null
@@ -1080,7 +1094,7 @@ export const usePlanilla = () => {
       es_automatica:
         canonicalPlanilla?.es_automatica !== undefined &&
         canonicalPlanilla?.es_automatica !== null
-          ? String(Number(Boolean(canonicalPlanilla.es_automatica)))
+          ? normalizeFlag(canonicalPlanilla.es_automatica, "0")
           : "0",
     });
     setError("");
