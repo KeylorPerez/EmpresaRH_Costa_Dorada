@@ -241,10 +241,12 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
-      const esAutomatica =
-        es_automatica !== null && es_automatica !== undefined
+      const employeeAllowsAuto = Boolean(empleado.planilla_automatica);
+      const esAutomatica = employeeAllowsAuto
+        ? es_automatica !== null && es_automatica !== undefined
           ? Boolean(es_automatica)
-          : Boolean(empleado.planilla_automatica);
+          : true
+        : false;
 
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
@@ -540,7 +542,7 @@ class Planilla {
       const empleadoRes = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago
+          SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, planilla_automatica
           FROM Empleados
           WHERE id_empleado = @id_empleado
         `);
@@ -554,10 +556,12 @@ class Planilla {
       const usa_deduccion_fija = Boolean(empleado.usa_deduccion_fija);
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
-      const esAutomatica =
-        es_automatica !== null && es_automatica !== undefined
+      const employeeAllowsAuto = Boolean(empleado.planilla_automatica);
+      const esAutomatica = employeeAllowsAuto
+        ? es_automatica !== null && es_automatica !== undefined
           ? Boolean(es_automatica)
-          : Boolean(planillaAutomatica);
+          : Boolean(planillaAutomatica)
+        : false;
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
       const DIAS_POR_MES = 30;

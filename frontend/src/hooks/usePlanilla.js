@@ -951,8 +951,28 @@ export const usePlanilla = () => {
     fetchPrestamos();
   }, [fetchPlanillas, fetchEmpleados, fetchPrestamos]);
 
+  const selectedEmpleado = useMemo(
+    () =>
+      empleados.find(
+        (empleado) => String(empleado.id_empleado) === String(formData.id_empleado)
+      ),
+    [empleados, formData.id_empleado]
+  );
+
+  const employeeAllowsAutoAttendance = useMemo(() => {
+    if (!selectedEmpleado) return true;
+    const value =
+      selectedEmpleado.planilla_automatica !== undefined &&
+      selectedEmpleado.planilla_automatica !== null
+        ? selectedEmpleado.planilla_automatica
+        : selectedEmpleado.es_automatica;
+    if (value === undefined || value === null) return true;
+    return Number(value) === 1 || value === true;
+  }, [selectedEmpleado]);
+
   const handleChange = useCallback((event) => {
     const { name, value } = event.target;
+    let nextValue = value;
 
     if (name === "id_empleado") {
       const empleadoSeleccionado = empleados.find(
@@ -998,10 +1018,13 @@ export const usePlanilla = () => {
       setDetalleDias((prev) =>
         prev.map((detalle) => ({ ...detalle, asistenciaManual: true }))
       );
+      if (!employeeAllowsAutoAttendance) {
+        nextValue = "0";
+      }
     }
 
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }, [empleados]);
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
+  }, [empleados, employeeAllowsAutoAttendance]);
 
   const resetForm = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
@@ -2520,6 +2543,7 @@ export const usePlanilla = () => {
     togglePrestamo,
     updateMontoPrestamo,
     totalPrestamosSeleccionados,
+    employeeAllowsAutoAttendance,
     attendanceState,
     refreshAttendance,
     detalleDias,
