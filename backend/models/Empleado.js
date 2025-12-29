@@ -3,6 +3,7 @@
  * y expone operaciones CRUD así como utilidades de activación/desactivación.
  */
 const { poolPromise, sql } = require('../db/db');
+const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 
 class Empleado {
   // Obtener todos los empleados activos con nombre del puesto
@@ -64,7 +65,10 @@ class Empleado {
   ) {
     try {
       const pool = await poolPromise;
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
       const request = transaction ? new sql.Request(transaction) : pool.request();
+      const planillaColumnFragment = planillaColumn ? `, ${planillaColumn}` : '';
+      const planillaValueFragment = planillaColumn ? ', @planilla_automatica' : '';
       const result = await request
         .input('nombre', sql.NVarChar(150), nombre)
         .input('apellido', sql.NVarChar(150), apellido)
@@ -84,9 +88,9 @@ class Empleado {
         .input('planilla_automatica', sql.Bit, planilla_automatica)
         .query(`
           INSERT INTO Empleados
-          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera, planilla_automatica, estado, created_at, updated_at)
+          (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera${planillaColumnFragment}, estado, created_at, updated_at)
           VALUES
-          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera, @planilla_automatica, 1, GETDATE(), GETDATE());
+          (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera${planillaValueFragment}, 1, GETDATE(), GETDATE());
 
           SELECT SCOPE_IDENTITY() AS id_empleado;
         `);
@@ -122,6 +126,10 @@ class Empleado {
   ) {
     try {
       const pool = await poolPromise;
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const planillaUpdateFragment = planillaColumn
+        ? `            ${planillaColumn} = COALESCE(@planilla_automatica, ${planillaColumn}),`
+        : '';
       const request = transaction ? new sql.Request(transaction) : pool.request();
       await request
         .input('id_empleado', sql.Int, id_empleado)
@@ -164,7 +172,7 @@ class Empleado {
             usa_deduccion_fija = COALESCE(@usa_deduccion_fija, usa_deduccion_fija),
             deduccion_fija = COALESCE(@deduccion_fija, deduccion_fija),
             permitir_marcacion_fuera = COALESCE(@permitir_marcacion_fuera, permitir_marcacion_fuera),
-            planilla_automatica = COALESCE(@planilla_automatica, planilla_automatica),
+${planillaUpdateFragment}
             estado = COALESCE(@estado, estado),
             updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
