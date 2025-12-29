@@ -34,7 +34,7 @@ const createEmptyFormData = () => ({
   usa_deduccion_fija: "1",
   deduccion_fija: "0",
   permitir_marcacion_fuera: "0",
-  planilla_automatica: "0",
+  planilla_automatica: "1",
   descanso_semanal_habilitado: false,
   descansos: [createEmptyDescanso()],
   estado: "1", // 👈 por defecto activo
