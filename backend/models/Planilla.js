@@ -249,11 +249,10 @@ class Planilla {
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
       const employeeAllowsAuto = isTruthyBit(empleado.planilla_automatica);
-      const esAutomatica = employeeAllowsAuto
-        ? es_automatica !== null && es_automatica !== undefined
-          ? isTruthyBit(es_automatica)
-          : true
-        : false;
+      const hasManualAutoFlag = es_automatica !== null && es_automatica !== undefined;
+      const esAutomatica = hasManualAutoFlag
+        ? isTruthyBit(es_automatica)
+        : employeeAllowsAuto;
 
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
@@ -569,10 +568,11 @@ class Planilla {
       const deduccion_fija = Number(empleado.deduccion_fija || 0);
       const tipo_pago = empleado.tipo_pago || 'Quincenal';
       const employeeAllowsAuto = isTruthyBit(empleado.planilla_automatica);
-      const esAutomatica = employeeAllowsAuto
-        ? es_automatica !== null && es_automatica !== undefined
-          ? isTruthyBit(es_automatica)
-          : isTruthyBit(planillaAutomatica)
+      const hasManualAutoFlag = es_automatica !== null && es_automatica !== undefined;
+      const esAutomatica = hasManualAutoFlag
+        ? isTruthyBit(es_automatica)
+        : employeeAllowsAuto
+        ? isTruthyBit(planillaAutomatica)
         : false;
       const DIAS_POR_QUINCENA = 15;
       const DIAS_LIBRES_QUINCENA = 2;
