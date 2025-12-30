@@ -296,17 +296,6 @@ const Planilla = () => {
     }
   };
 
-  const handleToggleDiaDoble = async (dia) => {
-    try {
-      await diasDoblesService.update(dia.id_dia_doble, { activo: !dia.activo });
-      await fetchDiasDobles();
-    } catch (err) {
-      const message =
-        err.response?.data?.error || err.message || "No se pudo actualizar el estado.";
-      setDiasDoblesError(message);
-    }
-  };
-
   const handleDeleteDiaDoble = async (dia) => {
     const confirmar = window.confirm(
       `¿Deseas eliminar el día doble del ${formatDate(dia.fecha)}?`
