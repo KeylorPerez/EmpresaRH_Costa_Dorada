@@ -14,6 +14,31 @@ const schemaState = {
 };
 
 const ENSURE_DETALLE_PLANILLA_SCHEMA_QUERY = `
+IF NOT EXISTS (
+  SELECT *
+  FROM sys.objects
+  WHERE object_id = OBJECT_ID(N'[dbo].[DetallePlanilla]')
+    AND type in (N'U')
+)
+BEGIN
+  CREATE TABLE [dbo].[DetallePlanilla](
+    [id_detalle] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [id_planilla] INT NOT NULL,
+    [fecha] DATE NOT NULL,
+    [dia_semana] INT NOT NULL,
+    [salario_dia] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_DetallePlanilla_SalarioDia DEFAULT (0),
+    [asistio] BIT NOT NULL CONSTRAINT DF_DetallePlanilla_Asistio DEFAULT (1),
+    [es_dia_doble] BIT NOT NULL CONSTRAINT DF_DetallePlanilla_EsDiaDoble DEFAULT (0),
+    [observacion] NVARCHAR(150) NULL,
+    [estado] NVARCHAR(50) NULL,
+    [asistencia] NVARCHAR(50) NULL,
+    [tipo] NVARCHAR(50) NULL,
+    [justificado] BIT NOT NULL CONSTRAINT DF_DetallePlanilla_Justificado DEFAULT (0),
+    [justificacion] NVARCHAR(MAX) NULL,
+    CONSTRAINT FK_DetallePlanilla_Planilla FOREIGN KEY (id_planilla) REFERENCES Planilla(id_planilla)
+  );
+END;
+
 IF OBJECT_ID('dbo.DetallePlanilla', 'U') IS NOT NULL
 BEGIN
   IF COL_LENGTH('dbo.DetallePlanilla', 'estado') IS NULL
@@ -273,6 +298,8 @@ class DetallePlanilla {
     if (!Number.isInteger(Number(id_planilla))) {
       return;
     }
+
+    await resolveSchemaState(() => request);
 
     await request
       .input('id_planilla', sql.Int, Number(id_planilla))
