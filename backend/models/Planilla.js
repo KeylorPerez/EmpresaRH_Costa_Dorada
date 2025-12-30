@@ -19,6 +19,32 @@ const planillaSchemaState = {
 };
 
 const ENSURE_PLANILLA_SCHEMA_QUERY = `
+IF NOT EXISTS (
+  SELECT *
+  FROM sys.objects
+  WHERE object_id = OBJECT_ID(N'[dbo].[Planilla]')
+    AND type in (N'U')
+)
+BEGIN
+  CREATE TABLE [dbo].[Planilla](
+    [id_planilla] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [id_empleado] INT NOT NULL,
+    [periodo_inicio] DATE NOT NULL,
+    [periodo_fin] DATE NOT NULL,
+    [salario_bruto] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_SalarioBruto DEFAULT (0),
+    [deducciones] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_Deducciones DEFAULT (0),
+    [ccss_deduccion] DECIMAL(10, 2) NOT NULL CONSTRAINT DF_Planilla_CcssDeduccion DEFAULT (0),
+    [horas_extras] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_HorasExtras DEFAULT (0),
+    [bonificaciones] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_Bonificaciones DEFAULT (0),
+    [pago_neto] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_PagoNeto DEFAULT (0),
+    [fecha_pago] DATE NULL,
+    [es_automatica] BIT NOT NULL CONSTRAINT DF_Planilla_EsAutomatica DEFAULT (1),
+    [created_at] DATETIME2 NOT NULL CONSTRAINT DF_Planilla_CreatedAt DEFAULT (SYSDATETIME()),
+    [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_Planilla_UpdatedAt DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_Planilla_Empleado FOREIGN KEY (id_empleado) REFERENCES Empleados(id_empleado)
+  );
+END;
+
 IF OBJECT_ID('dbo.Planilla', 'U') IS NOT NULL
 BEGIN
   IF COL_LENGTH('dbo.Planilla', 'es_automatica') IS NULL
@@ -263,6 +289,7 @@ class Planilla {
   static async getAll() {
     try {
       const pool = await poolPromise;
+      await resolvePlanillaSchema(() => pool.request());
       const result = await pool.request()
         .query(`
           SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado
@@ -279,6 +306,7 @@ class Planilla {
   static async getById(id_planilla) {
     try {
       const pool = await poolPromise;
+      await resolvePlanillaSchema(() => pool.request());
       const result = await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
         .query(`
@@ -298,6 +326,7 @@ class Planilla {
   static async getByEmpleado(id_empleado) {
     try {
       const pool = await poolPromise;
+      await resolvePlanillaSchema(() => pool.request());
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
