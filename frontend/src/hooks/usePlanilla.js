@@ -976,10 +976,9 @@ export const usePlanilla = () => {
   const employeeAllowsAutoAttendance = useMemo(() => {
     if (!selectedEmpleado) return true;
     const value =
-      selectedEmpleado.planilla_automatica !== undefined &&
-      selectedEmpleado.planilla_automatica !== null
-        ? selectedEmpleado.planilla_automatica
-        : selectedEmpleado.es_automatica;
+      selectedEmpleado.es_automatica !== undefined && selectedEmpleado.es_automatica !== null
+        ? selectedEmpleado.es_automatica
+        : selectedEmpleado.planilla_automatica;
     if (value === undefined || value === null) return true;
     return normalizeFlag(value, "1") === "1";
   }, [selectedEmpleado]);
@@ -994,12 +993,12 @@ export const usePlanilla = () => {
       );
       const bonificacionDefault = empleadoSeleccionado?.bonificacion_fija;
       const esAutomaticaDefault =
-        empleadoSeleccionado?.planilla_automatica !== undefined &&
-        empleadoSeleccionado?.planilla_automatica !== null
-          ? normalizeFlag(empleadoSeleccionado.planilla_automatica, "0")
-          : empleadoSeleccionado?.es_automatica !== undefined &&
-            empleadoSeleccionado?.es_automatica !== null
+        empleadoSeleccionado?.es_automatica !== undefined &&
+        empleadoSeleccionado?.es_automatica !== null
           ? normalizeFlag(empleadoSeleccionado.es_automatica, "0")
+          : empleadoSeleccionado?.planilla_automatica !== undefined &&
+            empleadoSeleccionado?.planilla_automatica !== null
+          ? normalizeFlag(empleadoSeleccionado.planilla_automatica, "0")
           : "0";
       const bonificacionNormalizada =
         bonificacionDefault === undefined || bonificacionDefault === null

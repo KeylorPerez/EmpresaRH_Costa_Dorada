@@ -355,8 +355,8 @@ export const useEmpleado = () => {
       permitir_marcacion_fuera: normalizeFlag(empleado.permitir_marcacion_fuera),
       planilla_automatica:
         normalizeFlag(
-          empleado.planilla_automatica,
-          normalizeFlag(empleado.es_automatica)
+          empleado.es_automatica,
+          normalizeFlag(empleado.planilla_automatica)
         ) || "0",
       estado: normalizeFlag(empleado.estado),
       descanso_semanal_habilitado: false,

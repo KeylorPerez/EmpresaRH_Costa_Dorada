@@ -11,8 +11,8 @@ const resolvePlanillaAutomaticaColumn = async (pool) => {
   const result = await activePool.request().query(`
     SELECT
       CASE
-        WHEN COL_LENGTH('Empleados', 'planilla_automatica') IS NOT NULL THEN 'planilla_automatica'
         WHEN COL_LENGTH('Empleados', 'es_automatica') IS NOT NULL THEN 'es_automatica'
+        WHEN COL_LENGTH('Empleados', 'planilla_automatica') IS NOT NULL THEN 'planilla_automatica'
         ELSE NULL
       END AS column_name
   `);
