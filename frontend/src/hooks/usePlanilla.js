@@ -2156,6 +2156,15 @@ export const usePlanilla = () => {
     );
   }, [applySalarioBaseFallback, aplicarPoliticaAusencias]);
 
+  const replaceDetalleDias = useCallback((nuevoDetalle) => {
+    if (!Array.isArray(nuevoDetalle)) {
+      setDetalleDias([]);
+      return;
+    }
+
+    setDetalleDias(nuevoDetalle.map((detalle) => ({ ...detalle })));
+  }, []);
+
   const detalleDiasResumen = useMemo(() => {
     if (!detalleDias || detalleDias.length === 0) {
       return {
@@ -2812,6 +2821,7 @@ export const usePlanilla = () => {
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
+    replaceDetalleDias,
     detalleDiasResumen,
     detalleEstadoOptions,
     quincenaPolicy,
