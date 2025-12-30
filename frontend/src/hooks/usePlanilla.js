@@ -30,6 +30,7 @@ export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
 const estadoAsistenciaSet = new Set(ESTADOS_ASISTENCIA);
 const ESTADO_PRESENTE = "Presente";
 const ESTADO_AUSENTE = "Ausente";
+const ESTADO_PERMISO = "Permiso";
 const ESTADO_VACACIONES = "Vacaciones";
 const ESTADO_INCAPACIDAD = "Incapacidad";
 const ESTADO_DESCANSO = "Descanso";
@@ -55,6 +56,20 @@ const calcularDiasPeriodo = (inicio, fin) => {
 };
 
 const isEmptyValue = (value) => value === "" || value === null || value === undefined;
+
+const estadosAsistenciaManual = new Set([
+  ESTADO_AUSENTE,
+  ESTADO_PERMISO,
+  ESTADO_VACACIONES,
+  ESTADO_INCAPACIDAD,
+]);
+
+const prioridadEstadoAsistenciaManual = {
+  [ESTADO_INCAPACIDAD]: 4,
+  [ESTADO_VACACIONES]: 3,
+  [ESTADO_PERMISO]: 2,
+  [ESTADO_AUSENTE]: 1,
+};
 
 const formatMontoPositivo = (valor) => {
   const numero = parseNumberInput(valor);
@@ -234,6 +249,40 @@ const ajustarEstadoPorAsistencia = (estadoActual, asistio) => {
   return normalizado;
 };
 
+const resolveJustificacionTexto = (registro) => {
+  const texto =
+    registro.justificacion === undefined || registro.justificacion === null
+      ? ""
+      : String(registro.justificacion).trim();
+
+  if (texto) return texto;
+
+  const tipo =
+    registro.justificacion_solicitud_tipo === undefined ||
+    registro.justificacion_solicitud_tipo === null
+      ? ""
+      : String(registro.justificacion_solicitud_tipo).trim();
+
+  const respuesta =
+    registro.justificacion_solicitud_respuesta === undefined ||
+    registro.justificacion_solicitud_respuesta === null
+      ? ""
+      : String(registro.justificacion_solicitud_respuesta).trim();
+
+  const descripcion =
+    registro.justificacion_solicitud_descripcion === undefined ||
+    registro.justificacion_solicitud_descripcion === null
+      ? ""
+      : String(registro.justificacion_solicitud_descripcion).trim();
+
+  const partes = [tipo, descripcion, respuesta].filter((parte) => parte.length > 0);
+  if (partes.length > 0) {
+    return partes.join(" - ");
+  }
+
+  return "";
+};
+
 const normalizarJustificacionRegistro = (registro) => {
   if (!registro) return null;
 
@@ -253,44 +302,36 @@ const normalizarJustificacionRegistro = (registro) => {
 
   const estadoFinal = estadoNormalizado === ESTADO_PRESENTE ? ESTADO_AUSENTE : estadoNormalizado;
 
-  const justificacionTexto = (() => {
-    const texto =
-      registro.justificacion === undefined || registro.justificacion === null
-        ? ""
-        : String(registro.justificacion).trim();
-
-    if (texto) return texto;
-
-    const tipo =
-      registro.justificacion_solicitud_tipo === undefined ||
-      registro.justificacion_solicitud_tipo === null
-        ? ""
-        : String(registro.justificacion_solicitud_tipo).trim();
-
-    const respuesta =
-      registro.justificacion_solicitud_respuesta === undefined ||
-      registro.justificacion_solicitud_respuesta === null
-        ? ""
-        : String(registro.justificacion_solicitud_respuesta).trim();
-
-    const descripcion =
-      registro.justificacion_solicitud_descripcion === undefined ||
-      registro.justificacion_solicitud_descripcion === null
-        ? ""
-        : String(registro.justificacion_solicitud_descripcion).trim();
-
-    const partes = [tipo, descripcion, respuesta].filter((parte) => parte.length > 0);
-    if (partes.length > 0) {
-      return partes.join(" - ");
-    }
-
-    return "";
-  })();
+  const justificacionTexto = resolveJustificacionTexto(registro);
 
   return {
     fecha,
     estado: estadoFinal,
     justificacion: justificacionTexto,
+  };
+};
+
+const normalizarAsistenciaManualRegistro = (registro) => {
+  if (!registro) return null;
+
+  const fecha = typeof registro.fecha === "string" ? registro.fecha.trim() : "";
+  if (!fecha) return null;
+
+  const estadoNormalizado = normalizeEstado(registro.estado);
+  if (!estadosAsistenciaManual.has(estadoNormalizado)) {
+    return null;
+  }
+
+  const justificado =
+    registro.justificado === true ||
+    registro.justificado === 1 ||
+    registro.justificado === "1";
+
+  return {
+    fecha,
+    estado: estadoNormalizado,
+    justificado,
+    justificacion: resolveJustificacionTexto(registro),
   };
 };
 
@@ -460,6 +501,7 @@ export const usePlanilla = () => {
     key: "",
     loading: false,
     fechas: [],
+    registros: [],
     error: "",
   });
   const [detalleDiasDobles, setDetalleDiasDobles] = useState({
@@ -830,33 +872,52 @@ export const usePlanilla = () => {
     });
   }, [resolveAusenciaSalario]);
 
-  const marcarDetallesComoPresentes = useCallback(
-    (detalles) => {
-      if (!Array.isArray(detalles) || detalles.length === 0) {
-        return detalles;
+  const aplicarAsistenciaManual = useCallback((detalles, registrosAsistencia) => {
+    if (!Array.isArray(detalles) || detalles.length === 0) {
+      return detalles;
+    }
+
+    if (!Array.isArray(registrosAsistencia) || registrosAsistencia.length === 0) {
+      return detalles;
+    }
+
+    const mapa = new Map();
+
+    registrosAsistencia.forEach((registro) => {
+      if (!registro) return;
+      const anterior = mapa.get(registro.fecha);
+      if (!anterior) {
+        mapa.set(registro.fecha, registro);
+        return;
       }
 
-      return detalles.map((detalle) => {
-        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-        const factorDobles = detalle.es_dia_doble ? 2 : 1;
-        const salarioCalculado = formatMontoPositivo(baseNormalizado * factorDobles);
+      const prioridadActual = prioridadEstadoAsistenciaManual[registro.estado] || 0;
+      const prioridadAnterior = prioridadEstadoAsistenciaManual[anterior.estado] || 0;
+      if (prioridadActual > prioridadAnterior) {
+        mapa.set(registro.fecha, registro);
+      }
+    });
 
-        return {
-          ...detalle,
-          asistio: true,
-          es_descanso: false,
-          estado: ESTADO_PRESENTE,
-          justificado: false,
-          justificacion: "",
-          salario_base: baseNormalizado,
-          salario_dia: salarioCalculado,
-          autoJustificacion: false,
-        };
-      });
-    },
-    [applySalarioBaseFallback],
-  );
+    return detalles.map((detalle) => {
+      if (detalle.asistenciaManual || detalle.es_descanso) {
+        return detalle;
+      }
+
+      const registro = mapa.get(detalle.fecha);
+      if (!registro) {
+        return detalle;
+      }
+
+      return {
+        ...detalle,
+        asistio: false,
+        estado: registro.estado,
+        justificado: registro.justificado,
+        justificacion: registro.justificacion || "",
+        autoJustificacion: false,
+      };
+    });
+  }, []);
 
   const aplicarDescansosAuto = useCallback(
     (detalles, fechasDescanso) => {
@@ -1059,9 +1120,7 @@ export const usePlanilla = () => {
       if (!employeeAllowsAutoAttendance) {
         nextValue = "0";
       }
-      if (nextValue === "0") {
-        setDetalleDias((prev) => marcarDetallesComoPresentes(prev));
-      } else {
+      if (nextValue === "1") {
         setDetalleDias((prev) =>
           prev.map((detalle) => ({ ...detalle, asistenciaManual: false }))
         );
@@ -1069,7 +1128,7 @@ export const usePlanilla = () => {
     }
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
-  }, [empleados, employeeAllowsAutoAttendance, marcarDetallesComoPresentes]);
+  }, [empleados, employeeAllowsAutoAttendance]);
 
   const resetForm = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
@@ -1082,7 +1141,7 @@ export const usePlanilla = () => {
     setDetalleDias([]);
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
     setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
-    setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
+    setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
     setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
     setDetalleNonDiarioReloadKey(0);
   };
@@ -1242,7 +1301,7 @@ export const usePlanilla = () => {
   useEffect(() => {
     if (!modalOpen || editingPlanilla) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
-      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
       return;
     }
 
@@ -1250,7 +1309,7 @@ export const usePlanilla = () => {
 
     if (!id_empleado || !periodo_inicio || !periodo_fin) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
-      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
       return;
     }
 
@@ -1263,7 +1322,7 @@ export const usePlanilla = () => {
       !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
     ) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
-      setDetalleAsistencia({ key: "", loading: false, fechas: [], error: "" });
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
       return;
     }
 
@@ -1272,7 +1331,7 @@ export const usePlanilla = () => {
 
     const fetchJustificaciones = async () => {
       setDetalleJustificaciones({ key, loading: true, registros: [], error: "" });
-      setDetalleAsistencia({ key, loading: true, fechas: [], error: "" });
+      setDetalleAsistencia({ key, loading: true, fechas: [], registros: [], error: "" });
 
       try {
         const data = await asistenciaService.getByRange(
@@ -1284,6 +1343,9 @@ export const usePlanilla = () => {
 
         const registros = Array.isArray(data)
           ? data.map(normalizarJustificacionRegistro).filter(Boolean)
+          : [];
+        const registrosManual = Array.isArray(data)
+          ? data.map(normalizarAsistenciaManualRegistro).filter(Boolean)
           : [];
         const fechasAsistencia = Array.isArray(data)
           ? Array.from(
@@ -1298,7 +1360,13 @@ export const usePlanilla = () => {
           : [];
 
         setDetalleJustificaciones({ key, loading: false, registros, error: "" });
-        setDetalleAsistencia({ key, loading: false, fechas: fechasAsistencia, error: "" });
+        setDetalleAsistencia({
+          key,
+          loading: false,
+          fechas: fechasAsistencia,
+          registros: registrosManual,
+          error: "",
+        });
 
         if (detalleNonDiarioReloadKey > 0) {
           setAttendanceState({
@@ -1317,7 +1385,7 @@ export const usePlanilla = () => {
           err?.message ||
           "No se pudieron obtener las justificaciones del periodo seleccionado.";
         setDetalleJustificaciones({ key, loading: false, registros: [], error: message });
-        setDetalleAsistencia({ key, loading: false, fechas: [], error: message });
+        setDetalleAsistencia({ key, loading: false, fechas: [], registros: [], error: message });
         if (detalleNonDiarioReloadKey > 0) {
           setAttendanceState({
             loading: false,
@@ -1602,6 +1670,8 @@ export const usePlanilla = () => {
     const nuevosDetallesBase = buildDetalleDias(empleadoSeleccionado, periodo_inicio, periodo_fin);
     const fechasAsistencia =
       detalleAsistencia.key === keyNuevo ? detalleAsistencia.fechas : [];
+    const registrosAsistencia =
+      detalleAsistencia.key === keyNuevo ? detalleAsistencia.registros : [];
     const fechasDobles =
       detalleDiasDobles.key === keyNuevo ? detalleDiasDobles.fechas : [];
     const fechasDescanso =
@@ -1612,6 +1682,8 @@ export const usePlanilla = () => {
     nuevosDetalles = aplicarDescansosAuto(nuevosDetalles, fechasDescanso);
     if (aplicarAsistencia) {
       nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
+    } else {
+      nuevosDetalles = aplicarAsistenciaManual(nuevosDetalles, registrosAsistencia);
     }
 
     if (detalleJustificaciones.key === keyNuevo) {
@@ -1619,9 +1691,6 @@ export const usePlanilla = () => {
     }
 
     nuevosDetalles = aplicarPoliticaAusencias(nuevosDetalles);
-    if (!aplicarAsistencia) {
-      nuevosDetalles = marcarDetallesComoPresentes(nuevosDetalles);
-    }
     setDetalleDias(nuevosDetalles);
     detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
   }, [
@@ -1636,8 +1705,10 @@ export const usePlanilla = () => {
     buildDetalleDias,
     aplicarDiasDoblesAuto,
     aplicarAsistenciaDetalle,
+    aplicarAsistenciaManual,
     detalleAsistencia.key,
     detalleAsistencia.fechas,
+    detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
     detalleDescansos.key,
@@ -1647,7 +1718,6 @@ export const usePlanilla = () => {
     detalleJustificaciones.registros,
     aplicarPoliticaAusencias,
     aplicarDescansosAuto,
-    marcarDetallesComoPresentes,
   ]);
 
   useEffect(() => {
@@ -1661,6 +1731,8 @@ export const usePlanilla = () => {
       : [];
     const fechasAsistencia =
       detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : null;
+    const registrosAsistencia =
+      detalleAsistencia.key === keyActual ? detalleAsistencia.registros : null;
     const fechasDobles =
       detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : null;
     const fechasDescanso =
@@ -1684,10 +1756,10 @@ export const usePlanilla = () => {
           if (fechasAsistencia && aplicarAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
           }
-          restaurados = aplicarPoliticaAusencias(restaurados);
-          if (!aplicarAsistencia) {
-            restaurados = marcarDetallesComoPresentes(restaurados);
+          if (registrosAsistencia && !aplicarAsistencia) {
+            restaurados = aplicarAsistenciaManual(restaurados, registrosAsistencia);
           }
+          restaurados = aplicarPoliticaAusencias(restaurados);
           const cambio = restaurados.some((detalle, index) => detalle !== prev[index]);
           return cambio ? restaurados : prev;
         });
@@ -1714,11 +1786,11 @@ export const usePlanilla = () => {
       if (fechasAsistencia && aplicarAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
       }
+      if (registrosAsistencia && !aplicarAsistencia) {
+        aplicados = aplicarAsistenciaManual(aplicados, registrosAsistencia);
+      }
       aplicados = aplicarJustificacionesAuto(aplicados, registrosJustificados);
       aplicados = aplicarPoliticaAusencias(aplicados);
-      if (!aplicarAsistencia) {
-        aplicados = marcarDetallesComoPresentes(aplicados);
-      }
 
       const cambio = aplicados.some((detalle, index) => detalle !== prev[index]);
       return cambio ? aplicados : prev;
@@ -1731,16 +1803,17 @@ export const usePlanilla = () => {
     detalleDias,
     detalleAsistencia.key,
     detalleAsistencia.fechas,
+    detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
     detalleDescansos.key,
     detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
+    aplicarAsistenciaManual,
     aplicarDiasDoblesAuto,
     aplicarDescansosAuto,
     aplicarPoliticaAusencias,
     formData.es_automatica,
-    marcarDetallesComoPresentes,
   ]);
 
   const updateDetalleDia = useCallback((index, updates) => {
