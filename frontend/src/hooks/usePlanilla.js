@@ -830,6 +830,34 @@ export const usePlanilla = () => {
     });
   }, [resolveAusenciaSalario]);
 
+  const marcarDetallesComoPresentes = useCallback(
+    (detalles) => {
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        return detalles;
+      }
+
+      return detalles.map((detalle) => {
+        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+        const factorDobles = detalle.es_dia_doble ? 2 : 1;
+        const salarioCalculado = formatMontoPositivo(baseNormalizado * factorDobles);
+
+        return {
+          ...detalle,
+          asistio: true,
+          es_descanso: false,
+          estado: ESTADO_PRESENTE,
+          justificado: false,
+          justificacion: "",
+          salario_base: baseNormalizado,
+          salario_dia: salarioCalculado,
+          autoJustificacion: false,
+        };
+      });
+    },
+    [applySalarioBaseFallback],
+  );
+
   const aplicarDescansosAuto = useCallback(
     (detalles, fechasDescanso) => {
       if (!Array.isArray(detalles) || detalles.length === 0) {
@@ -1028,16 +1056,20 @@ export const usePlanilla = () => {
     if (name === "es_automatica") {
       autoDiasRef.current = null;
       setAttendanceState({ loading: false, dias: null, fechas: [], error: "", message: "" });
-      setDetalleDias((prev) =>
-        prev.map((detalle) => ({ ...detalle, asistenciaManual: true }))
-      );
       if (!employeeAllowsAutoAttendance) {
         nextValue = "0";
+      }
+      if (nextValue === "0") {
+        setDetalleDias((prev) => marcarDetallesComoPresentes(prev));
+      } else {
+        setDetalleDias((prev) =>
+          prev.map((detalle) => ({ ...detalle, asistenciaManual: false }))
+        );
       }
     }
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
-  }, [empleados, employeeAllowsAutoAttendance]);
+  }, [empleados, employeeAllowsAutoAttendance, marcarDetallesComoPresentes]);
 
   const resetForm = () => {
     setFormData(createEmptyForm(calculateQuincenaDefaults()));
@@ -1574,16 +1606,22 @@ export const usePlanilla = () => {
       detalleDiasDobles.key === keyNuevo ? detalleDiasDobles.fechas : [];
     const fechasDescanso =
       detalleDescansos.key === keyNuevo ? detalleDescansos.fechas : [];
+    const aplicarAsistencia = formData.es_automatica === "1";
 
     let nuevosDetalles = aplicarDiasDoblesAuto(nuevosDetallesBase, fechasDobles);
     nuevosDetalles = aplicarDescansosAuto(nuevosDetalles, fechasDescanso);
-    nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
+    if (aplicarAsistencia) {
+      nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
+    }
 
     if (detalleJustificaciones.key === keyNuevo) {
       nuevosDetalles = aplicarJustificacionesAuto(nuevosDetalles, detalleJustificaciones.registros);
     }
 
     nuevosDetalles = aplicarPoliticaAusencias(nuevosDetalles);
+    if (!aplicarAsistencia) {
+      nuevosDetalles = marcarDetallesComoPresentes(nuevosDetalles);
+    }
     setDetalleDias(nuevosDetalles);
     detalleContextRef.current = { empleadoId: id_empleado, inicio: periodo_inicio, fin: periodo_fin };
   }, [
@@ -1604,10 +1642,12 @@ export const usePlanilla = () => {
     detalleDiasDobles.fechas,
     detalleDescansos.key,
     detalleDescansos.fechas,
+    formData.es_automatica,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     aplicarPoliticaAusencias,
     aplicarDescansosAuto,
+    marcarDetallesComoPresentes,
   ]);
 
   useEffect(() => {
@@ -1625,6 +1665,7 @@ export const usePlanilla = () => {
       detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : null;
     const fechasDescanso =
       detalleDescansos.key === keyActual ? detalleDescansos.fechas : null;
+    const aplicarAsistencia = formData.es_automatica === "1";
 
     if (!keyJustificaciones || keyActual !== keyJustificaciones) {
       if (!keyJustificaciones && detalleDias.length > 0) {
@@ -1640,10 +1681,13 @@ export const usePlanilla = () => {
           if (fechasDescanso) {
             restaurados = aplicarDescansosAuto(restaurados, fechasDescanso);
           }
-          if (fechasAsistencia) {
+          if (fechasAsistencia && aplicarAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
           }
           restaurados = aplicarPoliticaAusencias(restaurados);
+          if (!aplicarAsistencia) {
+            restaurados = marcarDetallesComoPresentes(restaurados);
+          }
           const cambio = restaurados.some((detalle, index) => detalle !== prev[index]);
           return cambio ? restaurados : prev;
         });
@@ -1667,11 +1711,14 @@ export const usePlanilla = () => {
       if (fechasDescanso) {
         aplicados = aplicarDescansosAuto(aplicados, fechasDescanso);
       }
-      if (fechasAsistencia) {
+      if (fechasAsistencia && aplicarAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
       }
       aplicados = aplicarJustificacionesAuto(aplicados, registrosJustificados);
       aplicados = aplicarPoliticaAusencias(aplicados);
+      if (!aplicarAsistencia) {
+        aplicados = marcarDetallesComoPresentes(aplicados);
+      }
 
       const cambio = aplicados.some((detalle, index) => detalle !== prev[index]);
       return cambio ? aplicados : prev;
@@ -1692,6 +1739,8 @@ export const usePlanilla = () => {
     aplicarDiasDoblesAuto,
     aplicarDescansosAuto,
     aplicarPoliticaAusencias,
+    formData.es_automatica,
+    marcarDetallesComoPresentes,
   ]);
 
   const updateDetalleDia = useCallback((index, updates) => {
