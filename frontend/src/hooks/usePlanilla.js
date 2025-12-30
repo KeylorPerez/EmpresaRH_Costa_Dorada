@@ -205,6 +205,7 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     hora_salida,
     autoJustificacion: false,
     asistenciaManual: true,
+    dia_doble_manual: false,
   };
 };
 
@@ -1032,6 +1033,10 @@ export const usePlanilla = () => {
       );
 
       return detalles.map((detalle) => {
+        if (detalle.dia_doble_manual) {
+          return detalle;
+        }
+
         const multiplicadorAuto = doblesSet.get(detalle.fecha);
         const es_dia_doble = multiplicadorAuto !== undefined;
         const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
@@ -2122,6 +2127,7 @@ export const usePlanilla = () => {
                   salario_base: baseNormalizado,
                   salario_dia: salarioCalculado,
                   autoJustificacion: false,
+                  dia_doble_manual: true,
                 };
               })()
             : detalle
