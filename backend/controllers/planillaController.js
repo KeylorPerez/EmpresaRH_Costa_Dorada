@@ -43,6 +43,30 @@ const formatDateValue = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const parseFlagValue = (value, defaultValue = null) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'si', 'sí'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no'].includes(normalized)) {
+    return false;
+  }
+  const numericValue = Number(value);
+  if (!Number.isNaN(numericValue)) {
+    return numericValue === 1;
+  }
+  return defaultValue;
+};
+
 const formatDateDisplay = (value) => {
   const iso = formatDateValue(value);
   if (!iso || iso === '-') return '-';
@@ -917,6 +941,8 @@ const calcularPlanilla = async (req, res) => {
 
     const fechaPagoFinal = fecha_pago || periodo_fin;
 
+    const esAutomaticaValue = parseFlagValue(es_automatica, null);
+
     const planilla = await Planilla.calcularPlanilla({
       id_empleado,
       periodo_inicio,
@@ -932,7 +958,7 @@ const calcularPlanilla = async (req, res) => {
       dias_dobles,
       monto_dias_dobles,
       detalles,
-      es_automatica,
+      es_automatica: esAutomaticaValue,
     });
 
     return res.status(201).json({
@@ -973,6 +999,8 @@ const updatePlanilla = async (req, res) => {
       es_automatica = null,
     } = req.body;
 
+    const esAutomaticaValue = parseFlagValue(es_automatica, null);
+
     await Planilla.update(id_planilla, {
       horas_extras,
       bonificaciones,
@@ -984,7 +1012,7 @@ const updatePlanilla = async (req, res) => {
       dias_dobles,
       monto_dias_dobles,
       detalles,
-      es_automatica,
+      es_automatica: esAutomaticaValue,
     });
 
     return res.json({ message: 'Planilla actualizada correctamente' });
