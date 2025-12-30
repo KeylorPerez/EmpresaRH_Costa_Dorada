@@ -1053,7 +1053,7 @@ export const usePlanilla = () => {
           ? multiplicadorAuto
           : Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
             ? multiplicadorManual
-            : 2;
+            : 1;
 
         if (
           detalle.es_dia_doble === es_dia_doble &&
@@ -1064,7 +1064,7 @@ export const usePlanilla = () => {
 
         const baseReferencia = obtenerSalarioBaseDetalle(detalle);
         const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-        const factorAplicado = detalle.asistio ? multiplicadorNormalizado : 1;
+        const factorAplicado = detalle.asistio && es_dia_doble ? multiplicadorNormalizado : 1;
         const salarioCalculado = detalle.asistio
           ? formatMontoPositivo(baseNormalizado * factorAplicado)
           : formatMontoPositivo(baseNormalizado);
