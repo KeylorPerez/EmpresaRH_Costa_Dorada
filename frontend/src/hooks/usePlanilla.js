@@ -2020,6 +2020,14 @@ export const usePlanilla = () => {
     );
   }, [applySalarioBaseFallback, resolveAusenciaSalario, aplicarPoliticaAusencias]);
 
+  const restoreDetalleDias = useCallback((detallesRestaurados = []) => {
+    const sanitized = Array.isArray(detallesRestaurados)
+      ? detallesRestaurados.map((detalle) => ({ ...detalle }))
+      : [];
+
+    setDetalleDias(sanitized);
+  }, []);
+
   const normalizeDetalleSalario = useCallback((index) => {
     setDetalleDias((prev) =>
       prev.map((detalle, idx) => {
@@ -2809,6 +2817,7 @@ export const usePlanilla = () => {
     refreshAttendance,
     detalleDias,
     updateDetalleDia,
+    restoreDetalleDias,
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,

@@ -152,6 +152,7 @@ const Planilla = () => {
     refreshAttendance,
     detalleDias,
     updateDetalleDia,
+    restoreDetalleDias,
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
@@ -452,7 +453,25 @@ const Planilla = () => {
 
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
+  const detalleOverlaySnapshotRef = useRef([]);
   const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
+
+  const handleDetalleOverlayOpen = useCallback(() => {
+    detalleOverlaySnapshotRef.current = (detalleDias || []).map((detalle) => ({ ...detalle }));
+    setDetalleOverlayOpen(true);
+  }, [detalleDias]);
+
+  const handleDetalleOverlayClose = useCallback(
+    (applyChanges = false) => {
+      if (!detalleOverlayOpen) return;
+
+      if (!applyChanges) {
+        restoreDetalleDias(detalleOverlaySnapshotRef.current || []);
+      }
+      setDetalleOverlayOpen(false);
+    },
+    [detalleOverlayOpen, restoreDetalleDias]
+  );
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -469,10 +488,10 @@ const Planilla = () => {
   }, [error, modalOpen]);
 
   useEffect(() => {
-    if (!modalOpen) {
-      setDetalleOverlayOpen(false);
+    if (!modalOpen && detalleOverlayOpen) {
+      handleDetalleOverlayClose(false);
     }
-  }, [modalOpen]);
+  }, [detalleOverlayOpen, handleDetalleOverlayClose, modalOpen]);
 
   useEffect(() => {
     if (!detalleOverlayOpen) return undefined;
@@ -480,7 +499,7 @@ const Planilla = () => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setDetalleOverlayOpen(false);
+        handleDetalleOverlayClose(false);
       }
     };
 
@@ -488,7 +507,7 @@ const Planilla = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [detalleOverlayOpen]);
+  }, [detalleOverlayOpen, handleDetalleOverlayClose]);
 
   useEffect(() => {
     if (detalleOverlayOpen && detalleOverlayFocusRef.current) {
@@ -499,9 +518,9 @@ const Planilla = () => {
   const adminLinks = useMemo(() => adminNavigationLinks, []);
 
   const closeModal = () => {
+    handleDetalleOverlayClose(false);
     setModalOpen(false);
     resetForm();
-    setDetalleOverlayOpen(false);
   };
 
   const selectedEmpleado = useMemo(
@@ -1407,7 +1426,7 @@ const Planilla = () => {
                                     variant="secondary"
                                     size="sm"
                                     className="px-3 py-1 text-xs"
-                                    onClick={() => setDetalleOverlayOpen(true)}
+                                    onClick={handleDetalleOverlayOpen}
                                   >
                                     Abrir detalle en pantalla completa
                                   </Button>
@@ -1707,7 +1726,7 @@ const Planilla = () => {
 
               {detalleOverlayOpen && (
                 <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-6">
-                  <div className="absolute inset-0" onClick={() => setDetalleOverlayOpen(false)} />
+                  <div className="absolute inset-0" onClick={() => handleDetalleOverlayClose(false)} />
                   <div
                     role="dialog"
                     aria-modal="true"
@@ -1744,11 +1763,16 @@ const Planilla = () => {
                           variant="ghost"
                           size="sm"
                           type="button"
-                          onClick={() => setDetalleOverlayOpen(false)}
+                          onClick={() => handleDetalleOverlayClose(false)}
                         >
                           Cancelar
                         </Button>
-                        <Button variant="secondary" size="sm" type="button" onClick={() => setDetalleOverlayOpen(false)}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          type="button"
+                          onClick={() => handleDetalleOverlayClose(true)}
+                        >
                           Aceptar cambios
                         </Button>
                       </div>
