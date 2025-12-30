@@ -1,6 +1,7 @@
 const { poolPromise } = require('../db/db');
 
 let cachedPlanillaAutomaticaColumn;
+let cachedPlanillaEsAutomaticaExists;
 
 const resolvePlanillaAutomaticaColumn = async (pool) => {
   if (cachedPlanillaAutomaticaColumn !== undefined) {
@@ -20,6 +21,24 @@ const resolvePlanillaAutomaticaColumn = async (pool) => {
   return cachedPlanillaAutomaticaColumn;
 };
 
+const resolvePlanillaEsAutomaticaExists = async (pool) => {
+  if (cachedPlanillaEsAutomaticaExists !== undefined) {
+    return cachedPlanillaEsAutomaticaExists;
+  }
+
+  const activePool = pool || (await poolPromise);
+  const result = await activePool.request().query(`
+    SELECT TOP 1 COLUMN_NAME AS column_name
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Planilla'
+      AND COLUMN_NAME = 'es_automatica'
+  `);
+
+  cachedPlanillaEsAutomaticaExists = result.recordset.length > 0;
+  return cachedPlanillaEsAutomaticaExists;
+};
+
 module.exports = {
   resolvePlanillaAutomaticaColumn,
+  resolvePlanillaEsAutomaticaExists,
 };

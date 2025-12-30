@@ -3,7 +3,10 @@
  * y expone operaciones CRUD así como utilidades de activación/desactivación.
  */
 const { poolPromise, sql } = require('../db/db');
-const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
+const {
+  resolvePlanillaAutomaticaColumn,
+  resolvePlanillaEsAutomaticaExists,
+} = require('../utils/empleadoSchema');
 
 class Empleado {
   // Obtener todos los empleados activos con nombre del puesto
@@ -11,16 +14,23 @@ class Empleado {
     try {
       const pool = await poolPromise;
       const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const hasPlanillaEsAutomatica = planillaColumn
+        ? false
+        : await resolvePlanillaEsAutomaticaExists(pool);
       const planillaSelect = planillaColumn
         ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
-        : ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica';
+        : hasPlanillaEsAutomatica
+          ? ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica'
+          : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
       const planillaJoin = planillaColumn
         ? ''
-        : `LEFT JOIN (
-            SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
-            FROM dbo.Planilla
-            GROUP BY id_empleado
-          ) pa ON pa.id_empleado = e.id_empleado`;
+        : hasPlanillaEsAutomatica
+          ? `LEFT JOIN (
+              SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
+              FROM dbo.Planilla
+              GROUP BY id_empleado
+            ) pa ON pa.id_empleado = e.id_empleado`
+          : '';
       const result = await pool.request()
         .query(`
           SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
@@ -40,16 +50,23 @@ class Empleado {
     try {
       const pool = await poolPromise;
       const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const hasPlanillaEsAutomatica = planillaColumn
+        ? false
+        : await resolvePlanillaEsAutomaticaExists(pool);
       const planillaSelect = planillaColumn
         ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
-        : ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica';
+        : hasPlanillaEsAutomatica
+          ? ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica'
+          : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
       const planillaJoin = planillaColumn
         ? ''
-        : `LEFT JOIN (
-            SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
-            FROM dbo.Planilla
-            GROUP BY id_empleado
-          ) pa ON pa.id_empleado = e.id_empleado`;
+        : hasPlanillaEsAutomatica
+          ? `LEFT JOIN (
+              SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
+              FROM dbo.Planilla
+              GROUP BY id_empleado
+            ) pa ON pa.id_empleado = e.id_empleado`
+          : '';
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
