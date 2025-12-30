@@ -2064,7 +2064,12 @@ export const usePlanilla = () => {
               ? (() => {
                   const asistio = !detalle.asistio;
                   const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-                  const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+                  const basePreferencia =
+                    asistio && !detalle.es_dia_doble && salarioDetalleReferencia > 0 &&
+                    baseReferencia > salarioDetalleReferencia
+                      ? salarioDetalleReferencia
+                      : baseReferencia;
+                  const baseNormalizado = applySalarioBaseFallback(basePreferencia);
                   const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
                   const factorDobles =
                     detalle.es_dia_doble &&
@@ -2096,7 +2101,13 @@ export const usePlanilla = () => {
         )
       );
     },
-    [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback, aplicarPoliticaAusencias]
+    [
+      attendanceState.dias,
+      attendanceState.fechas,
+      applySalarioBaseFallback,
+      aplicarPoliticaAusencias,
+      salarioDetalleReferencia,
+    ]
   );
 
   const toggleDetalleDiaDoble = useCallback((index) => {
