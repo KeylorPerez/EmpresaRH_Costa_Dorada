@@ -469,6 +469,30 @@ const getEmpleadoById = async (req, res) => {
   }
 };
 
+const parseFlagValue = (value, defaultValue = null) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'si', 'sí'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no'].includes(normalized)) {
+    return false;
+  }
+  const numericValue = Number(value);
+  if (!Number.isNaN(numericValue)) {
+    return numericValue === 1;
+  }
+  return defaultValue;
+};
+
 // Crear un nuevo empleado (solo admin)
 const createEmpleado = async (req, res) => {
   try {
@@ -618,10 +642,7 @@ const createEmpleado = async (req, res) => {
         ? planilla_automatica
         : es_automatica;
 
-    const planillaAutomaticaValue =
-      planillaAutomaticaRaw !== undefined && planillaAutomaticaRaw !== null
-        ? Number(planillaAutomaticaRaw) === 1 || planillaAutomaticaRaw === true
-        : false;
+    const planillaAutomaticaValue = parseFlagValue(planillaAutomaticaRaw, false);
 
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -757,10 +778,7 @@ const updateEmpleado = async (req, res) => {
         ? planilla_automatica
         : es_automatica;
 
-    const planillaAutomaticaValue =
-      planillaAutomaticaRaw !== undefined && planillaAutomaticaRaw !== null
-        ? Number(planillaAutomaticaRaw) === 1 || planillaAutomaticaRaw === true
-        : null;
+    const planillaAutomaticaValue = parseFlagValue(planillaAutomaticaRaw, null);
 
     const shouldUpdateDescansos = Array.isArray(descansos);
     const descansosNormalizados = [];
