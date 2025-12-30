@@ -48,6 +48,22 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
 - Limitar permisos de roles en rutas sensibles mediante `authorizeRoles`.
 - Implementar validaciones de entrada y manejo de errores consistente en todos los controladores (actualmente algunos propagan errores directos de la base de datos).
 
+### 2.6 Esquema de la tabla Planilla
+- La API de planillas espera que los montos (`deducciones`, `horas_extras`, `bonificaciones`, `ccss_deduccion`, `pago_neto`) y las marcas de auditoría (`created_at`, `updated_at`) sean **NOT NULL** con valores predeterminados; además usa la bandera `es_automatica` para distinguir cálculos manuales vs. automáticos.
+- Si la tabla proviene de un script antiguo (como el compartido sin `es_automatica` y con columnas en `NULL`), los inserts/updates pueden fallar al castear el bit o al sumar montos `NULL`.
+- Ejecute `docs/sql/planilla_table.sql` en SQL Server Management Studio: crea la tabla si no existe, agrega la columna `es_automatica` y establece defaults para los montos y timestamps sin perder los datos actuales.
+- Antes de aplicar los `ALTER`, normalice posibles `NULL` para evitar errores de restricción:
+  ```sql
+  UPDATE Planilla
+  SET deducciones    = ISNULL(deducciones, 0),
+      horas_extras   = ISNULL(horas_extras, 0),
+      bonificaciones = ISNULL(bonificaciones, 0),
+      ccss_deduccion = ISNULL(ccss_deduccion, 0),
+      es_automatica  = ISNULL(es_automatica, 1),
+      created_at     = ISNULL(created_at, SYSDATETIME()),
+      updated_at     = ISNULL(updated_at, SYSDATETIME());
+  ```
+
 ## 3. Frontend
 ### 3.1 Arranque y build
 - **Scripts:** `npm run dev` (servidor Vite), `npm run build` (bundle de producción), `npm run preview` (servido del build) y `npm run lint`.
