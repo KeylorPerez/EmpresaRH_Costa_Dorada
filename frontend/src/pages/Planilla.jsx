@@ -172,6 +172,7 @@ const Planilla = () => {
   const defaultDateRangeRef = useRef(obtenerRangoFechaPorDefecto());
   const [empleadoFiltro, setEmpleadoFiltro] = useState("todos");
   const [busquedaEmpleado, setBusquedaEmpleado] = useState("");
+  const [ocultarPlanillasGeneradas, setOcultarPlanillasGeneradas] = useState(true);
   const [fechaInicioFiltro, setFechaInicioFiltro] = useState(
     defaultDateRangeRef.current.inicio,
   );
@@ -533,54 +534,6 @@ const Planilla = () => {
     [empleados]
   );
 
-  const empleadosFiltrados = useMemo(() => {
-    const terminoBusqueda = wizardSearch.trim().toLowerCase();
-
-    const baseEmpleados = isEditing ? empleados : empleadosActivos;
-
-    return baseEmpleados.filter((empleado) => {
-      const nombreCompleto = `${empleado.nombre || ""} ${empleado.apellido || ""}`.toLowerCase();
-      const coincideBusqueda =
-        terminoBusqueda.length === 0 ||
-        nombreCompleto.includes(terminoBusqueda) ||
-        String(empleado.id_empleado).includes(terminoBusqueda);
-
-      if (!coincideBusqueda) {
-        return false;
-      }
-
-      const tipoNormalizado = normalizarTipoPago(empleado.tipo_pago);
-
-      if (wizardTipoPagoFiltro === "todos") {
-        return true;
-      }
-
-      if (wizardTipoPagoFiltro === "diario") {
-        return tipoNormalizado === "diario";
-      }
-
-      if (wizardTipoPagoFiltro === "quincenal") {
-        return tipoNormalizado === "quincenal";
-      }
-
-      if (wizardTipoPagoFiltro === "mensual") {
-        return tipoNormalizado === "mensual";
-      }
-
-      return true;
-    });
-  }, [empleados, empleadosActivos, isEditing, wizardSearch, wizardTipoPagoFiltro]);
-
-  const empleadosNavegables = useMemo(
-    () => (isEditing ? empleados : empleadosFiltrados),
-    [empleados, empleadosFiltrados, isEditing]
-  );
-
-  const empleadosDisponibles = useMemo(
-    () => (isEditing ? empleados : empleadosActivos),
-    [empleados, empleadosActivos, isEditing]
-  );
-
   const empleadosConPlanillaEnPeriodo = useMemo(() => {
     const inicioSeleccionado = parseDateSafe(formData.periodo_inicio);
     const finSeleccionado = parseDateSafe(formData.periodo_fin);
@@ -612,6 +565,68 @@ const Planilla = () => {
       return acumulador;
     }, new Set());
   }, [formData.periodo_inicio, formData.periodo_fin, planillas]);
+
+  const empleadosFiltrados = useMemo(() => {
+    const terminoBusqueda = wizardSearch.trim().toLowerCase();
+
+    const baseEmpleados = isEditing ? empleados : empleadosActivos;
+
+    return baseEmpleados.filter((empleado) => {
+      const tienePlanillaEnPeriodo = empleadosConPlanillaEnPeriodo.has(String(empleado.id_empleado));
+
+      if (!isEditing && ocultarPlanillasGeneradas && tienePlanillaEnPeriodo) {
+        return false;
+      }
+
+      const nombreCompleto = `${empleado.nombre || ""} ${empleado.apellido || ""}`.toLowerCase();
+      const coincideBusqueda =
+        terminoBusqueda.length === 0 ||
+        nombreCompleto.includes(terminoBusqueda) ||
+        String(empleado.id_empleado).includes(terminoBusqueda);
+
+      if (!coincideBusqueda) {
+        return false;
+      }
+
+      const tipoNormalizado = normalizarTipoPago(empleado.tipo_pago);
+
+      if (wizardTipoPagoFiltro === "todos") {
+        return true;
+      }
+
+      if (wizardTipoPagoFiltro === "diario") {
+        return tipoNormalizado === "diario";
+      }
+
+      if (wizardTipoPagoFiltro === "quincenal") {
+        return tipoNormalizado === "quincenal";
+      }
+
+      if (wizardTipoPagoFiltro === "mensual") {
+        return tipoNormalizado === "mensual";
+      }
+
+      return true;
+    });
+  }, [
+    empleados,
+    empleadosActivos,
+    empleadosConPlanillaEnPeriodo,
+    isEditing,
+    ocultarPlanillasGeneradas,
+    wizardSearch,
+    wizardTipoPagoFiltro,
+  ]);
+
+  const empleadosNavegables = useMemo(
+    () => (isEditing ? empleados : empleadosFiltrados),
+    [empleados, empleadosFiltrados, isEditing]
+  );
+
+  const empleadosDisponibles = useMemo(
+    () => (isEditing ? empleados : empleadosActivos),
+    [empleados, empleadosActivos, isEditing]
+  );
 
   useEffect(() => {
     if (empleadosNavegables.length === 0) {
@@ -1341,6 +1356,23 @@ const Planilla = () => {
                                         {wizardTipoPagoFiltroLabel}
                                       </span>
                                     </Button>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                                    <label
+                                      className="flex items-start gap-2 text-sm text-gray-700"
+                                      htmlFor="ocultar-planillas"
+                                    >
+                                      <input
+                                        id="ocultar-planillas"
+                                        type="checkbox"
+                                        checked={ocultarPlanillasGeneradas}
+                                        onChange={(event) => setOcultarPlanillasGeneradas(event.target.checked)}
+                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                      />
+                                      <span className="leading-5">
+                                        No mostrar colaboradores con planilla generada para el periodo
+                                      </span>
+                                    </label>
                                   </div>
                                   <div className="space-y-2">
                                     <label className="text-xs font-semibold text-gray-500" htmlFor="buscador-empleado">
