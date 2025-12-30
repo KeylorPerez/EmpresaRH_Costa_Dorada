@@ -301,6 +301,8 @@ const buildPdfLines = (planilla, detalles) => {
   const defaultColumnWidths = {
     fecha: 10,
     dia: 10,
+    horaEntrada: 8,
+    horaSalida: 8,
     asistencia: 10,
     tipo: 10,
     estado: 9,
@@ -311,6 +313,8 @@ const buildPdfLines = (planilla, detalles) => {
   const maxColumnWidths = {
     fecha: 10,
     dia: 12,
+    horaEntrada: 12,
+    horaSalida: 12,
     asistencia: 12,
     tipo: 12,
     estado: 12,
@@ -324,6 +328,8 @@ const buildPdfLines = (planilla, detalles) => {
     const longestByColumn = {
       fecha: 'Fecha',
       dia: 'Día',
+      horaEntrada: 'Hora entrada',
+      horaSalida: 'Hora salida',
       asistencia: 'Asistencia',
       tipo: 'Tipo',
       estado: 'Estado',
@@ -339,6 +345,14 @@ const buildPdfLines = (planilla, detalles) => {
       longestByColumn.dia = Math.max(
         longestByColumn.dia.length,
         sanitizePdfText(capitalize(detalle.dia_semana || '')).length,
+      );
+      longestByColumn.horaEntrada = Math.max(
+        longestByColumn.horaEntrada.length,
+        sanitizePdfText(formatHourDisplay(detalle.hora_entrada)).length,
+      );
+      longestByColumn.horaSalida = Math.max(
+        longestByColumn.horaSalida.length,
+        sanitizePdfText(formatHourDisplay(detalle.hora_salida)).length,
       );
       const asistenciaBase = (() => {
         const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
@@ -393,6 +407,8 @@ const buildPdfLines = (planilla, detalles) => {
   const headerLine = [
     padColumn('Fecha', columnWidths.fecha),
     padColumn('Día', columnWidths.dia),
+    padColumn('Hora entrada', columnWidths.horaEntrada),
+    padColumn('Hora salida', columnWidths.horaSalida),
     padColumn('Asistencia', columnWidths.asistencia),
     padColumn('Tipo', columnWidths.tipo),
     padColumn('Estado', columnWidths.estado),
@@ -411,6 +427,8 @@ const buildPdfLines = (planilla, detalles) => {
   detalles.forEach((detalle) => {
     const fecha = padColumn(formatDateDisplay(detalle.fecha), columnWidths.fecha);
     const dia = padColumn(capitalize(detalle.dia_semana || ''), columnWidths.dia);
+    const horaEntrada = padColumn(formatHourDisplay(detalle.hora_entrada), columnWidths.horaEntrada);
+    const horaSalida = padColumn(formatHourDisplay(detalle.hora_salida), columnWidths.horaSalida);
     const asistenciaBase = (() => {
       const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
       if (texto) return texto;
@@ -440,6 +458,8 @@ const buildPdfLines = (planilla, detalles) => {
     const basePrefix = [
       fecha,
       dia,
+      horaEntrada,
+      horaSalida,
       asistencia,
       tipo,
       estado,
@@ -607,7 +627,7 @@ const createCsvFile = async (filePath, planilla, detalles) => {
   lines.push('');
   lines.push('Detalle');
   lines.push(
-    'Fecha;Día;Asistencia;Tipo;Estado;Justificado;Salario día;Justificación;Observación',
+    'Fecha;Día;Hora entrada;Hora salida;Asistencia;Tipo;Estado;Justificado;Salario día;Justificación;Observación',
   );
 
   if (Array.isArray(detalles) && detalles.length > 0) {
@@ -615,6 +635,8 @@ const createCsvFile = async (filePath, planilla, detalles) => {
       const fila = [
         formatDateValue(detalle.fecha),
         capitalize(detalle.dia_semana || ''),
+        formatHourDisplay(detalle.hora_entrada),
+        formatHourDisplay(detalle.hora_salida),
         (() => {
           const texto = detalle.asistencia ? String(detalle.asistencia).trim() : '';
           return texto || (detalle.asistio ? 'Asistió' : 'Faltó');
@@ -632,7 +654,7 @@ const createCsvFile = async (filePath, planilla, detalles) => {
       lines.push(fila);
     });
   } else {
-    lines.push('Sin registros;;;;;;;;');
+    lines.push('Sin registros;;;;;;;;;');
   }
 
   const sanitizedLines = lines.map((line) => sanitizeCsvLine(line));
