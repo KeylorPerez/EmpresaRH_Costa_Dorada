@@ -122,6 +122,15 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     detalle.es_dia_doble === true || Number(detalle.es_dia_doble) === 1,
   );
 
+  const multiplicadorDiaDoble = (() => {
+    const raw = detalle.multiplicador_dia_doble ?? detalle.multiplicador;
+    const valor = Number(raw);
+    if (Number.isFinite(valor) && valor >= 1) {
+      return valor;
+    }
+    return esDiaDoble ? 2 : null;
+  })();
+
   const salarioDiaNumero = (() => {
     const numero = parseNumberInput(detalle.salario_dia);
     if (Number.isNaN(numero)) {
@@ -186,6 +195,7 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     salario_dia: salarioDiaTexto,
     asistio,
     es_dia_doble: esDiaDoble,
+    multiplicador_dia_doble: multiplicadorDiaDoble,
     es_descanso: esDescanso,
     estado,
     justificado,
@@ -338,7 +348,14 @@ const normalizarAsistenciaManualRegistro = (registro) => {
 const calcularSalarioDiaDesdeDetalle = (detalle) => {
   const base = normalizeSalarioBase(detalle.salario_base);
   if (base > 0) {
-    const factor = detalle.es_dia_doble ? 2 : 1;
+    const multiplicador = (() => {
+      const valor = Number(detalle.multiplicador_dia_doble);
+      if (Number.isFinite(valor) && valor >= 1) {
+        return valor;
+      }
+      return detalle.es_dia_doble ? 2 : 1;
+    })();
+    const factor = detalle.es_dia_doble ? multiplicador : 1;
     return formatMontoPositivo(base * factor);
   }
 
@@ -847,7 +864,14 @@ export const usePlanilla = () => {
       }
 
       const salarioBase = parseNumberInput(detalle.salario_base);
-      const factor = detalle.es_dia_doble ? 2 : 1;
+      const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+      const factorBase =
+        Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+          ? multiplicadorManual
+          : 2;
+      const debeAplicarDoblePorDescanso = detalle.es_descanso && asistio;
+      const esDiaDoble = detalle.es_dia_doble || debeAplicarDoblePorDescanso;
+      const factor = esDiaDoble ? factorBase : 1;
       const salarioCalculado = (() => {
         if (Number.isFinite(salarioBase) && salarioBase >= 0) {
           return salarioBase * factor;
@@ -858,13 +882,19 @@ export const usePlanilla = () => {
 
       const salarioTexto = Number(salarioCalculado).toFixed(2);
 
-      if (detalle.asistio && detalle.salario_dia === salarioTexto) {
+      if (
+        detalle.asistio &&
+        detalle.salario_dia === salarioTexto &&
+        detalle.es_dia_doble === esDiaDoble
+      ) {
         return detalle;
       }
 
       return {
         ...detalle,
         asistio: true,
+        es_dia_doble: esDiaDoble,
+        multiplicador_dia_doble: esDiaDoble ? factor : detalle.multiplicador_dia_doble,
         salario_dia: salarioTexto,
         estado: ajustarEstadoPorAsistencia(detalle.estado, true),
         asistenciaManual: false,
@@ -982,25 +1012,45 @@ export const usePlanilla = () => {
         return detalles;
       }
 
-      const fechasNormalizadas = Array.isArray(fechasDobles)
-        ? fechasDobles
-            .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
-            .filter((fecha) => fecha.length > 0)
-        : [];
+      const doblesSet = new Map(
+        (Array.isArray(fechasDobles) ? fechasDobles : [])
+          .map((entrada) => {
+            if (!entrada) return null;
+            if (typeof entrada === "string") {
+              return { fecha: entrada.trim(), multiplicador: 2 };
+            }
 
-      const doblesSet = new Set(fechasNormalizadas);
+            const fecha = typeof entrada.fecha === "string" ? entrada.fecha.trim() : "";
+            const multiplicador = Number(entrada.multiplicador);
+            const multiplicadorNormalizado =
+              Number.isFinite(multiplicador) && multiplicador >= 1 ? multiplicador : 2;
+
+            return fecha ? { fecha, multiplicador: multiplicadorNormalizado } : null;
+          })
+          .filter(Boolean)
+          .map((entrada) => [entrada.fecha, entrada.multiplicador]),
+      );
 
       return detalles.map((detalle) => {
-        const es_dia_doble = doblesSet.has(detalle.fecha);
+        const multiplicadorAuto = doblesSet.get(detalle.fecha);
+        const es_dia_doble = multiplicadorAuto !== undefined;
+        const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+        const multiplicadorNormalizado = es_dia_doble
+          ? multiplicadorAuto
+          : Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+            ? multiplicadorManual
+            : 2;
 
-        if (detalle.es_dia_doble === es_dia_doble) {
+        if (
+          detalle.es_dia_doble === es_dia_doble &&
+          detalle.multiplicador_dia_doble === multiplicadorNormalizado
+        ) {
           return detalle;
         }
 
         const baseReferencia = obtenerSalarioBaseDetalle(detalle);
         const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-        const factorDobles = es_dia_doble ? 2 : 1;
-        const factorAplicado = detalle.asistio ? factorDobles : 1;
+        const factorAplicado = detalle.asistio ? multiplicadorNormalizado : 1;
         const salarioCalculado = detalle.asistio
           ? formatMontoPositivo(baseNormalizado * factorAplicado)
           : formatMontoPositivo(baseNormalizado);
@@ -1008,6 +1058,9 @@ export const usePlanilla = () => {
         return {
           ...detalle,
           es_dia_doble,
+          multiplicador_dia_doble: es_dia_doble
+            ? multiplicadorNormalizado
+            : detalle.multiplicador_dia_doble,
           salario_base: baseNormalizado,
           salario_dia: salarioCalculado,
         };
@@ -1452,11 +1505,14 @@ export const usePlanilla = () => {
         const fechasDobles = Array.isArray(data)
           ? data
               .filter((dia) => dia && dia.activo)
-              .map((dia) => (typeof dia.fecha === "string" ? dia.fecha.trim() : ""))
-              .filter((fecha) => fecha.length > 0)
-              .filter((fecha) => {
+              .map((dia) => ({
+                fecha: typeof dia.fecha === "string" ? dia.fecha.trim() : "",
+                multiplicador: Number(dia.multiplicador),
+              }))
+              .filter((entrada) => entrada.fecha.length > 0)
+              .filter((entrada) => {
                 if (!inicioDate || !finDate) return false;
-                const fechaDate = parseDateSafe(fecha);
+                const fechaDate = parseDateSafe(entrada.fecha);
                 if (!fechaDate) return false;
                 return fechaDate >= inicioDate && fechaDate <= finDate;
               })
@@ -1608,6 +1664,7 @@ export const usePlanilla = () => {
         salario_dia: salarioDiarioReferencia.toFixed(2),
         asistio: true,
         es_dia_doble: false,
+        multiplicador_dia_doble: null,
         es_descanso: false,
         estado: ESTADO_PRESENTE,
         justificado: false,
@@ -1854,7 +1911,12 @@ export const usePlanilla = () => {
 
               if (!Number.isNaN(numero)) {
                 const positivo = Math.max(numero, 0);
-                const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
+                const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+                const factorManual =
+                  Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+                    ? multiplicadorManual
+                    : 2;
+                const factorBase = detalle.asistio ? (detalle.es_dia_doble ? factorManual : 1) : 1;
                 const base = factorBase > 0 ? positivo / factorBase : positivo;
                 siguiente.salario_base = applySalarioBaseFallback(base);
               }
@@ -1886,7 +1948,12 @@ export const usePlanilla = () => {
               const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
               const baseNormalizado = applySalarioBaseFallback(baseReferencia);
               if (baseNormalizado > 0) {
-                const factor = siguiente.asistio ? (siguiente.es_dia_doble ? 2 : 1) : 1;
+                const multiplicadorManual = Number(siguiente.multiplicador_dia_doble);
+                const factorManual =
+                  Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+                    ? multiplicadorManual
+                    : 2;
+                const factor = siguiente.asistio ? (siguiente.es_dia_doble ? factorManual : 1) : 1;
                 siguiente.salario_base = baseNormalizado;
                 siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
               } else if (!siguiente.asistio) {
@@ -1902,7 +1969,13 @@ export const usePlanilla = () => {
             if (nuevoEstado === ESTADO_PRESENTE) {
               const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
               const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-              const factor = siguiente.es_dia_doble ? 2 : 1;
+              const multiplicadorManual = Number(siguiente.multiplicador_dia_doble);
+              const factor =
+                siguiente.es_dia_doble && Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+                  ? multiplicadorManual
+                  : siguiente.es_dia_doble
+                    ? 2
+                    : 1;
               siguiente.asistio = true;
               siguiente.salario_base = baseNormalizado;
               siguiente.salario_dia = formatMontoPositivo(baseNormalizado * factor);
@@ -1957,7 +2030,12 @@ export const usePlanilla = () => {
         }
 
         const positivo = Math.max(numero, 0);
-        const factorBase = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
+        const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+        const factorManual =
+          Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+            ? multiplicadorManual
+            : 2;
+        const factorBase = detalle.asistio ? (detalle.es_dia_doble ? factorManual : 1) : 1;
         const base = factorBase > 0 ? positivo / factorBase : positivo;
 
         return {
@@ -1974,37 +2052,45 @@ export const usePlanilla = () => {
       const attendanceFechas = new Set(attendanceState.fechas || []);
       const attendanceDisponible = attendanceState.dias !== null;
 
-    setDetalleDias((prev) =>
-      aplicarPoliticaAusencias(
-        prev.map((detalle, idx) =>
-          idx === index
-            ? (() => {
-                const asistio = !detalle.asistio;
-                const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-                const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-                const factorDobles = detalle.es_dia_doble ? 2 : 1;
-                const factorAplicado = asistio ? factorDobles : 1;
-                const salarioCalculado = asistio
-                  ? formatMontoPositivo(baseNormalizado * factorAplicado)
-                  : formatMontoPositivo(baseNormalizado);
-                const autoAsistio = attendanceFechas.has(detalle.fecha);
-                const asistenciaManual = attendanceDisponible ? asistio !== autoAsistio : true;
+      setDetalleDias((prev) =>
+        aplicarPoliticaAusencias(
+          prev.map((detalle, idx) =>
+            idx === index
+              ? (() => {
+                  const asistio = !detalle.asistio;
+                  const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+                  const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+                  const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+                  const factorDobles =
+                    detalle.es_dia_doble &&
+                    Number.isFinite(multiplicadorManual) &&
+                    multiplicadorManual >= 1
+                      ? multiplicadorManual
+                      : detalle.es_dia_doble
+                        ? 2
+                        : 1;
+                  const factorAplicado = asistio ? factorDobles : 1;
+                  const salarioCalculado = asistio
+                    ? formatMontoPositivo(baseNormalizado * factorAplicado)
+                    : formatMontoPositivo(baseNormalizado);
+                  const autoAsistio = attendanceFechas.has(detalle.fecha);
+                  const asistenciaManual = attendanceDisponible ? asistio !== autoAsistio : true;
 
-                return {
-                  ...detalle,
-                  asistio,
-                  salario_base: baseNormalizado,
-                  salario_dia: salarioCalculado,
-                  estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
-                  autoJustificacion: false,
-                  asistenciaManual,
-                };
-              })()
-            : detalle
+                  return {
+                    ...detalle,
+                    asistio,
+                    salario_base: baseNormalizado,
+                    salario_dia: salarioCalculado,
+                    estado: ajustarEstadoPorAsistencia(detalle.estado, asistio),
+                    autoJustificacion: false,
+                    asistenciaManual,
+                  };
+                })()
+              : detalle
+          )
         )
-      )
-    );
-  },
+      );
+    },
     [attendanceState.dias, attendanceState.fechas, applySalarioBaseFallback, aplicarPoliticaAusencias]
   );
 
@@ -2017,7 +2103,13 @@ export const usePlanilla = () => {
                 const es_dia_doble = !detalle.es_dia_doble;
                 const baseReferencia = obtenerSalarioBaseDetalle(detalle);
                 const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-                const factorDobles = es_dia_doble ? 2 : 1;
+                const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
+                const factorDobles =
+                  es_dia_doble && Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
+                    ? multiplicadorManual
+                    : es_dia_doble
+                      ? 2
+                      : 1;
                 const factorAplicado = detalle.asistio ? factorDobles : 1;
                 const salarioCalculado = detalle.asistio
                   ? formatMontoPositivo(baseNormalizado * factorAplicado)
@@ -2026,6 +2118,7 @@ export const usePlanilla = () => {
                 return {
                   ...detalle,
                   es_dia_doble,
+                  multiplicador_dia_doble: es_dia_doble ? factorDobles : detalle.multiplicador_dia_doble,
                   salario_base: baseNormalizado,
                   salario_dia: salarioCalculado,
                   autoJustificacion: false,
@@ -2054,7 +2147,14 @@ export const usePlanilla = () => {
         const salario = toPositiveNumber(detalle.salario_dia);
         const salarioBase = toPositiveNumber(detalle.salario_base);
         const pagado = salario > 0;
-        const factorAsistencia = detalle.asistio ? (detalle.es_dia_doble ? 2 : 1) : 1;
+        const multiplicador = (() => {
+          const valor = Number(detalle.multiplicador_dia_doble);
+          if (Number.isFinite(valor) && valor >= 1) {
+            return valor;
+          }
+          return detalle.es_dia_doble ? 2 : 1;
+        })();
+        const factorAsistencia = detalle.asistio ? (detalle.es_dia_doble ? multiplicador : 1) : 1;
 
         if (pagado) {
           acumulado.diasAsistidos += factorAsistencia;
