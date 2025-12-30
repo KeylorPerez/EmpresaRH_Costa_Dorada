@@ -7,6 +7,7 @@ const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
+const DescansoSemanal = require('./DescansoSemanal');
 
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
@@ -67,27 +68,112 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
+const parseUtcDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
+
+const addDays = (date, days) => new Date(date.getTime() + days * MS_POR_DIA);
+
+const resolveWeekType = (fecha, inicioVigencia) => {
+  const diff = Math.floor((fecha.getTime() - inicioVigencia.getTime()) / MS_POR_DIA);
+  const weekIndex = Math.floor(diff / 7);
+  return weekIndex % 2 === 0 ? 'A' : 'B';
+};
+
+const normalizeDescansoRows = (rows = []) =>
+  rows
+    .map((row) => {
+      const inicio = parseUtcDate(row.fecha_inicio_vigencia);
+      if (!inicio) {
+        return null;
+      }
+      const fin = parseUtcDate(row.fecha_fin_vigencia);
+
+      return {
+        ...row,
+        semana_tipo: typeof row.semana_tipo === 'string' ? row.semana_tipo.trim().toUpperCase() : '',
+        dia_semana: Number(row.dia_semana),
+        fecha_inicio_vigencia: inicio,
+        fecha_fin_vigencia: fin,
+      };
+    })
+    .filter((row) => {
+      if (!row) return false;
+      if (row.semana_tipo !== 'A' && row.semana_tipo !== 'B') return false;
+      if (!Number.isFinite(row.dia_semana)) return false;
+      return row.dia_semana >= 0 && row.dia_semana <= 6;
+    });
+
+const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
+  const inicio = parseUtcDate(periodo_inicio);
+  const fin = parseUtcDate(periodo_fin);
+  if (!inicio || !fin || fin < inicio) return 0;
+
+  const rows = await DescansoSemanal.getByEmpleadoInRange(id_empleado, periodo_inicio, periodo_fin);
+  const normalizedRows = normalizeDescansoRows(rows);
+  if (normalizedRows.length === 0) {
+    return 0;
+  }
+
+  const fechasSet = new Set();
+  let cursor = new Date(inicio.getTime());
+
+  while (cursor <= fin) {
+    const diaSemana = cursor.getUTCDay();
+
+    normalizedRows.forEach((row) => {
+      if (row.dia_semana !== diaSemana) return;
+      if (cursor < row.fecha_inicio_vigencia) return;
+      if (row.fecha_fin_vigencia && cursor > row.fecha_fin_vigencia) return;
+
+      const weekType = resolveWeekType(cursor, row.fecha_inicio_vigencia);
+      if (weekType !== row.semana_tipo) return;
+      fechasSet.add(cursor.toISOString().slice(0, 10));
+    });
+
+    cursor = addDays(cursor, 1);
+  }
+
+  return fechasSet.size;
+};
+
+const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
+  const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
+  if (diasPeriodo <= 0) return 0;
+  const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
+  return Math.max(diasPeriodo - descansoDias, 0);
+};
+
 const buildDiasDoblesAuto = async ({
   id_empleado,
   periodo_inicio,
   periodo_fin,
   salario_base,
+  filtrar_por_asistencia = true,
 }) => {
   const diasDobles = await DiasDobles.getActiveInRange(periodo_inicio, periodo_fin);
   if (!Array.isArray(diasDobles) || diasDobles.length === 0) {
     return { diasDobles: 0, montoExtra: 0 };
   }
 
-  const asistenciaFechas = await Asistencia.getDistinctAttendanceDays(
-    id_empleado,
-    periodo_inicio,
-    periodo_fin
-  );
-  const asistenciaSet = new Set(asistenciaFechas);
-  const filtrarPorAsistencia = asistenciaSet.size > 0;
+  let asistenciaSet = null;
+  let filtrarPorAsistencia = false;
+
+  if (filtrar_por_asistencia) {
+    const asistenciaFechas = await Asistencia.getDistinctAttendanceDays(
+      id_empleado,
+      periodo_inicio,
+      periodo_fin
+    );
+    asistenciaSet = new Set(asistenciaFechas);
+    filtrarPorAsistencia = asistenciaSet.size > 0;
+  }
 
   const diasAplicados = diasDobles.filter((dia) =>
-    filtrarPorAsistencia ? asistenciaSet.has(dia.fecha) : true
+    filtrarPorAsistencia && asistenciaSet ? asistenciaSet.has(dia.fecha) : true
   );
 
   const montoExtra = diasAplicados.reduce((sum, dia) => {
@@ -357,6 +443,7 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
               salario_base,
+              filtrar_por_asistencia: esAutomatica,
             })
           : null;
 
@@ -386,7 +473,7 @@ class Planilla {
             );
             diasParaPago = diasAsistencia;
           } else {
-            diasParaPago = 0;
+            diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
         }
 
@@ -689,6 +776,7 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
               salario_base,
+              filtrar_por_asistencia: esAutomatica,
             })
           : null;
 
@@ -722,7 +810,7 @@ class Planilla {
             );
             diasParaPago = Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
           } else {
-            diasParaPago = 0;
+            diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
         } else {
           diasParaPago = diasValor;
