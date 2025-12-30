@@ -19,15 +19,15 @@ const resolveWeekType = (fecha, inicioVigencia) => {
   return weekIndex % 2 === 0 ? 'A' : 'B';
 };
 
-const normalizeScheduleRows = (rows) =>
-  rows
+const normalizeScheduleRows = (rows) => {
+  const normalized = rows
     .map((row) => {
       const inicio = parseDate(row.fecha_inicio_vigencia);
       if (!inicio) {
         return null;
       }
       const fin = parseDate(row.fecha_fin_vigencia);
-  return {
+      return {
         ...row,
         semana_tipo: typeof row.semana_tipo === 'string' ? row.semana_tipo.trim().toUpperCase() : '',
         dia_semana: Number(row.dia_semana),
@@ -41,6 +41,38 @@ const normalizeScheduleRows = (rows) =>
       if (!Number.isFinite(row.dia_semana)) return false;
       return row.dia_semana >= 0 && row.dia_semana <= 6;
     });
+
+  const primerDescansoA = normalized
+    .filter((row) => row.semana_tipo === 'A')
+    .reduce((min, row) => {
+      if (!min) return row.fecha_inicio_vigencia;
+      return min < row.fecha_inicio_vigencia ? min : row.fecha_inicio_vigencia;
+    }, null);
+
+  if (!primerDescansoA) {
+    return normalized;
+  }
+
+  return normalized
+    .map((row) => {
+      if (row.semana_tipo !== 'B') return row;
+
+      const inicioEsperado = addDays(primerDescansoA, 7);
+      if (row.fecha_inicio_vigencia > primerDescansoA) {
+        return row;
+      }
+
+      if (row.fecha_fin_vigencia && row.fecha_fin_vigencia < inicioEsperado) {
+        return null;
+      }
+
+      return {
+        ...row,
+        fecha_inicio_vigencia: inicioEsperado,
+      };
+    })
+    .filter(Boolean);
+};
 
 const buildFechasDescanso = ({ rows, inicio, fin }) => {
   const fechasSet = new Set();
