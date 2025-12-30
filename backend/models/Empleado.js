@@ -13,12 +13,20 @@ class Empleado {
       const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
       const planillaSelect = planillaColumn
         ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
-        : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
+        : ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica';
+      const planillaJoin = planillaColumn
+        ? ''
+        : `LEFT JOIN (
+            SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
+            FROM Planilla
+            GROUP BY id_empleado
+          ) pa ON pa.id_empleado = e.id_empleado`;
       const result = await pool.request()
         .query(`
           SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
+          ${planillaJoin}
           ORDER BY e.estado DESC, e.nombre, e.apellido
         `);
       return result.recordset;
@@ -34,13 +42,21 @@ class Empleado {
       const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
       const planillaSelect = planillaColumn
         ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
-        : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
+        : ', COALESCE(pa.es_automatica, 0) AS planilla_automatica, COALESCE(pa.es_automatica, 0) AS es_automatica';
+      const planillaJoin = planillaColumn
+        ? ''
+        : `LEFT JOIN (
+            SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
+            FROM Planilla
+            GROUP BY id_empleado
+          ) pa ON pa.id_empleado = e.id_empleado`;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
           SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
+          ${planillaJoin}
           WHERE e.id_empleado = @id_empleado
         `);
       return result.recordset[0];
