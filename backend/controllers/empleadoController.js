@@ -518,19 +518,22 @@ const createEmpleado = async (req, res) => {
       return res.status(400).json({ error: 'Tipo de pago inválido' });
     }
 
+    const requiereDescanso = tipo_pago !== 'Diario';
     const descansoItems =
       Array.isArray(descansos) && descansos.length > 0
         ? descansos
-        : [
+        : requiereDescanso
+        ? [
             {
               semana_tipo: descanso_semana_tipo,
               dia_semana: descanso_dia_semana,
               fecha_inicio_vigencia: descanso_fecha_inicio_vigencia,
               fecha_fin_vigencia: descanso_fecha_fin_vigencia,
             },
-          ];
+          ]
+        : [];
 
-    if (!descansoItems.length) {
+    if (requiereDescanso && !descansoItems.length) {
       return res.status(400).json({ error: 'Debes configurar al menos un descanso semanal.' });
     }
 
@@ -763,7 +766,15 @@ const updateEmpleado = async (req, res) => {
     const descansosNormalizados = [];
 
     if (shouldUpdateDescansos) {
-      if (descansos.length === 0) {
+      let tipoPagoEvaluado = tipo_pago;
+      if (!tipoPagoEvaluado) {
+        const empleadoActual = await Empleado.getById(id);
+        tipoPagoEvaluado = empleadoActual?.tipo_pago;
+      }
+
+      const requiereDescanso = tipoPagoEvaluado ? tipoPagoEvaluado !== 'Diario' : true;
+
+      if (requiereDescanso && descansos.length === 0) {
         return res.status(400).json({ error: 'Debes configurar al menos un descanso semanal.' });
       }
 
