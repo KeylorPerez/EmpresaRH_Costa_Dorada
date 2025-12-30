@@ -111,6 +111,11 @@ async function resolveSchemaState(requestFactory) {
 }
 
 class DetallePlanilla {
+  static async ensureSchema() {
+    const pool = await poolPromise;
+    await resolveSchemaState(() => pool.request());
+  }
+
   static async createMany(transaction, id_planilla, detalles = []) {
     if (!Array.isArray(detalles) || detalles.length === 0) {
       return;

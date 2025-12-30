@@ -285,6 +285,11 @@ function sanitizeDetallePlanilla(detalles) {
 }
 
 class Planilla {
+  static async ensureSchema() {
+    const pool = await poolPromise;
+    return resolvePlanillaSchema(() => pool.request());
+  }
+
   // 🔹 Obtener todas las planillas (admin)
   static async getAll() {
     try {

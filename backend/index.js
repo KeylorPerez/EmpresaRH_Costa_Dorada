@@ -22,6 +22,8 @@ const puestoRoutes = require('./routes/puestoRoutes');
 const aguinaldoRoutes = require('./routes/aguinaldoRoutes');
 const diasDoblesRoutes = require('./routes/diasDoblesRoutes');
 const descansoSemanalRoutes = require('./routes/descansoSemanalRoutes');
+const Planilla = require('./models/Planilla');
+const DetallePlanilla = require('./models/DetallePlanilla');
 
 const app = express();
 
@@ -41,6 +43,18 @@ app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 app.use('/files', express.static(EXPORTS_DIR));
+
+async function bootstrapPlanillaSchemas() {
+  try {
+    await Planilla.ensureSchema();
+    await DetallePlanilla.ensureSchema();
+    console.log('[INIT] Esquemas de planilla verificados');
+  } catch (err) {
+    console.error('[INIT] Error verificando esquemas de planilla:', err.message);
+  }
+}
+
+bootstrapPlanillaSchemas();
 
 // Endpoints
 app.use('/api/empleados', empleadoRoutes);
