@@ -7,7 +7,7 @@ const createInitialForm = (idEmpleadoDefault = "") => ({
   id_empleado: idEmpleadoDefault,
   monto: "",
   cuotas: "",
-  interes: "",
+  interes: "0",
   fecha_solicitud: getTodayInputValue(),
 });
 
