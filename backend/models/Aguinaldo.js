@@ -488,7 +488,7 @@ class Aguinaldo {
           .input('fin_periodo', sql.Date, finPeriodo)
           .query(`
             SELECT pago_neto, periodo_inicio, periodo_fin, salario_bruto, bonificaciones, horas_extras, fecha_pago
-            FROM Planilla
+            FROM dbo.Planilla
             WHERE id_empleado = @id_empleado
               AND (
                 (periodo_inicio BETWEEN @inicio_periodo AND @fin_periodo)

@@ -152,7 +152,7 @@ class Liquidacion {
           periodo_inicio,
           periodo_fin,
           fecha_pago
-        FROM Planilla
+        FROM dbo.Planilla
         WHERE id_empleado = @id_empleado
           AND periodo_fin IS NOT NULL
           AND periodo_fin BETWEEN @fecha_desde AND @fecha_hasta

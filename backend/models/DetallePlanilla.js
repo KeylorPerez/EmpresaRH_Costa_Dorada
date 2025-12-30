@@ -35,7 +35,7 @@ BEGIN
     [tipo] NVARCHAR(50) NULL,
     [justificado] BIT NOT NULL CONSTRAINT DF_DetallePlanilla_Justificado DEFAULT (0),
     [justificacion] NVARCHAR(MAX) NULL,
-    CONSTRAINT FK_DetallePlanilla_Planilla FOREIGN KEY (id_planilla) REFERENCES Planilla(id_planilla)
+    CONSTRAINT FK_DetallePlanilla_Planilla FOREIGN KEY (id_planilla) REFERENCES dbo.Planilla(id_planilla)
   );
 END;
 
@@ -290,7 +290,7 @@ class DetallePlanilla {
       valores.push('@observacion');
 
       await request.query(`
-        INSERT INTO DetallePlanilla (
+        INSERT INTO dbo.DetallePlanilla (
           ${columnas.join(',\n          ')}
         )
         VALUES (
@@ -324,7 +324,7 @@ class DetallePlanilla {
 
     await request
       .input('id_planilla', sql.Int, Number(id_planilla))
-      .query('DELETE FROM DetallePlanilla WHERE id_planilla = @id_planilla');
+      .query('DELETE FROM dbo.DetallePlanilla WHERE id_planilla = @id_planilla');
   }
 
   static async getByPlanilla(id_planilla) {
@@ -375,8 +375,8 @@ class DetallePlanilla {
           dp.observacion,
           marcas.hora_entrada,
           marcas.hora_salida
-        FROM DetallePlanilla dp
-        INNER JOIN Planilla p ON p.id_planilla = dp.id_planilla
+        FROM dbo.DetallePlanilla dp
+        INNER JOIN dbo.Planilla p ON p.id_planilla = dp.id_planilla
         LEFT JOIN (
           SELECT
             CONVERT(date, a.fecha) AS fecha,

@@ -298,8 +298,8 @@ class Planilla {
       const result = await pool.request()
         .query(`
           SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado
-          FROM Planilla pl
-          LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
+          FROM dbo.Planilla pl
+          LEFT JOIN dbo.Empleados e ON pl.id_empleado = e.id_empleado
           ORDER BY pl.periodo_inicio DESC
         `);
       return result.recordset;
@@ -317,8 +317,8 @@ class Planilla {
         .query(`
           SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado,
                  e.email, e.cedula
-          FROM Planilla pl
-          LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
+          FROM dbo.Planilla pl
+          LEFT JOIN dbo.Empleados e ON pl.id_empleado = e.id_empleado
           WHERE pl.id_planilla = @id_planilla
         `);
       return result.recordset[0] || null;
@@ -336,8 +336,8 @@ class Planilla {
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
           SELECT pl.*, e.nombre, e.apellido, e.tipo_pago AS tipo_pago_empleado
-          FROM Planilla pl
-          LEFT JOIN Empleados e ON pl.id_empleado = e.id_empleado
+          FROM dbo.Planilla pl
+          LEFT JOIN dbo.Empleados e ON pl.id_empleado = e.id_empleado
           WHERE pl.id_empleado = @id_empleado
           ORDER BY pl.periodo_inicio DESC
         `);
@@ -376,7 +376,7 @@ class Planilla {
         .input('periodo_fin', sql.Date, periodo_fin)
         .query(`
           SELECT id_planilla
-          FROM Planilla
+          FROM dbo.Planilla
           WHERE id_empleado = @id_empleado
             AND periodo_inicio <= @periodo_fin
             AND periodo_fin >= @periodo_inicio
@@ -397,7 +397,7 @@ class Planilla {
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
           SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, estado, ${planillaColumnSelect}
-          FROM Empleados
+          FROM dbo.Empleados
           WHERE id_empleado = @id_empleado
             AND estado = 1
         `);
@@ -654,7 +654,7 @@ class Planilla {
         insertValues.push('GETDATE()', 'GETDATE()');
 
         const result = await request.query(`
-          INSERT INTO Planilla (${insertColumns.join(', ')})
+          INSERT INTO dbo.Planilla (${insertColumns.join(', ')})
           VALUES (${insertValues.join(', ')});
           SELECT SCOPE_IDENTITY() AS id_planilla;
         `);
@@ -744,7 +744,7 @@ class Planilla {
         .input('id_planilla', sql.Int, id_planilla)
         .query(
           `SELECT id_empleado, periodo_inicio, periodo_fin, ${planillaSelect}
-           FROM Planilla
+           FROM dbo.Planilla
            WHERE id_planilla = @id_planilla`
         );
 
@@ -764,7 +764,7 @@ class Planilla {
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
           SELECT salario_monto, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, tipo_pago, ${planillaColumnSelect}
-          FROM Empleados
+          FROM dbo.Empleados
           WHERE id_empleado = @id_empleado
         `);
 
@@ -961,7 +961,7 @@ class Planilla {
         }
 
         await updateRequest.query(`
-          UPDATE Planilla
+          UPDATE dbo.Planilla
           SET ${updateAssignments.join(',\n                ')}
           WHERE id_planilla = @id_planilla
         `);

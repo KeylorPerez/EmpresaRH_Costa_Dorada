@@ -18,14 +18,14 @@ class Empleado {
         ? ''
         : `LEFT JOIN (
             SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
-            FROM Planilla
+            FROM dbo.Planilla
             GROUP BY id_empleado
           ) pa ON pa.id_empleado = e.id_empleado`;
       const result = await pool.request()
         .query(`
           SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
-          FROM Empleados e
-          JOIN Puestos p ON e.id_puesto = p.id_puesto
+          FROM dbo.Empleados e
+          JOIN dbo.Puestos p ON e.id_puesto = p.id_puesto
           ${planillaJoin}
           ORDER BY e.estado DESC, e.nombre, e.apellido
         `);
@@ -47,15 +47,15 @@ class Empleado {
         ? ''
         : `LEFT JOIN (
             SELECT id_empleado, MAX(CAST(es_automatica AS int)) AS es_automatica
-            FROM Planilla
+            FROM dbo.Planilla
             GROUP BY id_empleado
           ) pa ON pa.id_empleado = e.id_empleado`;
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
           SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
-          FROM Empleados e
-          JOIN Puestos p ON e.id_puesto = p.id_puesto
+          FROM dbo.Empleados e
+          JOIN dbo.Puestos p ON e.id_puesto = p.id_puesto
           ${planillaJoin}
           WHERE e.id_empleado = @id_empleado
         `);
@@ -111,7 +111,7 @@ class Empleado {
         .input('permitir_marcacion_fuera', sql.Bit, permitir_marcacion_fuera)
         .input('planilla_automatica', sql.Bit, planilla_automatica)
         .query(`
-          INSERT INTO Empleados
+          INSERT INTO dbo.Empleados
           (nombre, apellido, id_puesto, cedula, fecha_nacimiento, telefono, email, fecha_ingreso, salario_monto, tipo_pago, bonificacion_fija, porcentaje_ccss, usa_deduccion_fija, deduccion_fija, permitir_marcacion_fuera${planillaColumnFragment}, estado, created_at, updated_at)
           VALUES
           (@nombre, @apellido, @id_puesto, @cedula, @fecha_nacimiento, @telefono, @email, @fecha_ingreso, @salario_monto, @tipo_pago, @bonificacion_fija, @porcentaje_ccss, @usa_deduccion_fija, @deduccion_fija, @permitir_marcacion_fuera${planillaValueFragment}, 1, GETDATE(), GETDATE());
@@ -179,7 +179,7 @@ class Empleado {
         )
         .input('estado', sql.Bit, estado !== undefined ? estado : null)
         .query(`
-          UPDATE Empleados
+          UPDATE dbo.Empleados
           SET
             nombre = @nombre,
             apellido = @apellido,
@@ -214,7 +214,7 @@ ${planillaUpdateFragment}
       await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          UPDATE Empleados
+          UPDATE dbo.Empleados
           SET estado = 0,
               updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
@@ -232,7 +232,7 @@ ${planillaUpdateFragment}
       await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          UPDATE Empleados
+          UPDATE dbo.Empleados
           SET estado = 1,
               updated_at = GETDATE()
           WHERE id_empleado = @id_empleado
