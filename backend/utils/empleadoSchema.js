@@ -9,15 +9,14 @@ const resolvePlanillaAutomaticaColumn = async (pool) => {
 
   const activePool = pool || (await poolPromise);
   const result = await activePool.request().query(`
-    SELECT
-      CASE
-        WHEN COL_LENGTH('Empleados', 'es_automatica') IS NOT NULL THEN 'es_automatica'
-        WHEN COL_LENGTH('Empleados', 'planilla_automatica') IS NOT NULL THEN 'planilla_automatica'
-        ELSE NULL
-      END AS column_name
+    SELECT TOP 1 COLUMN_NAME AS column_name
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Empleados'
+      AND COLUMN_NAME IN ('es_automatica', 'planilla_automatica')
+    ORDER BY CASE WHEN COLUMN_NAME = 'es_automatica' THEN 0 ELSE 1 END
   `);
 
-  cachedPlanillaAutomaticaColumn = result.recordset[0]?.column_name ?? null;
+  cachedPlanillaAutomaticaColumn = result.recordset?.[0]?.column_name ?? null;
   return cachedPlanillaAutomaticaColumn;
 };
 
