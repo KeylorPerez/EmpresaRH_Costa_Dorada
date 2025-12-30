@@ -463,11 +463,7 @@ const Planilla = () => {
 
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
-  const detalleSectionRef = useRef(null);
-  const detalleHighlightTimeoutRef = useRef(null);
-  const prevDetalleOverlayOpenRef = useRef(false);
   const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
-  const [detalleHighlighted, setDetalleHighlighted] = useState(false);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -511,63 +507,12 @@ const Planilla = () => {
     }
   }, [detalleOverlayOpen]);
 
-  useEffect(() => {
-    const wasOverlayOpen = prevDetalleOverlayOpenRef.current;
-    prevDetalleOverlayOpenRef.current = detalleOverlayOpen;
-
-    if (!modalOpen) {
-      if (detalleHighlighted) {
-        setDetalleHighlighted(false);
-      }
-      if (detalleHighlightTimeoutRef.current) {
-        clearTimeout(detalleHighlightTimeoutRef.current);
-        detalleHighlightTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    if (detalleOverlayOpen) {
-      if (detalleHighlighted) {
-        setDetalleHighlighted(false);
-      }
-      if (detalleHighlightTimeoutRef.current) {
-        clearTimeout(detalleHighlightTimeoutRef.current);
-        detalleHighlightTimeoutRef.current = null;
-      }
-      return;
-    }
-
-    if (!wasOverlayOpen) {
-      return;
-    }
-
-    if (detalleHighlighted) {
-      setDetalleHighlighted(false);
-    }
-    if (detalleHighlightTimeoutRef.current) {
-      clearTimeout(detalleHighlightTimeoutRef.current);
-      detalleHighlightTimeoutRef.current = null;
-    }
-  }, [detalleOverlayOpen, detalleHighlighted, modalOpen]);
-
-  useEffect(() => () => {
-    if (detalleHighlightTimeoutRef.current) {
-      clearTimeout(detalleHighlightTimeoutRef.current);
-      detalleHighlightTimeoutRef.current = null;
-    }
-  }, []);
-
   const adminLinks = useMemo(() => adminNavigationLinks, []);
 
   const closeModal = () => {
     setModalOpen(false);
     resetForm();
     setDetalleOverlayOpen(false);
-    setDetalleHighlighted(false);
-    if (detalleHighlightTimeoutRef.current) {
-      clearTimeout(detalleHighlightTimeoutRef.current);
-      detalleHighlightTimeoutRef.current = null;
-    }
   };
 
   const selectedEmpleado = useMemo(
@@ -1752,66 +1697,6 @@ const Planilla = () => {
                                   : "Este monto considera salario base, bonificaciones y deducciones aplicables para el periodo actual."}
                               </p>
                             </div>
-                          </div>
-
-                          <div
-                            ref={detalleSectionRef}
-                            tabIndex={-1}
-                            className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow focus:outline-none ${
-                              detalleHighlighted ? "ring-2 ring-blue-300" : ""
-                            }`}
-                          >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-base font-semibold text-gray-800">Detalle diario del periodo</h3>
-                              <AttendanceStatusMessage
-                                className="mt-1"
-                                attendanceState={attendanceState}
-                              />
-                              {quincenaPolicy?.mensajes?.length > 0 && (
-                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                  <p className="font-semibold">Notas de quincena</p>
-                                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                                    {quincenaPolicy.mensajes.map((mensaje, index) => (
-                                      <li key={`${index}-${mensaje}`}>{mensaje}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <DetalleResumenBadges
-                                detalleDias={detalleDias}
-                                detalleDiasResumen={detalleDiasResumen}
-                                diasDoblesAplicados={diasDoblesAplicados}
-                                pagoExtraDiasDobles={pagoExtraDiasDobles}
-                                formatCurrency={formatCurrency}
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={refreshAttendance}
-                                disabled={attendanceState.loading || formData.es_automatica !== "1"}
-                              >
-                                {attendanceState.loading ? "Recalculando..." : "Recalcular asistencia"}
-                              </Button>
-                            </div>
-                          </div>
-
-                          <DetalleTable
-                            className="mt-4"
-                            context="main"
-                            detalleDias={detalleDias}
-                            detalleEstadoOptions={detalleEstadoOptions}
-                            formatDate={formatDate}
-                            autoResizeTextarea={autoResizeTextarea}
-                            updateDetalleDia={updateDetalleDia}
-                            toggleDetalleAsistencia={toggleDetalleAsistencia}
-                            toggleDetalleDiaDoble={toggleDetalleDiaDoble}
-                            normalizeDetalleSalario={normalizeDetalleSalario}
-                            restoreDetalleFieldFocus={restoreDetalleFieldFocus}
-                          />
                           </div>
 
                           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
