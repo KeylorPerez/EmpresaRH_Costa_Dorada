@@ -295,12 +295,12 @@ const Empleados = ({ mode = "admin" }) => {
                                 <td className="px-4 py-3">
                                   <span
                                     className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                      Number(emp.planilla_automatica ?? emp.es_automatica) === 1
+                                      Number(emp.es_automatica ?? emp.planilla_automatica) === 1
                                         ? "bg-emerald-100 text-emerald-700"
                                         : "bg-gray-100 text-gray-600"
                                     }`}
                                   >
-                                    {Number(emp.planilla_automatica ?? emp.es_automatica) === 1
+                                    {Number(emp.es_automatica ?? emp.planilla_automatica) === 1
                                       ? "Automática"
                                       : "Manual"}
                                   </span>
