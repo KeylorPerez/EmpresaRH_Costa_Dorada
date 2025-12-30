@@ -10,9 +10,13 @@ class Empleado {
   static async getAll() {
     try {
       const pool = await poolPromise;
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const planillaSelect = planillaColumn
+        ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
+        : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
       const result = await pool.request()
         .query(`
-          SELECT e.*, p.nombre AS puesto_nombre
+          SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
           ORDER BY e.estado DESC, e.nombre, e.apellido
@@ -27,10 +31,14 @@ class Empleado {
   static async getById(id_empleado) {
     try {
       const pool = await poolPromise;
+      const planillaColumn = await resolvePlanillaAutomaticaColumn(pool);
+      const planillaSelect = planillaColumn
+        ? `, e.${planillaColumn} AS planilla_automatica, e.${planillaColumn} AS es_automatica`
+        : ', CAST(0 AS bit) AS planilla_automatica, CAST(0 AS bit) AS es_automatica';
       const result = await pool.request()
         .input('id_empleado', sql.Int, id_empleado)
         .query(`
-          SELECT e.*, p.nombre AS puesto_nombre
+          SELECT e.*, p.nombre AS puesto_nombre${planillaSelect}
           FROM Empleados e
           JOIN Puestos p ON e.id_puesto = p.id_puesto
           WHERE e.id_empleado = @id_empleado
