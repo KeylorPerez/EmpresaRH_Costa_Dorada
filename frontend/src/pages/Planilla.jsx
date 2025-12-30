@@ -155,7 +155,6 @@ const Planilla = () => {
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
     toggleDetalleDiaDoble,
-    replaceDetalleDias,
     detalleDiasResumen,
     detalleEstadoOptions,
     quincenaPolicy,
@@ -454,29 +453,6 @@ const Planilla = () => {
   const modalScrollRef = useRef(null);
   const detalleOverlayFocusRef = useRef(null);
   const [detalleOverlayOpen, setDetalleOverlayOpen] = useState(false);
-  const detalleOverlayBackupRef = useRef(null);
-
-  const handleOpenDetalleOverlay = useCallback(() => {
-    if (detalleDias.length === 0) return;
-    detalleOverlayBackupRef.current = detalleDias.map((detalle) => ({ ...detalle }));
-    setDetalleOverlayOpen(true);
-  }, [detalleDias]);
-
-  const handleCloseDetalleOverlay = useCallback(
-    (acceptChanges = false) => {
-      if (!acceptChanges && detalleOverlayBackupRef.current) {
-        replaceDetalleDias(detalleOverlayBackupRef.current);
-      }
-
-      detalleOverlayBackupRef.current = null;
-      setDetalleOverlayOpen(false);
-    },
-    [replaceDetalleDias]
-  );
-
-  const handleAcceptDetalleOverlay = useCallback(() => {
-    handleCloseDetalleOverlay(true);
-  }, [handleCloseDetalleOverlay]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -495,7 +471,6 @@ const Planilla = () => {
   useEffect(() => {
     if (!modalOpen) {
       setDetalleOverlayOpen(false);
-      detalleOverlayBackupRef.current = null;
     }
   }, [modalOpen]);
 
@@ -505,7 +480,7 @@ const Planilla = () => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        handleCloseDetalleOverlay(false);
+        setDetalleOverlayOpen(false);
       }
     };
 
@@ -513,7 +488,7 @@ const Planilla = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [detalleOverlayOpen, handleCloseDetalleOverlay]);
+  }, [detalleOverlayOpen]);
 
   useEffect(() => {
     if (detalleOverlayOpen && detalleOverlayFocusRef.current) {
@@ -527,7 +502,6 @@ const Planilla = () => {
     setModalOpen(false);
     resetForm();
     setDetalleOverlayOpen(false);
-    detalleOverlayBackupRef.current = null;
   };
 
   const selectedEmpleado = useMemo(
@@ -1433,7 +1407,7 @@ const Planilla = () => {
                                     variant="secondary"
                                     size="sm"
                                     className="px-3 py-1 text-xs"
-                                    onClick={handleOpenDetalleOverlay}
+                                    onClick={() => setDetalleOverlayOpen(true)}
                                   >
                                     Abrir detalle en pantalla completa
                                   </Button>
@@ -1733,7 +1707,7 @@ const Planilla = () => {
 
               {detalleOverlayOpen && (
                 <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-6">
-                  <div className="absolute inset-0" onClick={() => handleCloseDetalleOverlay(false)} />
+                  <div className="absolute inset-0" onClick={() => setDetalleOverlayOpen(false)} />
                   <div
                     role="dialog"
                     aria-modal="true"
@@ -1770,11 +1744,11 @@ const Planilla = () => {
                           variant="ghost"
                           size="sm"
                           type="button"
-                          onClick={() => handleCloseDetalleOverlay(false)}
+                          onClick={() => setDetalleOverlayOpen(false)}
                         >
                           Cancelar
                         </Button>
-                        <Button variant="secondary" size="sm" type="button" onClick={handleAcceptDetalleOverlay}>
+                        <Button variant="secondary" size="sm" type="button" onClick={() => setDetalleOverlayOpen(false)}>
                           Aceptar cambios
                         </Button>
                       </div>
