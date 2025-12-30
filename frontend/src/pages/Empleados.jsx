@@ -731,9 +731,6 @@ const Empleados = ({ mode = "admin" }) => {
                       <p className="text-xs text-gray-500 mt-1">
                         Al activarlo, los días pagados se calculan automáticamente desde asistencia.
                       </p>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Valor enviado: {formData.planilla_automatica === "1" ? "Sí (1)" : "No (0)"}
-                      </p>
                     </div>
                     {editingEmpleado && (
                       <div className="flex flex-col">
