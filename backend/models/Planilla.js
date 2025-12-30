@@ -38,20 +38,10 @@ BEGIN
     [bonificaciones] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_Bonificaciones DEFAULT (0),
     [pago_neto] DECIMAL(12, 2) NOT NULL CONSTRAINT DF_Planilla_PagoNeto DEFAULT (0),
     [fecha_pago] DATE NULL,
-    [es_automatica] BIT NOT NULL CONSTRAINT DF_Planilla_EsAutomatica DEFAULT (1),
     [created_at] DATETIME2 NOT NULL CONSTRAINT DF_Planilla_CreatedAt DEFAULT (SYSDATETIME()),
     [updated_at] DATETIME2 NOT NULL CONSTRAINT DF_Planilla_UpdatedAt DEFAULT (SYSDATETIME()),
     CONSTRAINT FK_Planilla_Empleado FOREIGN KEY (id_empleado) REFERENCES Empleados(id_empleado)
   );
-END;
-
-IF OBJECT_ID('dbo.Planilla', 'U') IS NOT NULL
-BEGIN
-  IF COL_LENGTH('dbo.Planilla', 'es_automatica') IS NULL
-  BEGIN
-    ALTER TABLE dbo.Planilla
-      ADD es_automatica BIT NOT NULL CONSTRAINT DF_Planilla_EsAutomatica DEFAULT (1);
-  END;
 END;
 `;
 
