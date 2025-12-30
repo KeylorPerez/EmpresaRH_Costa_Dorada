@@ -104,6 +104,7 @@ const Empleados = ({ mode = "admin" }) => {
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
   const columnsCount = isAdmin ? 14 : 13;
+  const esPagoDiario = formData.tipo_pago === "Diario";
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -512,6 +513,7 @@ const Empleados = ({ mode = "admin" }) => {
                               type="checkbox"
                               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               checked={formData.descanso_semanal_habilitado}
+                              disabled={esPagoDiario}
                               onChange={(event) =>
                                 handleToggleDescanso(event.target.checked)
                               }
@@ -633,7 +635,9 @@ const Empleados = ({ mode = "admin" }) => {
                       ) : (
                         <div className="md:col-span-2">
                           <p className="text-xs text-gray-500">
-                            Activa esta opción si deseas configurar días de descanso semanal.
+                            {esPagoDiario
+                              ? "Disponible solo para pagos quincenales o mensuales."
+                              : "Activa esta opción si deseas configurar días de descanso semanal."}
                           </p>
                         </div>
                       )}

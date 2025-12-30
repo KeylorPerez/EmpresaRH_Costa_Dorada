@@ -99,6 +99,16 @@ export const useEmpleado = () => {
       if (name === "usa_deduccion_fija" && value !== "1") {
         return { ...prev, [name]: value, deduccion_fija: "0" };
       }
+      if (name === "tipo_pago") {
+        const normalizedTipoPago = normalizeTipoPago(value);
+        if (normalizedTipoPago === "Diario") {
+          return {
+            ...prev,
+            [name]: value,
+            descanso_semanal_habilitado: false,
+          };
+        }
+      }
       if (
         name === "fecha_ingreso" &&
         !editingEmpleado &&
@@ -187,7 +197,8 @@ export const useEmpleado = () => {
         return;
       }
 
-      if (formData.descanso_semanal_habilitado) {
+      const tipoPagoNormalizado = normalizeTipoPago(formData.tipo_pago);
+      if (formData.descanso_semanal_habilitado && tipoPagoNormalizado !== "Diario") {
         const descansos = Array.isArray(formData.descansos) ? formData.descansos : [];
         if (descansos.length === 0) {
           setError("Configura al menos un descanso semanal del empleado.");
@@ -296,7 +307,9 @@ export const useEmpleado = () => {
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
       if (editingEmpleado) payload.estado = Number(formData.estado);
-      payload.descansos = formData.descanso_semanal_habilitado
+      payload.descansos =
+        formData.descanso_semanal_habilitado &&
+        normalizeTipoPago(formData.tipo_pago) !== "Diario"
         ? (formData.descansos || []).map((descanso) => ({
             semana_tipo: String(descanso.semana_tipo).toUpperCase(),
             dia_semana: Number(descanso.dia_semana),
@@ -369,10 +382,12 @@ export const useEmpleado = () => {
         empleado.id_empleado
       );
       const descansosNormalizados = normalizeDescansos(descansos, empleado);
+      const tipoPagoNormalizado = normalizeTipoPago(empleado.tipo_pago || "Diario");
       setFormData((prev) => ({
         ...prev,
         descansos: descansosNormalizados,
-        descanso_semanal_habilitado: descansosNormalizados.length > 0,
+        descanso_semanal_habilitado:
+          tipoPagoNormalizado !== "Diario" && descansosNormalizados.length > 0,
       }));
     } catch (err) {
       console.error(err);
