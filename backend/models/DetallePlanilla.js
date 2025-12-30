@@ -113,6 +113,22 @@ async function resolveSchemaState(requestFactory) {
 class DetallePlanilla {
   static async ensureSchema() {
     const pool = await poolPromise;
+
+    // Garantizamos que la tabla Planilla exista antes de agregar la clave
+    // foránea. Esto evita errores cuando la base de datos está vacía y el
+    // esquema aún no ha sido creado.
+    try {
+      const Planilla = require('./Planilla');
+      if (Planilla?.ensureSchema) {
+        await Planilla.ensureSchema();
+      }
+    } catch (err) {
+      // Si por algún motivo no podemos importar o asegurar la tabla, no
+      // interrumpimos la creación del detalle. El error se registrará más
+      // adelante al intentar crear la clave foránea.
+      console.error('[Planilla] No se pudo asegurar el esquema de planilla:', err.message);
+    }
+
     await resolveSchemaState(() => pool.request());
   }
 
