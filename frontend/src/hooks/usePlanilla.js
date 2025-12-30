@@ -219,7 +219,16 @@ const obtenerSalarioBaseDetalle = (detalle) => {
 
   const salarioActual = normalizeSalarioBase(detalle.salario_dia);
   if (salarioActual > 0) {
-    return detalle.es_dia_doble ? salarioActual / 2 : salarioActual;
+    const multiplicador = (() => {
+      const valor = Number(detalle.multiplicador_dia_doble);
+      if (Number.isFinite(valor) && valor > 1) {
+        return valor;
+      }
+      return detalle.es_dia_doble ? 2 : 1;
+    })();
+
+    const divisor = multiplicador > 1 ? multiplicador : 1;
+    return salarioActual / divisor;
   }
 
   return 0;
