@@ -12,6 +12,53 @@ const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Inc
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
 
+const planillaSchemaState = {
+  checked: false,
+  hasEsAutomaticaColumn: false,
+};
+
+const ENSURE_PLANILLA_SCHEMA_QUERY = `
+IF OBJECT_ID('dbo.Planilla', 'U') IS NOT NULL
+BEGIN
+  IF COL_LENGTH('dbo.Planilla', 'es_automatica') IS NULL
+  BEGIN
+    ALTER TABLE dbo.Planilla
+      ADD es_automatica BIT NOT NULL CONSTRAINT DF_Planilla_EsAutomatica DEFAULT (1);
+  END;
+END;
+`;
+
+async function resolvePlanillaSchema(requestFactory) {
+  if (planillaSchemaState.checked) {
+    return planillaSchemaState;
+  }
+
+  const getRequest = async () => {
+    if (typeof requestFactory === 'function') {
+      return requestFactory();
+    }
+
+    const pool = await poolPromise;
+    return pool.request();
+  };
+
+  const ensureRequest = await getRequest();
+  await ensureRequest.query(ENSURE_PLANILLA_SCHEMA_QUERY);
+
+  const checkRequest = await getRequest();
+  const result = await checkRequest.query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'Planilla'
+      AND COLUMN_NAME = 'es_automatica'
+  `);
+
+  planillaSchemaState.checked = true;
+  planillaSchemaState.hasEsAutomaticaColumn = result.recordset.length > 0;
+
+  return planillaSchemaState;
+}
+
 const calcularDiasPeriodo = (inicio, fin) => {
   if (!inicio || !fin) return 0;
   const fechaInicio = new Date(inicio);
@@ -200,6 +247,7 @@ class Planilla {
   }) {
     try {
       const pool = await poolPromise;
+      const { hasEsAutomaticaColumn } = await resolvePlanillaSchema(() => pool.request());
 
       // Verificar si ya existe una planilla que cubra el mismo periodo
       const existingPlanilla = await pool.request()
@@ -445,12 +493,48 @@ class Planilla {
           .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
           .input('horas_extras', sql.Decimal(12, 2), pagoHorasExtras)
           .input('pago_neto', sql.Decimal(12, 2), pago_neto)
-          .input('fecha_pago', sql.Date, fecha_pago)
-          .input('es_automatica', sql.Bit, esAutomatica ? 1 : 0);
+          .input('fecha_pago', sql.Date, fecha_pago);
+
+        if (hasEsAutomaticaColumn) {
+          request.input('es_automatica', sql.Bit, esAutomatica ? 1 : 0);
+        }
+
+        const insertColumns = [
+          'id_empleado',
+          'periodo_inicio',
+          'periodo_fin',
+          'salario_bruto',
+          'deducciones',
+          'ccss_deduccion',
+          'horas_extras',
+          'bonificaciones',
+          'pago_neto',
+          'fecha_pago',
+        ];
+        const insertValues = [
+          '@id_empleado',
+          '@periodo_inicio',
+          '@periodo_fin',
+          '@salario_bruto',
+          '@deducciones',
+          '@ccss_deduccion',
+          '@horas_extras',
+          '@bonificaciones',
+          '@pago_neto',
+          '@fecha_pago',
+        ];
+
+        if (hasEsAutomaticaColumn) {
+          insertColumns.push('es_automatica');
+          insertValues.push('@es_automatica');
+        }
+
+        insertColumns.push('created_at', 'updated_at');
+        insertValues.push('GETDATE()', 'GETDATE()');
 
         const result = await request.query(`
-          INSERT INTO Planilla (id_empleado, periodo_inicio, periodo_fin, salario_bruto, deducciones, ccss_deduccion, horas_extras, bonificaciones, pago_neto, fecha_pago, es_automatica, created_at, updated_at)
-          VALUES (@id_empleado, @periodo_inicio, @periodo_fin, @salario_bruto, @deducciones, @ccss_deduccion, @horas_extras, @bonificaciones, @pago_neto, @fecha_pago, @es_automatica, GETDATE(), GETDATE());
+          INSERT INTO Planilla (${insertColumns.join(', ')})
+          VALUES (${insertValues.join(', ')});
           SELECT SCOPE_IDENTITY() AS id_planilla;
         `);
 
@@ -529,11 +613,16 @@ class Planilla {
   ) {
     try {
       const pool = await poolPromise;
+      const { hasEsAutomaticaColumn } = await resolvePlanillaSchema(() => pool.request());
+
+      const planillaSelect = hasEsAutomaticaColumn
+        ? 'es_automatica'
+        : 'CAST(0 AS bit) AS es_automatica';
 
       const planillaRes = await pool.request()
         .input('id_planilla', sql.Int, id_planilla)
         .query(
-          `SELECT id_empleado, periodo_inicio, periodo_fin, es_automatica
+          `SELECT id_empleado, periodo_inicio, periodo_fin, ${planillaSelect}
            FROM Planilla
            WHERE id_planilla = @id_planilla`
         );
@@ -716,7 +805,7 @@ class Planilla {
       await transaction.begin();
 
       try {
-        await new sql.Request(transaction)
+        const updateRequest = new sql.Request(transaction)
           .input('id_planilla', sql.Int, id_planilla)
           .input('horas_extras', sql.Decimal(12, 2), montoHorasExtras)
           .input('bonificaciones', sql.Decimal(12, 2), bonificacionesNumber)
@@ -724,21 +813,36 @@ class Planilla {
           .input('ccss_deduccion', sql.Decimal(10, 2), ccss_deduccion)
           .input('salario_bruto', sql.Decimal(12, 2), salario_bruto)
           .input('pago_neto', sql.Decimal(12, 2), pago_neto)
-          .input('fecha_pago', sql.Date, fecha_pago)
-          .input('es_automatica', sql.Bit, esAutomatica ? 1 : 0)
-          .query(`
-            UPDATE Planilla
-            SET horas_extras = @horas_extras,
-                bonificaciones = @bonificaciones,
-                deducciones = @deducciones,
-                ccss_deduccion = @ccss_deduccion,
-                salario_bruto = @salario_bruto,
-                pago_neto = @pago_neto,
-                fecha_pago = @fecha_pago,
-                es_automatica = COALESCE(@es_automatica, es_automatica),
-                updated_at = GETDATE()
-            WHERE id_planilla = @id_planilla
-          `);
+          .input('fecha_pago', sql.Date, fecha_pago);
+
+        if (hasEsAutomaticaColumn) {
+          updateRequest.input('es_automatica', sql.Bit, esAutomatica ? 1 : 0);
+        }
+
+        const updateAssignments = [
+          'horas_extras = @horas_extras',
+          'bonificaciones = @bonificaciones',
+          'deducciones = @deducciones',
+          'ccss_deduccion = @ccss_deduccion',
+          'salario_bruto = @salario_bruto',
+          'pago_neto = @pago_neto',
+          'fecha_pago = @fecha_pago',
+          'updated_at = GETDATE()',
+        ];
+
+        if (hasEsAutomaticaColumn) {
+          updateAssignments.splice(
+            updateAssignments.length - 1,
+            0,
+            'es_automatica = COALESCE(@es_automatica, es_automatica)'
+          );
+        }
+
+        await updateRequest.query(`
+          UPDATE Planilla
+          SET ${updateAssignments.join(',\n                ')}
+          WHERE id_planilla = @id_planilla
+        `);
 
         await DetallePlanilla.deleteByPlanilla(transaction, id_planilla);
 
