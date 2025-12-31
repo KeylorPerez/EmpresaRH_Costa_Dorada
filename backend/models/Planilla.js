@@ -93,10 +93,14 @@ const parseUtcDate = (value) => {
 
 const addDays = (date, days) => new Date(date.getTime() + days * MS_POR_DIA);
 
-const resolveWeekType = (fecha, inicioVigencia) => {
+const resolveWeekType = (fecha, inicioVigencia, semanaTipoInicio = 'A') => {
   const diff = Math.floor((fecha.getTime() - inicioVigencia.getTime()) / MS_POR_DIA);
   const weekIndex = Math.floor(diff / 7);
-  return weekIndex % 2 === 0 ? 'A' : 'B';
+  const isEvenWeek = weekIndex % 2 === 0;
+  if (semanaTipoInicio === 'B') {
+    return isEvenWeek ? 'B' : 'A';
+  }
+  return isEvenWeek ? 'A' : 'B';
 };
 
 const normalizeDescansoRows = (rows = []) =>
@@ -145,7 +149,7 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
       if (cursor < row.fecha_inicio_vigencia) return;
       if (row.fecha_fin_vigencia && cursor > row.fecha_fin_vigencia) return;
 
-      const weekType = resolveWeekType(cursor, row.fecha_inicio_vigencia);
+      const weekType = resolveWeekType(cursor, row.fecha_inicio_vigencia, row.semana_tipo);
       if (weekType !== row.semana_tipo) return;
       fechasSet.add(cursor.toISOString().slice(0, 10));
     });
