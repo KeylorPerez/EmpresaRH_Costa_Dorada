@@ -25,6 +25,25 @@ const resolveWeekType = (fecha, inicioVigencia, semanaTipoInicio = 'A') => {
   return isEvenWeek ? 'A' : 'B';
 };
 
+const buildWeekTypeResolver = (rows = []) => {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const anchor = rows.reduce((result, row) => {
+    if (!result || row.fecha_inicio_vigencia < result) {
+      return row.fecha_inicio_vigencia;
+    }
+    return result;
+  }, null);
+
+  const anchorRow = rows
+    .filter((row) => row.fecha_inicio_vigencia.getTime() === anchor.getTime())
+    .sort((a, b) => (a.semana_tipo < b.semana_tipo ? -1 : 1))[0];
+
+  const anchorType = anchorRow ? anchorRow.semana_tipo : 'A';
+
+  return (fecha) => resolveWeekType(fecha, anchor, anchorType);
+};
+
 const normalizeScheduleRows = (rows) => {
   const normalized = rows
     .map((row) => {
@@ -84,6 +103,11 @@ const buildFechasDescanso = ({ rows, inicio, fin }) => {
   const fechasSet = new Set();
   let cursor = new Date(inicio.getTime());
 
+  const resolveWeekTypeFromAnchor = buildWeekTypeResolver(rows);
+  if (!resolveWeekTypeFromAnchor) {
+    return [];
+  }
+
   while (cursor <= fin) {
     const diaSemana = cursor.getUTCDay();
 
@@ -92,7 +116,7 @@ const buildFechasDescanso = ({ rows, inicio, fin }) => {
       if (cursor < row.fecha_inicio_vigencia) return;
       if (row.fecha_fin_vigencia && cursor > row.fecha_fin_vigencia) return;
 
-      const weekType = resolveWeekType(cursor, row.fecha_inicio_vigencia, row.semana_tipo);
+      const weekType = resolveWeekTypeFromAnchor(cursor);
       if (weekType !== row.semana_tipo) return;
       fechasSet.add(formatDate(cursor));
     });

@@ -103,6 +103,27 @@ const resolveWeekType = (fecha, inicioVigencia, semanaTipoInicio = 'A') => {
   return isEvenWeek ? 'A' : 'B';
 };
 
+const buildWeekTypeResolver = (rows = []) => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null;
+  }
+
+  const anchor = rows.reduce((result, row) => {
+    if (!result || row.fecha_inicio_vigencia < result) {
+      return row.fecha_inicio_vigencia;
+    }
+    return result;
+  }, null);
+
+  const anchorRow = rows
+    .filter((row) => row.fecha_inicio_vigencia.getTime() === anchor.getTime())
+    .sort((a, b) => (a.semana_tipo < b.semana_tipo ? -1 : 1))[0];
+
+  const anchorType = anchorRow ? anchorRow.semana_tipo : 'A';
+
+  return (fecha) => resolveWeekType(fecha, anchor, anchorType);
+};
+
 const normalizeDescansoRows = (rows = []) =>
   rows
     .map((row) => {
@@ -138,6 +159,11 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
     return 0;
   }
 
+  const resolveWeekTypeFromAnchor = buildWeekTypeResolver(normalizedRows);
+  if (!resolveWeekTypeFromAnchor) {
+    return 0;
+  }
+
   const fechasSet = new Set();
   let cursor = new Date(inicio.getTime());
 
@@ -149,7 +175,7 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
       if (cursor < row.fecha_inicio_vigencia) return;
       if (row.fecha_fin_vigencia && cursor > row.fecha_fin_vigencia) return;
 
-      const weekType = resolveWeekType(cursor, row.fecha_inicio_vigencia, row.semana_tipo);
+      const weekType = resolveWeekTypeFromAnchor(cursor);
       if (weekType !== row.semana_tipo) return;
       fechasSet.add(cursor.toISOString().slice(0, 10));
     });
