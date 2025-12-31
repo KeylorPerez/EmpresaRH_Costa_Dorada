@@ -67,6 +67,25 @@ const parseFlagValue = (value, defaultValue = null) => {
   return defaultValue;
 };
 
+const getDefaultPeriodoRange = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const monthIndex = today.getMonth();
+  const day = today.getDate();
+
+  if (day <= 15) {
+    return {
+      inicio: new Date(year, monthIndex, 1),
+      fin: new Date(year, monthIndex, 15),
+    };
+  }
+
+  return {
+    inicio: new Date(year, monthIndex, 16),
+    fin: new Date(year, monthIndex + 1, 0),
+  };
+};
+
 const formatDateDisplay = (value) => {
   const iso = formatDateValue(value);
   if (!iso || iso === '-') return '-';
@@ -1197,7 +1216,13 @@ const exportPlanillasResumen = async (req, res) => {
       return res.status(400).json({ error: 'Formato de exportación no soportado' });
     }
 
-    const { periodo_inicio: periodoInicioRaw, periodo_fin: periodoFinRaw } = req.query;
+    let { periodo_inicio: periodoInicioRaw, periodo_fin: periodoFinRaw } = req.query;
+
+    if (!periodoInicioRaw && !periodoFinRaw) {
+      const defaultRange = getDefaultPeriodoRange();
+      periodoInicioRaw = defaultRange.inicio.toISOString().slice(0, 10);
+      periodoFinRaw = defaultRange.fin.toISOString().slice(0, 10);
+    }
 
     const periodoInicio = periodoInicioRaw ? new Date(periodoInicioRaw) : null;
     const periodoFin = periodoFinRaw ? new Date(periodoFinRaw) : null;
