@@ -707,7 +707,7 @@ const detectDescansoConflicts = (descansos, fechaIngreso) => {
           return "No se permiten descansos consecutivos al alternar semanas A/B.";
         }
 
-        matchA = addDays(matchA, 7);
+        matchA = findNextMatch(reglaA, addDays(matchA, 1), limite);
       }
     }
   }
