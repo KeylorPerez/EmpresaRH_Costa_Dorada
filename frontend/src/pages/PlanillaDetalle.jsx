@@ -488,14 +488,14 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
     return <p>No tienes permisos para ver esta página.</p>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
+    <div className="flex h-screen overflow-y-hidden overflow-x-auto bg-gray-100">
       <Sidebar
         links={sidebarLinks}
         roleColor={roleColor}
         isMobileOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <div className="flex flex-col flex-grow overflow-hidden">
+      <div className="flex flex-col flex-grow overflow-x-auto">
         <Navbar
           title={pageTitle}
           user={user}
