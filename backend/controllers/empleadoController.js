@@ -602,6 +602,13 @@ const createEmpleado = async (req, res) => {
       });
     }
 
+    if (descansosNormalizados.length > 1) {
+      const conflict = detectDescansoConflicts(descansosNormalizados, { fecha_ingreso });
+      if (conflict.conflict) {
+        return res.status(400).json({ error: conflict.message });
+      }
+    }
+
     const bonificacionValue =
       bonificacion_fija !== undefined && bonificacion_fija !== null
         ? Number(bonificacion_fija)
@@ -704,6 +711,145 @@ const createEmpleado = async (req, res) => {
 
     res.status(500).json({ error: err.message });
   }
+};
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const toUtcDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
+};
+
+const addDays = (date, days) => new Date(date.getTime() + days * MS_PER_DAY);
+
+const resolveWeekType = (fecha, inicioVigencia, semanaTipoInicio = 'A') => {
+  const diff = Math.floor((fecha.getTime() - inicioVigencia.getTime()) / MS_PER_DAY);
+  const weekIndex = Math.floor(diff / 7);
+  const isEvenWeek = weekIndex % 2 === 0;
+
+  if (semanaTipoInicio === 'B') {
+    return isEvenWeek ? 'B' : 'A';
+  }
+
+  return isEvenWeek ? 'A' : 'B';
+};
+
+const formatDiaSemana = (dia) =>
+  [
+    'domingo',
+    'lunes',
+    'martes',
+    'miércoles',
+    'jueves',
+    'viernes',
+    'sábado',
+  ][dia] || '';
+
+const normalizeDescansoFecha = (fecha, fallback) => toUtcDate(fecha || fallback);
+
+const matchesRuleAtDate = (rule, fecha) => {
+  if (fecha < rule.inicio) return false;
+  if (rule.fin && fecha > rule.fin) return false;
+  if (fecha.getUTCDay() !== rule.dia_semana) return false;
+
+  return resolveWeekType(fecha, rule.inicio, rule.semana_tipo) === rule.semana_tipo;
+};
+
+const findNextMatch = (rule, desde, limite) => {
+  let cursor = desde < rule.inicio ? rule.inicio : desde;
+  const dayOffset = (rule.dia_semana - cursor.getUTCDay() + 7) % 7;
+  cursor = addDays(cursor, dayOffset);
+
+  const maxIterations = 120; // ~2 años de semanas alternas
+  let iterations = 0;
+
+  while (cursor <= limite && iterations < maxIterations) {
+    if (matchesRuleAtDate(rule, cursor)) {
+      return cursor;
+    }
+
+    cursor = addDays(cursor, 7);
+    iterations += 1;
+  }
+
+  return null;
+};
+
+const detectDescansoConflicts = (descansos, { fecha_ingreso }) => {
+  const anchor = descansos.reduce((min, descanso) => {
+    const inicio = normalizeDescansoFecha(descanso.fecha_inicio_vigencia, fecha_ingreso);
+    if (!inicio) return min;
+    if (!min) return inicio;
+    return inicio < min ? inicio : min;
+  }, null);
+
+  for (const descanso of descansos) {
+    const inicio = normalizeDescansoFecha(descanso.fecha_inicio_vigencia, fecha_ingreso);
+    if (!inicio) {
+      return { conflict: true, message: 'Las fechas de inicio de vigencia son obligatorias.' };
+    }
+
+    if (anchor) {
+      const diffDays = Math.abs(Math.floor((inicio.getTime() - anchor.getTime()) / MS_PER_DAY));
+      if (diffDays % 7 !== 0) {
+        return {
+          conflict: true,
+          message:
+            'Usa una única fecha ancla por ciclo; las vigencias deben avanzar en múltiplos de 7 días.',
+        };
+      }
+    }
+  }
+
+  const rules = descansos.map((descanso) => {
+    const inicio = normalizeDescansoFecha(descanso.fecha_inicio_vigencia, fecha_ingreso);
+    const fin = descanso.fecha_fin_vigencia
+      ? normalizeDescansoFecha(descanso.fecha_fin_vigencia)
+      : null;
+
+    return {
+      ...descanso,
+      inicio,
+      fin,
+    };
+  });
+
+  const reglasA = rules.filter((rule) => rule.semana_tipo === 'A');
+  const reglasB = rules.filter((rule) => rule.semana_tipo === 'B');
+
+  for (const reglaA of reglasA) {
+    for (const reglaB of reglasB) {
+      const ventanaInicio = reglaA.inicio > reglaB.inicio ? reglaA.inicio : reglaB.inicio;
+      const ventanaFin = (() => {
+        if (reglaA.fin && reglaB.fin) return reglaA.fin < reglaB.fin ? reglaA.fin : reglaB.fin;
+        if (reglaA.fin) return reglaA.fin;
+        if (reglaB.fin) return reglaB.fin;
+        return null;
+      })();
+
+      const limite = ventanaFin || addDays(ventanaInicio, 365); // 1 año es suficiente para detectar patrón
+      let matchA = findNextMatch(reglaA, ventanaInicio, limite);
+
+      while (matchA && matchA <= limite) {
+        const siguienteDia = addDays(matchA, 1);
+        if (siguienteDia >= ventanaInicio && matchesRuleAtDate(reglaB, siguienteDia)) {
+          return {
+            conflict: true,
+            message: `Los descansos se encadenan (${formatDiaSemana(
+              reglaA.dia_semana,
+            )} de semana A seguido de ${formatDiaSemana(reglaB.dia_semana)} de semana B).`,
+          };
+        }
+
+        matchA = addDays(matchA, 7);
+      }
+    }
+  }
+
+  return { conflict: false };
 };
 
 // Actualizar un empleado (solo admin)
@@ -834,6 +980,13 @@ const updateEmpleado = async (req, res) => {
           fecha_inicio_vigencia: descansoInicio,
           fecha_fin_vigencia: descansoFin,
         });
+      }
+
+      if (descansosNormalizados.length > 1) {
+        const conflict = detectDescansoConflicts(descansosNormalizados, { fecha_ingreso });
+        if (conflict.conflict) {
+          return res.status(400).json({ error: conflict.message });
+        }
       }
     }
 
