@@ -688,29 +688,5 @@ const detectDescansoConflicts = (descansos, fechaIngreso) => {
   const reglasA = rules.filter((rule) => rule.semana_tipo === "A");
   const reglasB = rules.filter((rule) => rule.semana_tipo === "B");
 
-  for (const reglaA of reglasA) {
-    for (const reglaB of reglasB) {
-      const ventanaInicio = reglaA.inicio > reglaB.inicio ? reglaA.inicio : reglaB.inicio;
-      const ventanaFin = (() => {
-        if (reglaA.fin && reglaB.fin) return reglaA.fin < reglaB.fin ? reglaA.fin : reglaB.fin;
-        if (reglaA.fin) return reglaA.fin;
-        if (reglaB.fin) return reglaB.fin;
-        return null;
-      })();
-
-      const limite = ventanaFin || addDays(ventanaInicio, 365);
-      let matchA = findNextMatch(reglaA, ventanaInicio, limite);
-
-      while (matchA && matchA <= limite) {
-        const siguienteDia = addDays(matchA, 1);
-        if (siguienteDia >= ventanaInicio && matchesRuleAtDate(reglaB, siguienteDia)) {
-          return "No se permiten descansos consecutivos al alternar semanas A/B.";
-        }
-
-        matchA = findNextMatch(reglaA, addDays(matchA, 1), limite);
-      }
-    }
-  }
-
   return null;
 };
