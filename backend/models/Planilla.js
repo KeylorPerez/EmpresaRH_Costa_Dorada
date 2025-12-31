@@ -317,15 +317,36 @@ class Planilla {
   }
 
   // 🔹 Obtener todas las planillas (admin)
-  static async getAll() {
+  static async getAll(filters = {}) {
     try {
+      const { periodo_inicio = null, periodo_fin = null } = filters || {};
+
+      const periodoInicioDate = periodo_inicio ? new Date(periodo_inicio) : null;
+      const periodoFinDate = periodo_fin ? new Date(periodo_fin) : null;
+
       const pool = await poolPromise;
       await resolvePlanillaSchema(() => pool.request());
-      const result = await pool.request()
-        .query(`
+      const request = pool.request();
+
+      const conditions = [];
+
+      if (periodoInicioDate && !Number.isNaN(periodoInicioDate.getTime())) {
+        request.input('periodo_inicio', sql.Date, periodoInicioDate);
+        conditions.push('pl.periodo_fin >= @periodo_inicio');
+      }
+
+      if (periodoFinDate && !Number.isNaN(periodoFinDate.getTime())) {
+        request.input('periodo_fin', sql.Date, periodoFinDate);
+        conditions.push('pl.periodo_inicio <= @periodo_fin');
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const result = await request.query(`
           SELECT pl.*, e.nombre, e.apellido, e.salario_monto, e.tipo_pago AS tipo_pago_empleado
           FROM dbo.Planilla pl
           LEFT JOIN dbo.Empleados e ON pl.id_empleado = e.id_empleado
+          ${whereClause}
           ORDER BY pl.periodo_inicio DESC
         `);
       return result.recordset;

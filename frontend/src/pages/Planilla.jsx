@@ -405,7 +405,11 @@ const Planilla = () => {
     setExportingResumen(format);
 
     try {
-      const data = await planillaService.exportResumen(format);
+      const data = await planillaService.exportResumen({
+        format,
+        periodo_inicio: fechaInicioFiltro,
+        periodo_fin: fechaFinFiltro,
+      });
       const fileUrl = normalizeFileUrl(data?.url);
       const responseFormat = data?.format || format;
 

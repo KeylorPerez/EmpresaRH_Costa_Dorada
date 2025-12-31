@@ -35,9 +35,9 @@ const planillaService = {
     return response.data;
   },
 
-  exportResumen: async (format = 'pdf') => {
+  exportResumen: async ({ format = 'pdf', periodo_inicio, periodo_fin } = {}) => {
     const response = await api.get('/planilla/export/resumen', {
-      params: { format },
+      params: { format, periodo_inicio, periodo_fin },
     });
     return response.data;
   },

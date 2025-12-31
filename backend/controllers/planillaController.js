@@ -1197,7 +1197,20 @@ const exportPlanillasResumen = async (req, res) => {
       return res.status(400).json({ error: 'Formato de exportación no soportado' });
     }
 
-    const planillas = await Planilla.getAll();
+    const { periodo_inicio: periodoInicioRaw, periodo_fin: periodoFinRaw } = req.query;
+
+    const periodoInicio = periodoInicioRaw ? new Date(periodoInicioRaw) : null;
+    const periodoFin = periodoFinRaw ? new Date(periodoFinRaw) : null;
+
+    if (periodoInicioRaw && (Number.isNaN(periodoInicio?.getTime()) || !periodoInicio)) {
+      return res.status(400).json({ error: 'El periodo_inicio no es una fecha válida' });
+    }
+
+    if (periodoFinRaw && (Number.isNaN(periodoFin?.getTime()) || !periodoFin)) {
+      return res.status(400).json({ error: 'El periodo_fin no es una fecha válida' });
+    }
+
+    const planillas = await Planilla.getAll({ periodo_inicio: periodoInicio, periodo_fin: periodoFin });
 
     await ensureExportsDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
