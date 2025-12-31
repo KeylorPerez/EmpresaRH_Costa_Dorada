@@ -779,10 +779,28 @@ const findNextMatch = (rule, desde, limite) => {
 };
 
 const detectDescansoConflicts = (descansos, { fecha_ingreso }) => {
+  const anchor = descansos.reduce((min, descanso) => {
+    const inicio = normalizeDescansoFecha(descanso.fecha_inicio_vigencia, fecha_ingreso);
+    if (!inicio) return min;
+    if (!min) return inicio;
+    return inicio < min ? inicio : min;
+  }, null);
+
   for (const descanso of descansos) {
     const inicio = normalizeDescansoFecha(descanso.fecha_inicio_vigencia, fecha_ingreso);
     if (!inicio) {
       return { conflict: true, message: 'Las fechas de inicio de vigencia son obligatorias.' };
+    }
+
+    if (anchor) {
+      const diffDays = Math.abs(Math.floor((inicio.getTime() - anchor.getTime()) / MS_PER_DAY));
+      if (diffDays % 7 !== 0) {
+        return {
+          conflict: true,
+          message:
+            'Usa una única fecha ancla por ciclo; las vigencias deben avanzar en múltiplos de 7 días.',
+        };
+      }
     }
   }
 
