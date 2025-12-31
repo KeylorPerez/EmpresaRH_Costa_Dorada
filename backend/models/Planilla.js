@@ -282,7 +282,13 @@ function sanitizeDetallePlanilla(detalles) {
         return texto.length > 500 ? texto.slice(0, 500) : texto;
       })();
 
-      const salarioDia = Number(Number(detalle.salario_dia || 0).toFixed(2));
+      const salarioDiaBase = Number(Number(detalle.salario_dia || 0).toFixed(2));
+      const salarioDia = (() => {
+        if (estadoNormalizado === 'Incapacidad') {
+          return Number(Math.max(salarioDiaBase / 2, 0).toFixed(2));
+        }
+        return salarioDiaBase;
+      })();
 
       return {
         fecha: detalle.fecha,
