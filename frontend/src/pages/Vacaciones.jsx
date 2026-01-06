@@ -31,7 +31,7 @@ const Vacaciones = ({ mode }) => {
     empleados,
     loadingEmpleados,
   } = useVacaciones({ user, isAdmin });
-  const estadoDefault = isAdmin ? "1" : "todos";
+  const estadoDefault = "todos";
   const [diasAprobados, setDiasAprobados] = useState({});
   const [estadoFiltro, setEstadoFiltro] = useState(estadoDefault);
   const [busquedaNombre, setBusquedaNombre] = useState("");
