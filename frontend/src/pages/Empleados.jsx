@@ -174,7 +174,7 @@ const Empleados = ({ mode = "admin" }) => {
                     Agregar empleado
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="danger"
                     size="sm"
                     disabled={exportDisabled}
                     onClick={() => exportEmpleados("pdf", { status: statusFilter })}
