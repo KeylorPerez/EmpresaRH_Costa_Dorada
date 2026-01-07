@@ -10,6 +10,7 @@ const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
 const DetallePlanilla = require('../models/DetallePlanilla');
+const { resolveDescansoDia } = require('../utils/descansoHelper');
 
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
 const { promises: fsPromises } = fs;
@@ -109,6 +110,61 @@ const formatHourDisplay = (value) => {
 const capitalize = (text = '') => {
   if (!text) return '';
   return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const normalizeEstadoDetalle = (detalle) => {
+  if (!detalle) return 'Presente';
+  if (typeof detalle.estado === 'string' && detalle.estado.trim()) {
+    return detalle.estado.trim();
+  }
+  const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
+  return asistio ? 'Presente' : 'Ausente';
+};
+
+const applyDescansosToDetalle = async (id_empleado, detalles = []) => {
+  if (!id_empleado || !Array.isArray(detalles) || detalles.length === 0) {
+    return detalles;
+  }
+
+  const updated = await Promise.all(
+    detalles.map(async (detalle) => {
+      if (!detalle?.fecha) return detalle;
+
+      const { es_descanso } = await resolveDescansoDia(id_empleado, detalle.fecha);
+      if (!es_descanso) {
+        return detalle;
+      }
+
+      const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
+      const estadoActual = normalizeEstadoDetalle(detalle);
+
+      if (estadoActual.toLowerCase() === 'descanso') {
+        return { ...detalle, es_descanso: true };
+      }
+
+      if (asistio || !['Presente', 'Ausente'].includes(estadoActual)) {
+        return { ...detalle, es_descanso: true };
+      }
+
+      const justificado = detalle.justificado === true || Number(detalle.justificado) === 1;
+      const justificacion =
+        detalle.justificacion !== undefined && detalle.justificacion !== null
+          ? String(detalle.justificacion).trim()
+          : '';
+
+      return {
+        ...detalle,
+        es_descanso: true,
+        asistio: false,
+        estado: 'Descanso',
+        asistencia: 'Descanso',
+        justificado: justificado || 1,
+        justificacion: justificacion || 'Descanso programado',
+      };
+    })
+  );
+
+  return updated;
 };
 
 const stripDiacritics = (text = '') => {
@@ -1118,7 +1174,8 @@ const getPlanillaDetalle = async (req, res) => {
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
-    return res.json(detalles);
+    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
+    return res.json(detallesConDescanso);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -1168,6 +1225,7 @@ const exportPlanillaArchivo = async (req, res) => {
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
+    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
 
     await ensureExportsDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1177,9 +1235,9 @@ const exportPlanillaArchivo = async (req, res) => {
     const filePath = path.join(EXPORTS_DIR, filename);
 
     if (format === 'pdf') {
-      await createPdfFile(filePath, planilla, detalles);
+      await createPdfFile(filePath, planilla, detallesConDescanso);
     } else {
-      await createCsvFile(filePath, planilla, detalles);
+      await createCsvFile(filePath, planilla, detallesConDescanso);
     }
 
     const baseUrl = getBaseUrl(req);
