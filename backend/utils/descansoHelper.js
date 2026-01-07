@@ -83,7 +83,7 @@ const getDescansoDiaConfig = async ({ id_config, periodo_tipo, dia_semana, trans
 const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
   const fechaEvaluada = parseUtcDate(fecha);
   if (!fechaEvaluada) {
-    return { es_descanso: false, periodo_tipo: null };
+    return { es_descanso: false, periodo_tipo: null, config_aplicada: false, id_config: null };
   }
 
   const config = await getDescansoConfigVigente({
@@ -93,12 +93,17 @@ const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
   });
 
   if (!config) {
-    return { es_descanso: false, periodo_tipo: null };
+    return { es_descanso: false, periodo_tipo: null, config_aplicada: false, id_config: null };
   }
 
   const fechaBase = parseUtcDate(config.fecha_base);
   if (!fechaBase) {
-    return { es_descanso: false, periodo_tipo: null };
+    return {
+      es_descanso: false,
+      periodo_tipo: null,
+      config_aplicada: true,
+      id_config: config.id_config,
+    };
   }
 
   const ciclo = typeof config.ciclo === 'string' ? config.ciclo.trim().toUpperCase() : 'SEMANAL';
@@ -115,6 +120,8 @@ const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
   return {
     es_descanso: descansoDia ? isTruthyBit(descansoDia.es_descanso) : false,
     periodo_tipo,
+    config_aplicada: true,
+    id_config: config.id_config,
   };
 };
 
