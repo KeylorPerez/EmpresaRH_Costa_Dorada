@@ -78,7 +78,6 @@ const WIZARD_TIPO_PAGO_LABELS = {
 };
 
 const DIAS_POR_QUINCENA = 15;
-const DIAS_LIBRES_QUINCENA = 2;
 const DIAS_POR_MES = 30;
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -158,7 +157,6 @@ const Planilla = () => {
     toggleDetalleDiaDoble,
     detalleDiasResumen,
     detalleEstadoOptions,
-    quincenaPolicy,
   } = usePlanilla();
 
   const navigate = useNavigate();
@@ -780,10 +778,6 @@ const Planilla = () => {
       : diasReferenciaPago > 0
         ? salarioBaseReferencia / diasReferenciaPago
         : 0;
-  const extraDiaDobleQuincenal =
-    tipoPago === "Quincenal" && usaDetalleParaCalculos && quincenaPolicy?.aplicarDiaDoble
-      ? salarioDiarioReferencia
-      : 0;
   const diasDoblesValor = parseNumberValue(formData.dias_dobles);
   const diasDoblesManual = Number.isNaN(diasDoblesValor) || diasDoblesValor < 0 ? 0 : diasDoblesValor;
   const ingresoManualDiasDobles =
@@ -817,19 +811,17 @@ const Planilla = () => {
       if (usaDoblesManual) {
         const resumenExtra = Number(detalleDiasResumen.montoDiasDobles) || 0;
         const baseSinExtra = resumenTotal - resumenExtra;
-        const ajustado = baseSinExtra + pagoExtraDiasDobles + extraDiaDobleQuincenal;
+        const ajustado = baseSinExtra + pagoExtraDiasDobles;
         return Math.max(ajustado, 0);
       }
-      return Math.max(resumenTotal + extraDiaDobleQuincenal, 0);
+      return Math.max(resumenTotal, 0);
     }
     if (tipoPago === "Diario") {
       const base = salarioDiarioReferencia * diasTrabajadosAplicados + pagoExtraDiasDobles;
       return Number.isNaN(base) || base < 0 ? 0 : base;
     }
     if (usaDiasTrabajadosQuincenal) {
-      const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosValor, 0);
-      const diasExtra = Math.max(DIAS_LIBRES_QUINCENA - diasLibres, 0);
-      const diasPago = Math.max(diasTrabajadosValor + diasExtra, 0);
+      const diasPago = Math.max(diasTrabajadosValor, 0);
       const base = salarioDiarioReferencia * diasPago;
       const baseNormalizado = Number.isNaN(base) || base < 0 ? 0 : base;
       return usaDoblesManual ? baseNormalizado + pagoExtraDiasDobles : baseNormalizado;
