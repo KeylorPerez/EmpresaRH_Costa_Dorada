@@ -334,6 +334,13 @@ const Empleados = ({ mode = "admin" }) => {
                                 {isAdmin && (
                                   <td className="px-4 py-3">
                                     <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        variant="warning"
+                                        size="sm"
+                                        onClick={() => handleEdit(emp)}
+                                      >
+                                        Editar
+                                      </Button>
                                       {active ? (
                                         <Button
                                           variant="danger"
@@ -351,13 +358,6 @@ const Empleados = ({ mode = "admin" }) => {
                                           Activar
                                         </Button>
                                       )}
-                                      <Button
-                                        variant="warning"
-                                        size="sm"
-                                        onClick={() => handleEdit(emp)}
-                                      >
-                                        Editar
-                                      </Button>
                                     </div>
                                   </td>
                                 )}
