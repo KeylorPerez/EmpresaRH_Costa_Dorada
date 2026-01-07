@@ -679,7 +679,7 @@ export const usePlanilla = () => {
         return detalles;
       }
 
-      const permitirAusenciasPagadas = !descansoProgramadoActivo;
+      const permitirAusenciasPagadas = !descansoProgramadoActivo && !esPagoQuincenal;
 
       if (esPagoDiario) {
         const updates = new Map();
@@ -802,7 +802,7 @@ export const usePlanilla = () => {
         return update ? { ...detalle, ...update } : detalle;
       });
     },
-    [applySalarioBaseFallback, descansoProgramadoActivo, esPagoDiario],
+    [applySalarioBaseFallback, descansoProgramadoActivo, esPagoDiario, esPagoQuincenal],
   );
 
   const aplicarAsistenciaDetalle = useCallback((detalles, fechasAsistidas) => {
