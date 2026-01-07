@@ -5,6 +5,10 @@
 const { poolPromise, sql } = require('../db/db');
 
 class DescansoSemanal {
+  static isMissingTableError(err) {
+    return err && err.number === 208;
+  }
+
   static async create(
     {
       id_empleado,
@@ -33,6 +37,9 @@ class DescansoSemanal {
             (@id_empleado, @semana_tipo, @dia_semana, @es_descanso, @fecha_inicio_vigencia, @fecha_fin_vigencia, GETDATE(), GETDATE());
         `);
     } catch (err) {
+      if (DescansoSemanal.isMissingTableError(err)) {
+        return;
+      }
       throw err;
     }
   }
@@ -61,6 +68,9 @@ class DescansoSemanal {
         `);
       return result.recordset;
     } catch (err) {
+      if (DescansoSemanal.isMissingTableError(err)) {
+        return [];
+      }
       throw err;
     }
   }
@@ -86,6 +96,9 @@ class DescansoSemanal {
         `);
       return result.recordset;
     } catch (err) {
+      if (DescansoSemanal.isMissingTableError(err)) {
+        return [];
+      }
       throw err;
     }
   }
@@ -102,6 +115,9 @@ class DescansoSemanal {
             AND es_descanso = 1
         `);
     } catch (err) {
+      if (DescansoSemanal.isMissingTableError(err)) {
+        return;
+      }
       throw err;
     }
   }
