@@ -2459,7 +2459,11 @@ export const usePlanilla = () => {
             Number.isNaN(actualNumero) ||
             actualNumero === previousAuto
           ) {
-            return { ...prev, dias_trabajados: dias ? dias.toString() : "0" };
+            const nextValue = dias ? dias.toString() : "0";
+            if (prev.dias_trabajados === nextValue) {
+              return prev;
+            }
+            return { ...prev, dias_trabajados: nextValue };
           }
           return prev;
         });
