@@ -665,12 +665,18 @@ export const usePlanilla = () => {
           salarioBase: baseNormalizado,
         };
       }
+      if (esPagoQuincenal && !detalle?.es_descanso) {
+        return {
+          salario: SALARIO_CERO_TEXTO,
+          salarioBase: baseNormalizado,
+        };
+      }
       return {
         salario: formatMontoPositivo(baseNormalizado),
         salarioBase: baseNormalizado,
       };
     },
-    [applySalarioBaseFallback, esPagoDiario],
+    [applySalarioBaseFallback, esPagoDiario, esPagoQuincenal],
   );
 
   const aplicarPoliticaAusencias = useCallback(
@@ -2263,62 +2269,6 @@ export const usePlanilla = () => {
     );
   }, [detalleDias, esPagoQuincenal]);
 
-  const quincenaPolicy = useMemo(() => {
-    if (!esPagoQuincenal || !Array.isArray(detalleDias) || detalleDias.length === 0) {
-      return {
-        diasLibres: 0,
-        ausenciasSinJustificar: 0,
-        aplicarRebaja: false,
-        aplicarDiaDoble: false,
-        mensajes: [],
-      };
-    }
-
-    let diasLibres = 0;
-    let ausenciasSinJustificar = 0;
-
-    detalleDias.forEach((detalle) => {
-      if (!detalle || detalle.asistio) {
-        return;
-      }
-
-      if (detalle.es_descanso) {
-        diasLibres += 1;
-        return;
-      }
-
-      diasLibres += 1;
-      const estado = normalizeEstado(detalle.estado);
-      if (estado === ESTADO_AUSENTE && !detalle.justificado) {
-        ausenciasSinJustificar += 1;
-      }
-    });
-
-    const aplicarRebaja = ausenciasSinJustificar >= MAX_AUSENCIAS_SIN_JUSTIFICAR;
-    const aplicarDiaDoble = diasLibres === 1;
-    const mensajes = [];
-
-    if (aplicarRebaja) {
-      mensajes.push(
-        `El colaborador tiene ${ausenciasSinJustificar} faltas sin justificar. Se rebajará 1 día en esta quincena.`,
-      );
-    }
-
-    if (aplicarDiaDoble) {
-      mensajes.push(
-        "El colaborador solo tiene 1 día libre en la quincena. Se sumará un día doble adicional.",
-      );
-    }
-
-    return {
-      diasLibres,
-      ausenciasSinJustificar,
-      aplicarRebaja,
-      aplicarDiaDoble,
-      mensajes,
-    };
-  }, [detalleDias, esPagoQuincenal]);
-
   const obtenerSaldoPrestamo = (id_prestamo) => {
     const prestamo = prestamosEmpleado.find((item) => item.id_prestamo === id_prestamo);
     return Math.max(Number(prestamo?.saldo) || 0, 0);
@@ -2878,7 +2828,6 @@ export const usePlanilla = () => {
     toggleDetalleDiaDoble,
     detalleDiasResumen,
     detalleEstadoOptions,
-    quincenaPolicy,
   };
 };
 
