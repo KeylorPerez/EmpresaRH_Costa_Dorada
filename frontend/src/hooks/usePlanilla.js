@@ -654,6 +654,12 @@ export const usePlanilla = () => {
       const baseReferencia = obtenerSalarioBaseDetalle(detalle);
       const baseNormalizado = applySalarioBaseFallback(baseReferencia);
       if (esPagoDiario) {
+        if (detalle?.es_descanso) {
+          return {
+            salario: formatMontoPositivo(baseNormalizado),
+            salarioBase: baseNormalizado,
+          };
+        }
         return {
           salario: SALARIO_CERO_TEXTO,
           salarioBase: baseNormalizado,
@@ -680,6 +686,20 @@ export const usePlanilla = () => {
 
         detalles.forEach((detalle, index) => {
           if (detalle.asistio) {
+            return;
+          }
+
+          if (detalle.es_descanso) {
+            const baseReferencia = obtenerSalarioBaseDetalle(detalle);
+            const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+            const salarioTexto = formatMontoPositivo(baseNormalizado);
+
+            if (detalle.salario_dia !== salarioTexto || detalle.salario_base !== baseNormalizado) {
+              updates.set(index, {
+                salario_dia: salarioTexto,
+                salario_base: baseNormalizado,
+              });
+            }
             return;
           }
 
@@ -997,6 +1017,7 @@ export const usePlanilla = () => {
         const ausenciaSalario = resolveAusenciaSalario({
           ...detalle,
           asistio: false,
+          es_descanso: true,
         });
 
         return {
