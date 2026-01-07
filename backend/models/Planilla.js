@@ -106,8 +106,7 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
 const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
   if (diasPeriodo <= 0) return 0;
-  const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
-  return Math.max(diasPeriodo - descansoDias, 0);
+  return Math.max(diasPeriodo, 0);
 };
 
 const buildDiasDoblesAuto = async ({
@@ -469,7 +468,10 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
             );
-            diasParaPago = diasAsistencia;
+            const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
+            const diasAsistenciaNormalizados =
+              Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+            diasParaPago = diasAsistenciaNormalizados + descansoDias;
           } else {
             diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
@@ -806,7 +808,10 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
             );
-            diasParaPago = Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+            const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
+            const diasAsistenciaNormalizados =
+              Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
+            diasParaPago = diasAsistenciaNormalizados + descansoDias;
           } else {
             diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
