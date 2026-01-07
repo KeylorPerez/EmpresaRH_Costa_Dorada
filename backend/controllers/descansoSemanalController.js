@@ -1,3 +1,5 @@
+const DescansoConfig = require('../models/DescansoConfig');
+const DescansoDias = require('../models/DescansoDias');
 const DescansoSemanal = require('../models/DescansoSemanal');
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
@@ -177,7 +179,16 @@ const getDescansosByEmpleado = async (req, res) => {
     }
 
     const descansos = await DescansoSemanal.getByEmpleado(idEmpleado);
-    return res.json(descansos);
+    const descansoConfig = await DescansoConfig.getLatestByEmpleado(idEmpleado);
+    const descansoDias = descansoConfig?.id_config
+      ? await DescansoDias.getByConfig(descansoConfig.id_config)
+      : [];
+
+    return res.json({
+      descansos,
+      descanso_config: descansoConfig,
+      descanso_dias: descansoDias,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'No fue posible obtener los descansos.' });

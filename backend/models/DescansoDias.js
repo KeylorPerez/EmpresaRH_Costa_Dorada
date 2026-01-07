@@ -8,6 +8,30 @@ class DescansoDias {
     return err && err.number === 208;
   }
 
+  static async getByConfig(id_config, { transaction } = {}) {
+    try {
+      const pool = await poolPromise;
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      const result = await request
+        .input('id_config', sql.Int, id_config)
+        .query(`
+          SELECT
+            periodo_tipo,
+            dia_semana,
+            es_descanso
+          FROM DescansoDias
+          WHERE id_config = @id_config;
+        `);
+
+      return result.recordset;
+    } catch (err) {
+      if (DescansoDias.isMissingTableError(err)) {
+        return [];
+      }
+      throw err;
+    }
+  }
+
   static async createMany(id_config, dias, { transaction } = {}) {
     if (!Array.isArray(dias) || dias.length === 0) {
       return;
