@@ -1,6 +1,7 @@
 const DescansoConfig = require('../models/DescansoConfig');
 const DescansoDias = require('../models/DescansoDias');
 const DescansoSemanal = require('../models/DescansoSemanal');
+const { addDays, parseUtcDate, resolveDescansoDia } = require('../utils/descansoHelper');
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -12,8 +13,6 @@ const parseDate = (value) => {
 };
 
 const formatDate = (date) => date.toISOString().slice(0, 10);
-
-const addDays = (date, days) => new Date(date.getTime() + days * MS_POR_DIA);
 
 const resolveWeekType = (fecha, inicioVigencia, semanaTipoInicio = 'A') => {
   const diff = Math.floor((fecha.getTime() - inicioVigencia.getTime()) / MS_POR_DIA);
@@ -129,6 +128,25 @@ const buildFechasDescanso = ({ rows, inicio, fin }) => {
   return Array.from(fechasSet);
 };
 
+const buildFechasDescansoFromConfig = async ({ id_empleado, inicio, fin }) => {
+  const fechas = [];
+  let cursor = new Date(inicio.getTime());
+  let configAplicada = false;
+
+  while (cursor <= fin) {
+    const { es_descanso, config_aplicada } = await resolveDescansoDia(id_empleado, cursor);
+    if (config_aplicada) {
+      configAplicada = true;
+    }
+    if (es_descanso) {
+      fechas.push(formatDate(cursor));
+    }
+    cursor = addDays(cursor, 1);
+  }
+
+  return { fechas, configAplicada };
+};
+
 const getDescansosSummary = async (req, res) => {
   try {
     const { id_empleado, periodo_inicio, periodo_fin } = req.query;
@@ -139,13 +157,23 @@ const getDescansosSummary = async (req, res) => {
       });
     }
 
-    const inicio = parseDate(periodo_inicio);
-    const fin = parseDate(periodo_fin);
+    const inicio = parseUtcDate(periodo_inicio) || parseDate(periodo_inicio);
+    const fin = parseUtcDate(periodo_fin) || parseDate(periodo_fin);
 
     if (!inicio || !fin || fin < inicio) {
       return res.status(400).json({
         error: 'El rango de fechas es inválido.',
       });
+    }
+
+    const { fechas: fechasConfig, configAplicada } = await buildFechasDescansoFromConfig({
+      id_empleado: Number(id_empleado),
+      inicio,
+      fin,
+    });
+
+    if (configAplicada) {
+      return res.json({ fechas: fechasConfig, total: fechasConfig.length });
     }
 
     const rows = await DescansoSemanal.getByEmpleadoInRange(
