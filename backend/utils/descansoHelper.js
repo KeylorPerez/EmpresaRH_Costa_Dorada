@@ -17,10 +17,23 @@ const parseUtcDate = (value) => {
 
 const addDays = (date, days) => new Date(date.getTime() + days * MS_POR_DIA);
 
+const getQuincenaIndex = (date) => {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const halfIndex = day <= 15 ? 0 : 1;
+  return year * 24 + month * 2 + halfIndex;
+};
+
 const resolvePeriodoTipo = ({ ciclo, fechaBase, fecha }) => {
+  if (ciclo === 'QUINCENAL') {
+    const diffQuincenas = getQuincenaIndex(fecha) - getQuincenaIndex(fechaBase);
+    const isEven = Math.abs(diffQuincenas) % 2 === 0;
+    return isEven ? 'A' : 'B';
+  }
+
   const diffDays = Math.floor((fecha.getTime() - fechaBase.getTime()) / MS_POR_DIA);
-  const divisor = ciclo === 'QUINCENAL' ? 14 : 7;
-  const blockIndex = Math.floor(diffDays / divisor);
+  const blockIndex = Math.floor(diffDays / 7);
   const isEven = Math.abs(blockIndex) % 2 === 0;
   return isEven ? 'A' : 'B';
 };
