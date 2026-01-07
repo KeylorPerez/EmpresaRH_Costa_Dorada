@@ -656,7 +656,7 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
 
           <section className="rounded-xl bg-white shadow">
             <header className="border-b px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-800">Detalle diario</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Detalle diario del periodo</h2>
               <p className="text-sm text-gray-500">
                 Cada fila corresponde a un día del periodo. Marca asistencias, días dobles y revisa observaciones.
               </p>
