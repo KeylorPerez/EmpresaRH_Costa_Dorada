@@ -759,13 +759,16 @@ export const usePlanilla = () => {
 
         const esVacaciones = estado === ESTADO_VACACIONES;
         const esIncapacidad = estado === ESTADO_INCAPACIDAD;
+        const esPermiso = estado === ESTADO_PERMISO;
         const esAusenteSinJustificar = estado === ESTADO_AUSENTE && !detalle.justificado;
 
         if (esAusenteSinJustificar) {
           ausenciasSinJustificar += 1;
         }
 
-        if (esVacaciones) {
+        if (esPermiso) {
+          salarioCalculado = 0;
+        } else if (esVacaciones) {
           salarioCalculado = baseNormalizado;
         } else if (esIncapacidad) {
           salarioCalculado = baseNormalizado / 2;
@@ -2043,6 +2046,12 @@ export const usePlanilla = () => {
                   siguiente.salario_base = ausenciaSalario.salarioBase;
                 }
               }
+            } else if (nuevoEstado === ESTADO_PERMISO) {
+              const baseReferencia = obtenerSalarioBaseDetalle(siguiente);
+              const baseNormalizado = applySalarioBaseFallback(baseReferencia);
+              siguiente.asistio = false;
+              siguiente.salario_base = baseNormalizado;
+              siguiente.salario_dia = SALARIO_CERO_TEXTO;
             }
           }
 
