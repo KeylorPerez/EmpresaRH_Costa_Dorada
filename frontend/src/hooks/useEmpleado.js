@@ -517,12 +517,20 @@ export const useEmpleado = () => {
     setModalOpen(true);
 
     try {
-      const descansos = await descansoSemanalService.getByEmpleado(
+      const descansoPayload = await descansoSemanalService.getByEmpleado(
         empleado.id_empleado
       );
-      const descansosNormalizados = normalizeDescansos(descansos, empleado);
+      const descansosResponse = Array.isArray(descansoPayload)
+        ? descansoPayload
+        : descansoPayload?.descansos;
+      const descansosNormalizados = normalizeDescansos(descansosResponse, empleado);
       const tipoPagoNormalizado = normalizeTipoPago(empleado.tipo_pago || "Diario");
-      const descansoConfig = normalizeDescansoConfigFromSemanal(descansosNormalizados, empleado);
+      const descansoConfig = normalizeDescansoConfigFromPayload(
+        descansosNormalizados,
+        descansoPayload?.descanso_config,
+        descansoPayload?.descanso_dias,
+        empleado
+      );
       setFormData((prev) => ({
         ...prev,
         descansos: descansosNormalizados,
@@ -715,6 +723,30 @@ const normalizeDescansoDias = (dias) => {
   return Array.from(new Set(normalized)).sort();
 };
 
+const isTruthyFlag = (value) => Number(value) === 1 || value === true;
+
+const normalizeDescansoDiasFromConfig = (descansoDias) => {
+  if (!Array.isArray(descansoDias)) {
+    return createEmptyDescansoDias();
+  }
+
+  const diasPorPeriodo = { A: [], B: [] };
+
+  descansoDias.forEach((dia) => {
+    if (!isTruthyFlag(dia?.es_descanso)) return;
+    const periodo = String(dia?.periodo_tipo || "").trim().toUpperCase();
+    if (!["A", "B"].includes(periodo)) return;
+    const diaValue = Number(dia?.dia_semana);
+    if (!Number.isInteger(diaValue) || diaValue < 0 || diaValue > 6) return;
+    diasPorPeriodo[periodo].push(String(diaValue));
+  });
+
+  return {
+    A: normalizeDescansoDias(diasPorPeriodo.A),
+    B: normalizeDescansoDias(diasPorPeriodo.B),
+  };
+};
+
 const normalizeDescansos = (descansos, empleado) => {
   const fechaIngreso = normalizeDate(empleado?.fecha_ingreso);
   if (!Array.isArray(descansos) || descansos.length === 0) {
@@ -734,6 +766,47 @@ const normalizeDescansos = (descansos, empleado) => {
     .filter((descanso) => descanso.semana_tipo && descanso.dia_semana !== "");
 
   return normalized;
+};
+
+const normalizeDescansoConfigFromPayload = (
+  descansos,
+  descansoConfig,
+  descansoDias,
+  empleado
+) => {
+  const fechaIngreso = normalizeDate(empleado?.fecha_ingreso);
+  if (!descansoConfig) {
+    return normalizeDescansoConfigFromSemanal(descansos, empleado);
+  }
+
+  const tipoPatron = String(descansoConfig.tipo_patron || "FIJO")
+    .trim()
+    .toUpperCase();
+  const ciclo = String(descansoConfig.ciclo || "SEMANAL").trim().toUpperCase();
+  const fechaInicio =
+    normalizeDate(descansoConfig.fecha_inicio_vigencia) || fechaIngreso;
+  const fechaFin = normalizeDate(descansoConfig.fecha_fin_vigencia);
+  const fechaBase =
+    normalizeDate(descansoConfig.fecha_base) || fechaInicio || fechaIngreso;
+  const diasConfig = normalizeDescansoDiasFromConfig(descansoDias);
+  const diasA = diasConfig.A;
+  const diasB = tipoPatron === "FIJO" ? diasA : diasConfig.B;
+
+  if (diasA.length === 0 && diasB.length === 0) {
+    return normalizeDescansoConfigFromSemanal(descansos, empleado);
+  }
+
+  return {
+    descanso_tipo_patron: tipoPatron,
+    descanso_ciclo: ciclo,
+    descanso_fecha_inicio_vigencia: fechaInicio,
+    descanso_fecha_fin_vigencia: fechaFin,
+    descanso_fecha_base: fechaBase,
+    descanso_dias: {
+      A: diasA,
+      B: tipoPatron === "FIJO" ? diasA : diasB,
+    },
+  };
 };
 
 const normalizeDescansoConfigFromSemanal = (descansos, empleado) => {

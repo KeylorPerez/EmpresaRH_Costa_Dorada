@@ -8,6 +8,34 @@ class DescansoConfig {
     return err && err.number === 208;
   }
 
+  static async getLatestByEmpleado(id_empleado, { transaction } = {}) {
+    try {
+      const pool = await poolPromise;
+      const request = transaction ? new sql.Request(transaction) : pool.request();
+      const result = await request
+        .input('id_empleado', sql.Int, id_empleado)
+        .query(`
+          SELECT TOP 1
+            id_config,
+            tipo_patron,
+            ciclo,
+            fecha_inicio_vigencia,
+            fecha_fin_vigencia,
+            fecha_base
+          FROM DescansoConfig
+          WHERE id_empleado = @id_empleado
+          ORDER BY fecha_inicio_vigencia DESC, id_config DESC;
+        `);
+
+      return result.recordset[0] || null;
+    } catch (err) {
+      if (DescansoConfig.isMissingTableError(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   static async create(
     {
       id_empleado,
