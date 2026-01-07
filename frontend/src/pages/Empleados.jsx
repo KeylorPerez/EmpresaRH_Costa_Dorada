@@ -11,9 +11,20 @@ const Empleados = ({ mode = "admin" }) => {
   const { user, logoutUser } = useAuth();
   const {
     empleados,
+    puestos,
     loading,
     error,
     successMessage,
+    modalOpen,
+    setModalOpen,
+    editingEmpleado,
+    formData,
+    handleChange,
+    handleToggleDescanso,
+    handleToggleDescansoDia,
+    handleSubmit,
+    handleEdit,
+    resetForm,
     handleDeactivate,
     handleActivate,
     exportingFormat,
@@ -34,6 +45,7 @@ const Empleados = ({ mode = "admin" }) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeDescansoTab, setActiveDescansoTab] = useState("A");
   const currentEmpleadoId = useMemo(() => {
     const possibleIds = [
       user?.id_empleado,
@@ -71,6 +83,16 @@ const Empleados = ({ mode = "admin" }) => {
       });
   }, [scopedEmpleados, searchTerm, statusFilter]);
 
+  const closeModal = () => {
+    setModalOpen(false);
+    resetForm();
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setModalOpen(true);
+  };
+
   if (!user) return <p>Cargando usuario...</p>;
   if (isAdmin && user.id_rol !== 1) return <p>No tienes permisos para ver esta página.</p>;
   if (!isAdmin && user.id_rol !== 2) return <p>No tienes permisos para ver esta página.</p>;
@@ -79,6 +101,22 @@ const Empleados = ({ mode = "admin" }) => {
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
   const columnsCount = isAdmin ? 14 : 13;
+  const isPagoDiario = String(formData.tipo_pago || "")
+    .toLowerCase()
+    .startsWith("diar");
+  const descansoTabs = [
+    { value: "A", label: "Periodo A" },
+    { value: "B", label: "Periodo B" },
+  ];
+  const diasSemana = [
+    { value: "0", label: "Domingo" },
+    { value: "1", label: "Lunes" },
+    { value: "2", label: "Martes" },
+    { value: "3", label: "Miércoles" },
+    { value: "4", label: "Jueves" },
+    { value: "5", label: "Viernes" },
+    { value: "6", label: "Sábado" },
+  ];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -132,6 +170,9 @@ const Empleados = ({ mode = "admin" }) => {
               </div>
               {isAdmin && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 md:justify-end md:mt-2">
+                  <Button variant="primary" size="sm" onClick={openCreateModal}>
+                    Agregar empleado
+                  </Button>
                   <Button
                     variant="primary"
                     size="sm"
@@ -310,6 +351,13 @@ const Empleados = ({ mode = "admin" }) => {
                                           Activar
                                         </Button>
                                       )}
+                                      <Button
+                                        variant="warning"
+                                        size="sm"
+                                        onClick={() => handleEdit(emp)}
+                                      >
+                                        Editar
+                                      </Button>
                                     </div>
                                   </td>
                                 )}
@@ -321,6 +369,442 @@ const Empleados = ({ mode = "admin" }) => {
                     </table>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {modalOpen && (
+            <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
+              <div className="bg-white rounded-xl w-full max-w-5xl shadow-lg max-h-[90vh] overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      {editingEmpleado ? "Editar empleado" : "Agregar empleado"}
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Completa la información general y la configuración de descanso.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Cerrar"
+                    onClick={closeModal}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <form
+                  onSubmit={handleSubmit}
+                  className="flex flex-col gap-6 px-6 py-4 overflow-y-auto max-h-[75vh]"
+                >
+                  <section className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre
+                      </label>
+                      <input
+                        type="text"
+                        name="nombre"
+                        value={formData.nombre}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Apellido
+                      </label>
+                      <input
+                        type="text"
+                        name="apellido"
+                        value={formData.apellido}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Puesto
+                      </label>
+                      <select
+                        name="id_puesto"
+                        value={formData.id_puesto}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      >
+                        <option value="">Selecciona un puesto</option>
+                        {puestos.map((puesto) => (
+                          <option key={puesto.id_puesto} value={puesto.id_puesto}>
+                            {puesto.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cédula
+                      </label>
+                      <input
+                        type="text"
+                        name="cedula"
+                        value={formData.cedula}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de nacimiento
+                      </label>
+                      <input
+                        type="date"
+                        name="fecha_nacimiento"
+                        value={formData.fecha_nacimiento}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de ingreso
+                      </label>
+                      <input
+                        type="date"
+                        name="fecha_ingreso"
+                        value={formData.fecha_ingreso}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Teléfono
+                      </label>
+                      <input
+                        type="tel"
+                        name="telefono"
+                        value={formData.telefono}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </section>
+
+                  <section className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Salario base
+                      </label>
+                      <input
+                        type="number"
+                        name="salario_monto"
+                        value={formData.salario_monto}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de pago
+                      </label>
+                      <select
+                        name="tipo_pago"
+                        value={formData.tipo_pago}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        required
+                      >
+                        <option value="Diario">Diario</option>
+                        <option value="Quincenal">Quincenal</option>
+                        <option value="Mensual">Mensual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bonificación fija
+                      </label>
+                      <input
+                        type="number"
+                        name="bonificacion_fija"
+                        value={formData.bonificacion_fija}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        % CCSS
+                      </label>
+                      <input
+                        type="number"
+                        name="porcentaje_ccss"
+                        value={formData.porcentaje_ccss}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Deducción CCSS
+                      </label>
+                      <select
+                        name="usa_deduccion_fija"
+                        value={formData.usa_deduccion_fija}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="1">Monto fijo</option>
+                        <option value="0">Porcentaje</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Monto deducción fija
+                      </label>
+                      <input
+                        type="number"
+                        name="deduccion_fija"
+                        value={formData.deduccion_fija}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        min="0"
+                        step="0.01"
+                        disabled={formData.usa_deduccion_fija !== "1"}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Planilla automática
+                      </label>
+                      <select
+                        name="planilla_automatica"
+                        value={formData.planilla_automatica}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="1">Automática</option>
+                        <option value="0">Manual</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Marcación externa
+                      </label>
+                      <select
+                        name="permitir_marcacion_fuera"
+                        value={formData.permitir_marcacion_fuera}
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="1">Permitida</option>
+                        <option value="0">Restringida</option>
+                      </select>
+                    </div>
+                    {editingEmpleado && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Estado
+                        </label>
+                        <select
+                          name="estado"
+                          value={formData.estado}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        >
+                          <option value="1">Activo</option>
+                          <option value="0">Inactivo</option>
+                        </select>
+                      </div>
+                    )}
+                  </section>
+
+                  {!isPagoDiario && (
+                    <section className="border border-gray-200 rounded-lg p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-800">
+                            Configuración de descansos
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            Define el patrón de descanso semanal o quincenal.
+                          </p>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={formData.descanso_config_habilitado}
+                            onChange={(event) => handleToggleDescanso(event.target.checked)}
+                          />
+                          Activar descanso
+                        </label>
+                      </div>
+
+                      {formData.descanso_config_habilitado && (
+                        <>
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Tipo de patrón
+                              </label>
+                              <select
+                                name="descanso_tipo_patron"
+                                value={formData.descanso_tipo_patron}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                              >
+                                <option value="FIJO">Fijo</option>
+                                <option value="ALTERNADO">Alternado</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Ciclo
+                              </label>
+                              <select
+                                name="descanso_ciclo"
+                                value={formData.descanso_ciclo}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                              >
+                                <option value="SEMANAL">Semanal</option>
+                                <option value="QUINCENAL">Quincenal</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Fecha base
+                              </label>
+                              <input
+                                type="date"
+                                name="descanso_fecha_base"
+                                value={formData.descanso_fecha_base}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Inicio de vigencia
+                              </label>
+                              <input
+                                type="date"
+                                name="descanso_fecha_inicio_vigencia"
+                                value={formData.descanso_fecha_inicio_vigencia}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Fin de vigencia
+                              </label>
+                              <input
+                                type="date"
+                                name="descanso_fecha_fin_vigencia"
+                                value={formData.descanso_fecha_fin_vigencia}
+                                onChange={handleChange}
+                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex gap-2 flex-wrap">
+                              {descansoTabs.map((tab) => {
+                                const isFixed =
+                                  String(formData.descanso_tipo_patron || "").toUpperCase() === "FIJO";
+                                const isDisabled = isFixed && tab.value === "B";
+                                return (
+                                  <button
+                                    key={tab.value}
+                                    type="button"
+                                    onClick={() => setActiveDescansoTab(tab.value)}
+                                    disabled={isDisabled}
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                                      activeDescansoTab === tab.value
+                                        ? "bg-blue-600 text-white border-blue-600"
+                                        : "bg-white text-gray-600 border-gray-200"
+                                    } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  >
+                                    {tab.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              {String(formData.descanso_tipo_patron || "").toUpperCase() === "FIJO"
+                                ? "El patrón fijo replica los mismos días en ambos periodos."
+                                : "Define los días de descanso para cada periodo."}
+                            </p>
+                          </div>
+
+                          <div className="grid gap-2 md:grid-cols-3">
+                            {diasSemana.map((dia) => {
+                              const checked = (formData.descanso_dias?.[activeDescansoTab] || []).includes(
+                                dia.value
+                              );
+                              return (
+                                <label
+                                  key={`${activeDescansoTab}-${dia.value}`}
+                                  className="flex items-center gap-2 text-sm text-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      handleToggleDescansoDia(activeDescansoTab, dia.value)
+                                    }
+                                  />
+                                  {dia.label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </section>
+                  )}
+
+                  {isPagoDiario && (
+                    <p className="text-xs text-gray-500">
+                      El descanso semanal aplica para pagos quincenales o mensuales.
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" type="button" onClick={closeModal}>
+                      Cancelar
+                    </Button>
+                    <Button variant="primary" size="sm" type="submit">
+                      {editingEmpleado ? "Actualizar" : "Crear"}
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
