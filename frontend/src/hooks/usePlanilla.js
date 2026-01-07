@@ -1719,12 +1719,24 @@ export const usePlanilla = () => {
         return prev;
       }
 
+      const contextoActual = detalleContextRef.current;
+      const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
+      const registrosAsistencia =
+        detalleAsistencia.key === keyActual ? detalleAsistencia.registros : [];
+
       let updated = aplicarAsistenciaDetalle(prev, fechasAsistidas);
+      updated = aplicarAsistenciaManual(updated, registrosAsistencia);
       updated = aplicarPoliticaAusencias(updated);
       const hasChanges = updated.some((detalle, index) => detalle !== prev[index]);
       return hasChanges ? updated : prev;
     });
-  }, [aplicarAsistenciaDetalle, aplicarPoliticaAusencias]);
+  }, [
+    aplicarAsistenciaDetalle,
+    aplicarAsistenciaManual,
+    aplicarPoliticaAusencias,
+    detalleAsistencia.key,
+    detalleAsistencia.registros,
+  ]);
 
   useEffect(() => {
     if (!modalOpen || editingPlanilla) return;
@@ -1774,6 +1786,7 @@ export const usePlanilla = () => {
     nuevosDetalles = aplicarDescansosAuto(nuevosDetalles, fechasDescanso);
     if (aplicarAsistencia) {
       nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
+      nuevosDetalles = aplicarAsistenciaManual(nuevosDetalles, registrosAsistencia);
     } else {
       nuevosDetalles = aplicarAsistenciaManual(nuevosDetalles, registrosAsistencia);
     }
@@ -1847,6 +1860,7 @@ export const usePlanilla = () => {
           }
           if (fechasAsistencia && aplicarAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
+            restaurados = aplicarAsistenciaManual(restaurados, registrosAsistencia || []);
           }
           if (registrosAsistencia && !aplicarAsistencia) {
             restaurados = aplicarAsistenciaManual(restaurados, registrosAsistencia);
@@ -1877,6 +1891,7 @@ export const usePlanilla = () => {
       }
       if (fechasAsistencia && aplicarAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
+        aplicados = aplicarAsistenciaManual(aplicados, registrosAsistencia || []);
       }
       if (registrosAsistencia && !aplicarAsistencia) {
         aplicados = aplicarAsistenciaManual(aplicados, registrosAsistencia);
@@ -2563,6 +2578,10 @@ export const usePlanilla = () => {
       let detallesRestaurados = aplicarDiasDoblesAuto(detallesBase, fechasDobles);
       detallesRestaurados = aplicarDescansosAuto(detallesRestaurados, fechasDescanso);
       detallesRestaurados = aplicarAsistenciaDetalle(detallesRestaurados, fechasAsistencia);
+      detallesRestaurados = aplicarAsistenciaManual(
+        detallesRestaurados,
+        detalleAsistencia.key === keyActual ? detalleAsistencia.registros : [],
+      );
       if (debeAplicarJustificaciones) {
         detallesRestaurados = aplicarJustificacionesAuto(
           detallesRestaurados,
@@ -2611,11 +2630,13 @@ export const usePlanilla = () => {
     detalleJustificaciones.registros,
     detalleAsistencia.key,
     detalleAsistencia.fechas,
+    detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
     detalleDescansos.key,
     detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
+    aplicarAsistenciaManual,
     aplicarDiasDoblesAuto,
     aplicarDescansosAuto,
     aplicarPoliticaAusencias,
