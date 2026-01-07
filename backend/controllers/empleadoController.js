@@ -6,6 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const Empleado = require('../models/Empleado');
+const DescansoConfig = require('../models/DescansoConfig');
+const DescansoDias = require('../models/DescansoDias');
 const DescansoSemanal = require('../models/DescansoSemanal');
 const { sql, poolPromise } = require('../db/db');
 
@@ -493,6 +495,160 @@ const parseFlagValue = (value, defaultValue = null) => {
   return defaultValue;
 };
 
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+const parseDateValue = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
+const normalizeDescansoDiasPayload = (descansoDias) => {
+  if (!Array.isArray(descansoDias)) return { dias: [], error: null };
+
+  const unique = new Map();
+
+  for (const item of descansoDias) {
+    const periodoTipo = String(item?.periodo_tipo || '').trim().toUpperCase();
+    if (!['A', 'B'].includes(periodoTipo)) {
+      return { dias: [], error: 'Periodo de descanso inválido.' };
+    }
+
+    const diaSemanaValue = Number(item?.dia_semana);
+    if (!Number.isInteger(diaSemanaValue) || diaSemanaValue < 0 || diaSemanaValue > 6) {
+      return { dias: [], error: 'Día de descanso inválido.' };
+    }
+
+    const key = `${periodoTipo}-${diaSemanaValue}`;
+    if (!unique.has(key)) {
+      unique.set(key, {
+        periodo_tipo: periodoTipo,
+        dia_semana: diaSemanaValue,
+        es_descanso: 1,
+      });
+    }
+  }
+
+  return { dias: Array.from(unique.values()), error: null };
+};
+
+const parseDescansoConfigPayload = (payload, { fecha_ingreso }) => {
+  const hasConfig = hasOwn(payload, 'descanso_config');
+  const hasDias = hasOwn(payload, 'descanso_dias');
+
+  if (!hasConfig && !hasDias) {
+    return { action: 'ignore' };
+  }
+
+  const descansoConfig = payload.descanso_config;
+  const descansoDias = payload.descanso_dias;
+
+  if (!descansoConfig) {
+    return { action: 'clear' };
+  }
+
+  const tipoPatron = String(descansoConfig.tipo_patron || '').trim().toUpperCase();
+  if (!['FIJO', 'ALTERNADO'].includes(tipoPatron)) {
+    return { action: 'error', error: 'Tipo de patrón de descanso inválido.' };
+  }
+
+  const ciclo = String(descansoConfig.ciclo || '').trim().toUpperCase();
+  if (!['SEMANAL', 'QUINCENAL'].includes(ciclo)) {
+    return { action: 'error', error: 'Ciclo de descanso inválido.' };
+  }
+
+  const fechaInicio = descansoConfig.fecha_inicio_vigencia || fecha_ingreso;
+  if (!fechaInicio) {
+    return { action: 'error', error: 'La fecha de inicio de vigencia es obligatoria.' };
+  }
+
+  const fechaBase = descansoConfig.fecha_base || fecha_ingreso;
+  if (!fechaBase) {
+    return { action: 'error', error: 'La fecha base del descanso es obligatoria.' };
+  }
+
+  const inicioDate = parseDateValue(fechaInicio);
+  const baseDate = parseDateValue(fechaBase);
+  const finDate = parseDateValue(descansoConfig.fecha_fin_vigencia);
+
+  if (!inicioDate || !baseDate) {
+    return { action: 'error', error: 'Las fechas de descanso no son válidas.' };
+  }
+
+  if (finDate && finDate < inicioDate) {
+    return { action: 'error', error: 'La fecha fin de vigencia debe ser posterior al inicio.' };
+  }
+
+  if (baseDate < inicioDate || (finDate && baseDate > finDate)) {
+    return { action: 'error', error: 'La fecha base debe estar dentro de la vigencia.' };
+  }
+
+  const { dias, error } = normalizeDescansoDiasPayload(descansoDias);
+  if (error) {
+    return { action: 'error', error };
+  }
+
+  const diasA = dias.filter((dia) => dia.periodo_tipo === 'A');
+  const diasB = dias.filter((dia) => dia.periodo_tipo === 'B');
+
+  if (diasA.length === 0) {
+    return { action: 'error', error: 'Debes indicar al menos un día de descanso para el periodo A.' };
+  }
+
+  if (tipoPatron === 'ALTERNADO' && diasB.length === 0) {
+    return { action: 'error', error: 'Debes indicar al menos un día de descanso para el periodo B.' };
+  }
+
+  let diasNormalizados = dias;
+  if (tipoPatron === 'FIJO' && diasB.length === 0) {
+    diasNormalizados = [
+      ...diasA,
+      ...diasA.map((dia) => ({ ...dia, periodo_tipo: 'B' })),
+    ];
+  }
+
+  return {
+    action: 'save',
+    config: {
+      tipo_patron: tipoPatron,
+      ciclo,
+      fecha_inicio_vigencia: fechaInicio,
+      fecha_fin_vigencia: descansoConfig.fecha_fin_vigencia || null,
+      fecha_base: fechaBase,
+    },
+    dias: diasNormalizados,
+  };
+};
+
+const persistDescansoConfig = async (
+  { id_empleado, action, config, dias },
+  { transaction } = {}
+) => {
+  if (!action || action === 'ignore') {
+    return;
+  }
+
+  await DescansoDias.deleteByEmpleado(id_empleado, { transaction });
+  await DescansoConfig.deleteByEmpleado(id_empleado, { transaction });
+
+  if (action === 'clear') {
+    return;
+  }
+
+  const idConfig = await DescansoConfig.create(
+    {
+      id_empleado,
+      ...config,
+    },
+    { transaction }
+  );
+
+  if (idConfig) {
+    await DescansoDias.createMany(idConfig, dias, { transaction });
+  }
+};
+
 // Crear un nuevo empleado (solo admin)
 const createEmpleado = async (req, res) => {
   try {
@@ -609,6 +765,12 @@ const createEmpleado = async (req, res) => {
       }
     }
 
+    const descansoConfigPayload = parseDescansoConfigPayload(req.body, { fecha_ingreso });
+
+    if (descansoConfigPayload.action === 'error') {
+      return res.status(400).json({ error: descansoConfigPayload.error });
+    }
+
     const bonificacionValue =
       bonificacion_fija !== undefined && bonificacion_fija !== null
         ? Number(bonificacion_fija)
@@ -692,6 +854,14 @@ const createEmpleado = async (req, res) => {
           { transaction }
         );
       }
+
+      await persistDescansoConfig(
+        {
+          id_empleado: empleado.id_empleado,
+          ...descansoConfigPayload,
+        },
+        { transaction }
+      );
 
       await transaction.commit();
     } catch (err) {
@@ -990,6 +1160,12 @@ const updateEmpleado = async (req, res) => {
       }
     }
 
+    const descansoConfigPayload = parseDescansoConfigPayload(req.body, { fecha_ingreso });
+
+    if (descansoConfigPayload.action === 'error') {
+      return res.status(400).json({ error: descansoConfigPayload.error });
+    }
+
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -1052,6 +1228,14 @@ const updateEmpleado = async (req, res) => {
           );
         }
       }
+
+      await persistDescansoConfig(
+        {
+          id_empleado: id,
+          ...descansoConfigPayload,
+        },
+        { transaction }
+      );
 
       await transaction.commit();
     } catch (err) {
