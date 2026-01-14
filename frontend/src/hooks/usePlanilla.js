@@ -486,6 +486,19 @@ const formatInputDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const normalizeFechaDiaDoble = (value) => {
+  const parsed = parseDateSafe(value);
+  if (parsed) {
+    return formatInputDate(parsed);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    return trimmed.split("T")[0];
+  }
+  return "";
+};
+
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
   const inicioDate = parseDateSafe(inicio);
   const finDate = parseDateSafe(fin);
@@ -1067,10 +1080,11 @@ export const usePlanilla = () => {
           .map((entrada) => {
             if (!entrada) return null;
             if (typeof entrada === "string") {
-              return { fecha: entrada.trim(), multiplicador: 2 };
+              const fecha = normalizeFechaDiaDoble(entrada);
+              return fecha ? { fecha, multiplicador: 2 } : null;
             }
 
-            const fecha = typeof entrada.fecha === "string" ? entrada.fecha.trim() : "";
+            const fecha = normalizeFechaDiaDoble(entrada.fecha);
             const multiplicador = Number(entrada.multiplicador);
             const multiplicadorNormalizado =
               Number.isFinite(multiplicador) && multiplicador >= 1 ? multiplicador : 2;
@@ -1563,7 +1577,7 @@ export const usePlanilla = () => {
           ? data
               .filter((dia) => dia && dia.activo)
               .map((dia) => ({
-                fecha: typeof dia.fecha === "string" ? dia.fecha.trim() : "",
+                fecha: normalizeFechaDiaDoble(dia.fecha),
                 multiplicador: Number(dia.multiplicador),
               }))
               .filter((entrada) => entrada.fecha.length > 0)
