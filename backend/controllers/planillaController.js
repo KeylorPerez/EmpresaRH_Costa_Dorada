@@ -10,7 +10,7 @@ const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
 const DetallePlanilla = require('../models/DetallePlanilla');
-const { resolveDescansoDia } = require('../utils/descansoHelper');
+const { buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
 
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
 const { promises: fsPromises } = fs;
@@ -126,43 +126,50 @@ const applyDescansosToDetalle = async (id_empleado, detalles = []) => {
     return detalles;
   }
 
-  const updated = await Promise.all(
-    detalles.map(async (detalle) => {
-      if (!detalle?.fecha) return detalle;
+  const fechas = detalles
+    .map((detalle) => parseUtcDate(detalle?.fecha))
+    .filter(Boolean);
+  if (fechas.length === 0) return detalles;
 
-      const { es_descanso } = await resolveDescansoDia(id_empleado, detalle.fecha);
-      if (!es_descanso) {
-        return detalle;
-      }
+  const inicio = new Date(Math.min(...fechas.map((fecha) => fecha.getTime())));
+  const fin = new Date(Math.max(...fechas.map((fecha) => fecha.getTime())));
+  const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
 
-      const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
-      const estadoActual = normalizeEstadoDetalle(detalle);
+  const updated = detalles.map((detalle) => {
+    if (!detalle?.fecha || !resolveDescanso) return detalle;
 
-      if (estadoActual.toLowerCase() === 'descanso') {
-        return { ...detalle, es_descanso: true };
-      }
+    const { es_descanso } = resolveDescanso(detalle.fecha);
+    if (!es_descanso) {
+      return detalle;
+    }
 
-      if (asistio || !['Presente', 'Ausente'].includes(estadoActual)) {
-        return { ...detalle, es_descanso: true };
-      }
+    const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
+    const estadoActual = normalizeEstadoDetalle(detalle);
 
-      const justificado = detalle.justificado === true || Number(detalle.justificado) === 1;
-      const justificacion =
-        detalle.justificacion !== undefined && detalle.justificacion !== null
-          ? String(detalle.justificacion).trim()
-          : '';
+    if (estadoActual.toLowerCase() === 'descanso') {
+      return { ...detalle, es_descanso: true };
+    }
 
-      return {
-        ...detalle,
-        es_descanso: true,
-        asistio: false,
-        estado: 'Descanso',
-        asistencia: 'Descanso',
-        justificado: justificado || 1,
-        justificacion: justificacion || 'Descanso programado',
-      };
-    })
-  );
+    if (asistio || !['Presente', 'Ausente'].includes(estadoActual)) {
+      return { ...detalle, es_descanso: true };
+    }
+
+    const justificado = detalle.justificado === true || Number(detalle.justificado) === 1;
+    const justificacion =
+      detalle.justificacion !== undefined && detalle.justificacion !== null
+        ? String(detalle.justificacion).trim()
+        : '';
+
+    return {
+      ...detalle,
+      es_descanso: true,
+      asistio: false,
+      estado: 'Descanso',
+      asistencia: 'Descanso',
+      justificado: justificado || 1,
+      justificacion: justificacion || 'Descanso programado',
+    };
+  });
 
   return updated;
 };
