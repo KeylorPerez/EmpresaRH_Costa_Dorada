@@ -879,10 +879,6 @@ export const usePlanilla = () => {
 
       const asistio = asistenciaSet.has(detalle.fecha);
 
-      if (!asistio && detalle.es_descanso) {
-        return detalle;
-      }
-
       if (!asistio) {
         const ausenciaSalario = resolveAusenciaSalario(detalle);
 
