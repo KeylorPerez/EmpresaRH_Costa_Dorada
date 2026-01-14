@@ -49,7 +49,7 @@ const createEmptyFormData = () => ({
   salario_monto: "",
   tipo_pago: normalizeTipoPago("Diario"),
   bonificacion_fija: "0",
-  porcentaje_ccss: "9.34",
+  porcentaje_ccss: "10.67",
   usa_deduccion_fija: "1",
   deduccion_fija: "0",
   permitir_marcacion_fuera: "0",
