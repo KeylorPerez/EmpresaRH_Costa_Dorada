@@ -494,7 +494,17 @@ const normalizeFechaDiaDoble = (value) => {
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (!trimmed) return "";
-    return trimmed.split("T")[0];
+    const soloFecha = trimmed.split("T")[0];
+    if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(soloFecha)) {
+      const [day, month, year] = soloFecha.split(/[/-]/).map(Number);
+      if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)) {
+        const fecha = new Date(year, month - 1, day);
+        if (!Number.isNaN(fecha.getTime())) {
+          return formatInputDate(fecha);
+        }
+      }
+    }
+    return soloFecha;
   }
   return "";
 };
