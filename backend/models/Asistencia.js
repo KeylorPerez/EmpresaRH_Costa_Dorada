@@ -41,6 +41,24 @@ const buildSelectFragments = ({ hasJustificadoColumn, hasJustificacionColumn }) 
 });
 
 const ENSURE_ASISTENCIA_SCHEMA_QUERY = `
+IF OBJECT_ID('dbo.Asistencia', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.Asistencia (
+    id_asistencia INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    id_empleado INT NOT NULL,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL,
+    tipo_marca VARCHAR(20) NOT NULL,
+    estado NVARCHAR(20) NOT NULL DEFAULT ('Presente'),
+    justificado BIT NOT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0),
+    justificacion NVARCHAR(MAX) NULL,
+    observaciones NVARCHAR(MAX) NULL,
+    latitud DECIMAL(9, 6) NULL,
+    longitud DECIMAL(9, 6) NULL,
+    CONSTRAINT FK_Asistencia_Empleado FOREIGN KEY(id_empleado) REFERENCES Empleados(id_empleado)
+  );
+END;
+
 IF OBJECT_ID('dbo.Asistencia', 'U') IS NOT NULL
 BEGIN
   IF COL_LENGTH('dbo.Asistencia', 'justificado') IS NULL
