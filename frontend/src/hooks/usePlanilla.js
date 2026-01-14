@@ -550,6 +550,8 @@ export const usePlanilla = () => {
   );
   const detalleContextRef = useRef({ empleadoId: null, inicio: "", fin: "" });
   const autoDiasRef = useRef(null);
+  const attendanceCacheRef = useRef(new Map());
+  const attendanceDebounceRef = useRef(null);
 
   const empleadoDetalleActivo = useMemo(() => {
     if (!formData.id_empleado) {
@@ -2385,67 +2387,101 @@ export const usePlanilla = () => {
     }
 
     let cancelled = false;
+    const cacheKey = `${formData.id_empleado}-${formData.periodo_inicio}-${formData.periodo_fin}`;
 
-    const fetchDias = async () => {
-      setAttendanceState((prev) => ({ ...prev, loading: true, fechas: [], error: "", message: "" }));
-      try {
-        const data = await planillaService.getAttendanceSummary({
-          id_empleado: formData.id_empleado,
-          periodo_inicio: formData.periodo_inicio,
-          periodo_fin: formData.periodo_fin,
-        });
-
-        if (cancelled) return;
-
-        const dias = Number(data?.dias) || 0;
-        const fechas = Array.isArray(data?.fechas)
-          ? Array.from(
-              new Set(
-                data.fechas
-                  .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
-                  .filter((fecha) => fecha.length > 0)
-              )
+    const normalizeAttendanceData = (data) => {
+      const dias = Number(data?.dias) || 0;
+      const fechas = Array.isArray(data?.fechas)
+        ? Array.from(
+            new Set(
+              data.fechas
+                .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+                .filter((fecha) => fecha.length > 0)
             )
-          : [];
-        const previousAuto = autoDiasRef.current;
-        autoDiasRef.current = dias;
-
-        setAttendanceState({ loading: false, dias, fechas, error: "", message: "" });
-
-        setFormData((prev) => {
-          const actualNumero = Number(prev.dias_trabajados);
-          if (
-            prev.dias_trabajados === "" ||
-            Number.isNaN(actualNumero) ||
-            actualNumero === previousAuto
-          ) {
-            const nextValue = dias ? dias.toString() : "0";
-            if (prev.dias_trabajados === nextValue) {
-              return prev;
-            }
-            return { ...prev, dias_trabajados: nextValue };
-          }
-          return prev;
-        });
-
-        syncDetalleWithAttendance(fechas);
-      } catch (err) {
-        if (cancelled) return;
-        console.error(err);
-        setAttendanceState({
-          loading: false,
-          dias: null,
-          fechas: [],
-          error: "No fue posible obtener los días de asistencia",
-          message: "",
-        });
-      }
+          )
+        : [];
+      return { dias, fechas };
     };
 
-    fetchDias();
+    const applyAttendanceData = ({ dias, fechas }) => {
+      const previousAuto = autoDiasRef.current;
+      autoDiasRef.current = dias;
+
+      setAttendanceState({ loading: false, dias, fechas, error: "", message: "" });
+
+      setFormData((prev) => {
+        const actualNumero = Number(prev.dias_trabajados);
+        if (
+          prev.dias_trabajados === "" ||
+          Number.isNaN(actualNumero) ||
+          actualNumero === previousAuto
+        ) {
+          const nextValue = dias ? dias.toString() : "0";
+          if (prev.dias_trabajados === nextValue) {
+            return prev;
+          }
+          return { ...prev, dias_trabajados: nextValue };
+        }
+        return prev;
+      });
+
+      syncDetalleWithAttendance(fechas);
+    };
+
+    if (attendanceDebounceRef.current) {
+      clearTimeout(attendanceDebounceRef.current);
+    }
+
+    const cached = attendanceCacheRef.current.get(cacheKey);
+    if (cached) {
+      applyAttendanceData(cached);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    attendanceDebounceRef.current = setTimeout(() => {
+      const fetchDias = async () => {
+        setAttendanceState((prev) => ({
+          ...prev,
+          loading: true,
+          fechas: [],
+          error: "",
+          message: "",
+        }));
+        try {
+          const data = await planillaService.getAttendanceSummary({
+            id_empleado: formData.id_empleado,
+            periodo_inicio: formData.periodo_inicio,
+            periodo_fin: formData.periodo_fin,
+          });
+
+          if (cancelled) return;
+
+          const normalized = normalizeAttendanceData(data);
+          attendanceCacheRef.current.set(cacheKey, normalized);
+          applyAttendanceData(normalized);
+        } catch (err) {
+          if (cancelled) return;
+          console.error(err);
+          setAttendanceState({
+            loading: false,
+            dias: null,
+            fechas: [],
+            error: "No fue posible obtener los días de asistencia",
+            message: "",
+          });
+        }
+      };
+
+      fetchDias();
+    }, 300);
 
     return () => {
       cancelled = true;
+      if (attendanceDebounceRef.current) {
+        clearTimeout(attendanceDebounceRef.current);
+      }
     };
   }, [
     modalOpen,
