@@ -509,6 +509,25 @@ const normalizeFechaDiaDoble = (value) => {
   return "";
 };
 
+const isDiaDobleActivo = (dia) => {
+  if (!dia) return false;
+  const { activo } = dia;
+  if (activo === undefined || activo === null) return true;
+  if (typeof activo === "string") {
+    const trimmed = activo.trim().toLowerCase();
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+  }
+  if (typeof activo === "boolean") {
+    return activo;
+  }
+  const numeric = Number(activo);
+  if (!Number.isNaN(numeric)) {
+    return numeric === 1;
+  }
+  return Boolean(activo);
+};
+
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
   const inicioDate = parseDateSafe(inicio);
   const finDate = parseDateSafe(fin);
@@ -1585,7 +1604,7 @@ export const usePlanilla = () => {
 
         const fechasDobles = Array.isArray(data)
           ? data
-              .filter((dia) => dia && dia.activo)
+              .filter((dia) => isDiaDobleActivo(dia))
               .map((dia) => ({
                 fecha: normalizeFechaDiaDoble(dia.fecha),
                 multiplicador: Number(dia.multiplicador),
