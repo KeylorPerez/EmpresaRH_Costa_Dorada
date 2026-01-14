@@ -158,6 +158,71 @@ const buildDiasDoblesAuto = async ({
   };
 };
 
+const normalizeMultiplicador = (value, fallback = 2) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return fallback;
+  }
+  return numeric;
+};
+
+const applyDiasDoblesAutoToDetalles = async ({
+  detalles,
+  periodo_inicio,
+  periodo_fin,
+  filtrar_por_asistencia = true,
+}) => {
+  if (!Array.isArray(detalles) || detalles.length === 0) {
+    return detalles;
+  }
+
+  const diasDobles = await DiasDobles.getActiveInRange(periodo_inicio, periodo_fin);
+  if (!Array.isArray(diasDobles) || diasDobles.length === 0) {
+    return detalles;
+  }
+
+  const doblesMap = new Map(
+    diasDobles
+      .map((dia) => {
+        if (!dia || !dia.fecha) return null;
+        return [dia.fecha, normalizeMultiplicador(dia.multiplicador)];
+      })
+      .filter(Boolean),
+  );
+
+  if (doblesMap.size === 0) {
+    return detalles;
+  }
+
+  return detalles.map((detalle) => {
+    if (!detalle || detalle.es_dia_doble || !detalle.fecha) {
+      return detalle;
+    }
+
+    const multiplicador = doblesMap.get(detalle.fecha);
+    if (multiplicador === undefined) {
+      return detalle;
+    }
+
+    const asistio = Boolean(detalle.asistio);
+    if (filtrar_por_asistencia && !asistio) {
+      return detalle;
+    }
+
+    const salarioBase = Number(detalle.salario_dia) || 0;
+    const salarioCalculado = asistio
+      ? Number((salarioBase * multiplicador).toFixed(2))
+      : salarioBase;
+
+    return {
+      ...detalle,
+      es_dia_doble: true,
+      salario_dia: salarioCalculado,
+      tipo: 'Día doble',
+    };
+  });
+};
+
 function sanitizeDetallePlanilla(detalles) {
   if (!Array.isArray(detalles) || detalles.length === 0) {
     return [];
@@ -440,7 +505,23 @@ class Planilla {
         return valor;
       })();
 
-      const detallesDoblesPresentes = detallesSanitizados.some((detalle) => detalle.es_dia_doble);
+      let detallesFinales = detallesSanitizados;
+      let detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+
+      if (
+        detallesFinales.length > 0 &&
+        !detallesDoblesPresentes &&
+        diasDoblesValor === 0 &&
+        montoDiasDoblesValor === null
+      ) {
+        detallesFinales = await applyDiasDoblesAutoToDetalles({
+          detalles: detallesFinales,
+          periodo_inicio,
+          periodo_fin,
+          filtrar_por_asistencia: esAutomatica,
+        });
+        detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+      }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
           ? salario_base
@@ -462,8 +543,8 @@ class Planilla {
       let salarioBasePeriodo = salario_base;
       let deduccionDiasMonto = 0;
 
-      if (detallesSanitizados.length > 0) {
-        salarioBasePeriodo = detallesSanitizados.reduce((sum, detalle) => {
+      if (detallesFinales.length > 0) {
+        salarioBasePeriodo = detallesFinales.reduce((sum, detalle) => {
           const salario = Number(detalle.salario_dia) || 0;
           return sum + salario;
         }, 0);
@@ -668,8 +749,8 @@ class Planilla {
           throw new Error('No se pudo obtener el identificador de la planilla creada');
         }
 
-        if (detallesSanitizados.length > 0) {
-          await DetallePlanilla.createMany(transaction, planillaId, detallesSanitizados);
+        if (detallesFinales.length > 0) {
+          await DetallePlanilla.createMany(transaction, planillaId, detallesFinales);
         }
 
         for (const prestamo of prestamosValidos) {
@@ -708,7 +789,7 @@ class Planilla {
         }
 
         await transaction.commit();
-        return { ...result.recordset[0], detalles: detallesSanitizados };
+        return { ...result.recordset[0], detalles: detallesFinales };
       } catch (err) {
         await transaction.rollback();
         throw err;
@@ -799,13 +880,30 @@ class Planilla {
             : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
-      const detallesDoblesPresentes = detallesSanitizados.some((detalle) => detalle.es_dia_doble);
 
       const diasDoblesValor = Number(dias_dobles) || 0;
       const montoDiasDoblesValor =
         monto_dias_dobles === null || monto_dias_dobles === undefined
           ? null
           : Number(monto_dias_dobles);
+
+      let detallesFinales = detallesSanitizados;
+      let detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+
+      if (
+        detallesFinales.length > 0 &&
+        !detallesDoblesPresentes &&
+        diasDoblesValor === 0 &&
+        montoDiasDoblesValor === null
+      ) {
+        detallesFinales = await applyDiasDoblesAutoToDetalles({
+          detalles: detallesFinales,
+          periodo_inicio,
+          periodo_fin,
+          filtrar_por_asistencia: esAutomatica,
+        });
+        detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+      }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
           ? salario_base
@@ -831,8 +929,8 @@ class Planilla {
       let salarioBasePeriodo = 0;
       let deduccionDiasMonto = 0;
 
-      if (detallesSanitizados.length > 0) {
-        salarioBasePeriodo = detallesSanitizados.reduce((sum, detalle) => {
+      if (detallesFinales.length > 0) {
+        salarioBasePeriodo = detallesFinales.reduce((sum, detalle) => {
           const salario = Number(detalle.salario_dia) || 0;
           return sum + salario;
         }, 0);
@@ -1007,8 +1105,8 @@ class Planilla {
 
         await DetallePlanilla.deleteByPlanilla(transaction, id_planilla);
 
-        if (detallesSanitizados.length > 0) {
-          await DetallePlanilla.createMany(transaction, id_planilla, detallesSanitizados);
+        if (detallesFinales.length > 0) {
+          await DetallePlanilla.createMany(transaction, id_planilla, detallesFinales);
         }
 
         await transaction.commit();
