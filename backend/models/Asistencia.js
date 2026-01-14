@@ -54,6 +54,16 @@ BEGIN
     ALTER TABLE dbo.Asistencia
       ADD justificacion NVARCHAR(MAX) NULL;
   END;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_Asistencia_Empleado_Fecha'
+      AND object_id = OBJECT_ID('dbo.Asistencia')
+  )
+  BEGIN
+    CREATE INDEX IX_Asistencia_Empleado_Fecha ON dbo.Asistencia (id_empleado, fecha);
+  END;
 END;
 `;
 
