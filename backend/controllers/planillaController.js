@@ -10,7 +10,13 @@ const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
 const DetallePlanilla = require('../models/DetallePlanilla');
+const DescansoSemanal = require('../models/DescansoSemanal');
 const { buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
+const {
+  buildFechasDescanso,
+  formatDate,
+  normalizeScheduleRows,
+} = require('../utils/descansoSemanalHelper');
 
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
 const { promises: fsPromises } = fs;
@@ -134,11 +140,28 @@ const applyDescansosToDetalle = async (id_empleado, detalles = []) => {
   const inicio = new Date(Math.min(...fechas.map((fecha) => fecha.getTime())));
   const fin = new Date(Math.max(...fechas.map((fecha) => fecha.getTime())));
   const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
+  let descansoSet = null;
+
+  if (!resolveDescanso) {
+    const rows = await DescansoSemanal.getByEmpleadoInRange(id_empleado, inicio, fin);
+    const normalizedRows = normalizeScheduleRows(rows);
+    const fechasDescanso = buildFechasDescanso({ rows: normalizedRows, inicio, fin });
+    descansoSet = new Set(fechasDescanso);
+  }
 
   const updated = detalles.map((detalle) => {
-    if (!detalle?.fecha || !resolveDescanso) return detalle;
+    if (!detalle?.fecha || (!resolveDescanso && !descansoSet)) return detalle;
 
-    const { es_descanso } = resolveDescanso(detalle.fecha);
+    const es_descanso = (() => {
+      if (resolveDescanso) {
+        return resolveDescanso(detalle.fecha)?.es_descanso;
+      }
+
+      const fechaDetalle = parseUtcDate(detalle.fecha);
+      if (!fechaDetalle) return false;
+      return descansoSet.has(formatDate(fechaDetalle));
+    })();
+
     if (!es_descanso) {
       return detalle;
     }
