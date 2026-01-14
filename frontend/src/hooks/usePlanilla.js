@@ -693,10 +693,6 @@ export const usePlanilla = () => {
         const updates = new Map();
 
         detalles.forEach((detalle, index) => {
-          if (detalle.salario_manual) {
-            return;
-          }
-
           if (detalle.asistio) {
             return;
           }
@@ -746,10 +742,6 @@ export const usePlanilla = () => {
       const updates = new Map();
 
       ordenados.forEach(({ detalle, index }) => {
-        if (detalle.salario_manual) {
-          return;
-        }
-
         if (detalle.asistio) {
           return;
         }
@@ -1985,11 +1977,9 @@ export const usePlanilla = () => {
             if (isEmptyValue(valor)) {
               siguiente.salario_dia = "";
               siguiente.salario_base = 0;
-              siguiente.salario_manual = false;
             } else {
               const texto = typeof valor === "string" ? valor : String(valor);
               siguiente.salario_dia = texto;
-              siguiente.salario_manual = true;
               const numero = parseNumberInput(valor);
 
               if (!Number.isNaN(numero)) {
