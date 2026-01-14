@@ -60,7 +60,7 @@ class DiasDobles {
             descripcion,
             multiplicador
           FROM DiasDobles
-          WHERE activo = 1
+          WHERE (activo = 1 OR activo IS NULL)
             AND fecha BETWEEN @fecha_inicio AND @fecha_fin
           ORDER BY fecha
         `);
