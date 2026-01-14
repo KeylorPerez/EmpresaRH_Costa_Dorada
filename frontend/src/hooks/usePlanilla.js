@@ -1543,7 +1543,10 @@ export const usePlanilla = () => {
       return;
     }
 
-    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}-${detalleNonDiarioReloadKey}`;
+    if (detalleDiasDobles.key === key) {
+      return;
+    }
     let cancelado = false;
 
     const fetchDiasDobles = async () => {
@@ -1592,12 +1595,13 @@ export const usePlanilla = () => {
   }, [
     modalOpen,
     editingPlanilla,
-    formData,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
     empleados,
     detalleNonDiarioReloadKey,
+    detalleDiasDobles.key,
+    detalleDiasDobles.loading,
   ]);
 
   useEffect(() => {
@@ -1623,6 +1627,9 @@ export const usePlanilla = () => {
     }
 
     const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+    if (detalleDescansos.key === key) {
+      return;
+    }
     let cancelado = false;
 
     const fetchDescansos = async () => {
@@ -1662,11 +1669,12 @@ export const usePlanilla = () => {
   }, [
     modalOpen,
     editingPlanilla,
-    formData,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
     empleados,
+    detalleDescansos.key,
+    detalleDescansos.loading,
   ]);
 
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
