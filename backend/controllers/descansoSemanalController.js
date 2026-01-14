@@ -1,7 +1,7 @@
 const DescansoConfig = require('../models/DescansoConfig');
 const DescansoDias = require('../models/DescansoDias');
 const DescansoSemanal = require('../models/DescansoSemanal');
-const { addDays, parseUtcDate, resolveDescansoDia } = require('../utils/descansoHelper');
+const { addDays, buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -129,12 +129,17 @@ const buildFechasDescanso = ({ rows, inicio, fin }) => {
 };
 
 const buildFechasDescansoFromConfig = async ({ id_empleado, inicio, fin }) => {
+  const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
+  if (!resolveDescanso) {
+    return { fechas: [], configAplicada: false };
+  }
+
   const fechas = [];
   let cursor = new Date(inicio.getTime());
   let configAplicada = false;
 
   while (cursor <= fin) {
-    const { es_descanso, config_aplicada } = await resolveDescansoDia(id_empleado, cursor);
+    const { es_descanso, config_aplicada } = resolveDescanso(cursor);
     if (config_aplicada) {
       configAplicada = true;
     }
