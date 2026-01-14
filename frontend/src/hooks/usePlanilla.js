@@ -46,6 +46,10 @@ const obtenerDiasReferencia = (tipoPago) =>
 
 const parseDateSafe = (value) => parseDateValue(value);
 
+const matchesDetalleKey = (currentKey, baseKey) =>
+  Boolean(currentKey) &&
+  (currentKey === baseKey || currentKey.startsWith(`${baseKey}-`));
+
 const calcularDiasPeriodo = (inicio, fin) => {
   if (!inicio || !fin) return 0;
   const fechaInicio = parseDateSafe(inicio);
@@ -1800,7 +1804,7 @@ export const usePlanilla = () => {
     const registrosAsistencia =
       detalleAsistencia.key === keyNuevo ? detalleAsistencia.registros : [];
     const fechasDobles =
-      detalleDiasDobles.key === keyNuevo ? detalleDiasDobles.fechas : [];
+      matchesDetalleKey(detalleDiasDobles.key, keyNuevo) ? detalleDiasDobles.fechas : [];
     const fechasDescanso =
       detalleDescansos.key === keyNuevo ? detalleDescansos.fechas : [];
     const aplicarAsistencia = formData.es_automatica === "1";
@@ -1862,7 +1866,7 @@ export const usePlanilla = () => {
     const registrosAsistencia =
       detalleAsistencia.key === keyActual ? detalleAsistencia.registros : null;
     const fechasDobles =
-      detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : null;
+      matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : null;
     const fechasDescanso =
       detalleDescansos.key === keyActual ? detalleDescansos.fechas : null;
     const aplicarAsistencia = formData.es_automatica === "1";
@@ -2602,7 +2606,7 @@ export const usePlanilla = () => {
       const fechasAsistencia =
         detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : [];
       const fechasDobles =
-        detalleDiasDobles.key === keyActual ? detalleDiasDobles.fechas : [];
+        matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : [];
       const fechasDescanso =
         detalleDescansos.key === keyActual ? detalleDescansos.fechas : [];
 
