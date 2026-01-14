@@ -1013,17 +1013,13 @@ export const usePlanilla = () => {
       const descansoSet = new Set(fechasNormalizadas);
 
       return detalles.map((detalle) => {
-        if (detalle.asistenciaManual) {
-          return detalle;
-        }
-
         const es_descanso = descansoSet.has(detalle.fecha);
 
-        if (detalle.es_descanso === es_descanso) {
-          return detalle;
-        }
-
         if (!es_descanso) {
+          if (detalle.asistenciaManual || !detalle.es_descanso) {
+            return detalle;
+          }
+
           return {
             ...detalle,
             es_descanso: false,
@@ -1033,11 +1029,23 @@ export const usePlanilla = () => {
           };
         }
 
+        if (detalle.es_descanso && detalle.asistenciaManual) {
+          return detalle;
+        }
+
         const ausenciaSalario = resolveAusenciaSalario({
           ...detalle,
           asistio: false,
           es_descanso: true,
         });
+
+        const salarioActual = parseNumberInput(detalle.salario_dia);
+        const salarioFinal =
+          detalle.salario_manual &&
+          Number.isFinite(salarioActual) &&
+          salarioActual >= 0
+            ? detalle.salario_dia
+            : ausenciaSalario.salario;
 
         return {
           ...detalle,
@@ -1046,7 +1054,7 @@ export const usePlanilla = () => {
           estado: ESTADO_DESCANSO,
           justificado: true,
           justificacion: detalle.justificacion || "Descanso programado",
-          salario_dia: ausenciaSalario.salario,
+          salario_dia: salarioFinal,
           ...(ausenciaSalario.salarioBase !== null && {
             salario_base: ausenciaSalario.salarioBase,
           }),
