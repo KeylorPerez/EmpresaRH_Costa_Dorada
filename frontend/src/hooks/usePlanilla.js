@@ -1129,7 +1129,8 @@ export const usePlanilla = () => {
           return detalle;
         }
 
-        const multiplicadorAuto = doblesSet.get(detalle.fecha);
+        const fechaDetalle = normalizeFechaDiaDoble(detalle.fecha);
+        const multiplicadorAuto = fechaDetalle ? doblesSet.get(fechaDetalle) : undefined;
         const es_dia_doble = multiplicadorAuto !== undefined;
         const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
         const multiplicadorNormalizado = es_dia_doble

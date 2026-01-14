@@ -166,6 +166,12 @@ const normalizeMultiplicador = (value, fallback = 2) => {
   return numeric;
 };
 
+const normalizeFechaDiaDobleKey = (value) => {
+  const fecha = parseUtcDate(value);
+  if (!fecha) return null;
+  return fecha.toISOString().split('T')[0];
+};
+
 const applyDiasDoblesAutoToDetalles = async ({
   detalles,
   periodo_inicio,
@@ -185,7 +191,9 @@ const applyDiasDoblesAutoToDetalles = async ({
     diasDobles
       .map((dia) => {
         if (!dia || !dia.fecha) return null;
-        return [dia.fecha, normalizeMultiplicador(dia.multiplicador)];
+        const fechaKey = normalizeFechaDiaDobleKey(dia.fecha);
+        if (!fechaKey) return null;
+        return [fechaKey, normalizeMultiplicador(dia.multiplicador)];
       })
       .filter(Boolean),
   );
@@ -199,15 +207,17 @@ const applyDiasDoblesAutoToDetalles = async ({
       return detalle;
     }
 
-    const multiplicador = doblesMap.get(detalle.fecha);
+    const fechaDetalleKey = normalizeFechaDiaDobleKey(detalle.fecha);
+    if (!fechaDetalleKey) {
+      return detalle;
+    }
+
+    const multiplicador = doblesMap.get(fechaDetalleKey);
     if (multiplicador === undefined) {
       return detalle;
     }
 
     const asistio = Boolean(detalle.asistio);
-    if (filtrar_por_asistencia && !asistio) {
-      return detalle;
-    }
 
     const salarioBase = Number(detalle.salario_dia) || 0;
     const salarioCalculado = asistio
