@@ -41,47 +41,35 @@ const buildSelectFragments = ({ hasJustificadoColumn, hasJustificacionColumn }) 
 });
 
 const ENSURE_ASISTENCIA_SCHEMA_QUERY = `
-IF OBJECT_ID('dbo.Asistencia', 'U') IS NULL
+IF NOT EXISTS (
+  SELECT 1
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'dbo'
+    AND TABLE_NAME = 'Asistencia'
+)
 BEGIN
   CREATE TABLE dbo.Asistencia (
     id_asistencia INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     id_empleado INT NOT NULL,
-    fecha DATE NOT NULL,
-    hora TIME NOT NULL,
-    tipo_marca VARCHAR(20) NOT NULL,
-    estado NVARCHAR(20) NOT NULL DEFAULT ('Presente'),
-    justificado BIT NOT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0),
-    justificacion NVARCHAR(MAX) NULL,
+    fecha DATE NOT NULL CONSTRAINT DF_Asistencia_Fecha DEFAULT (CONVERT(date, GETDATE())),
+    hora TIME(7) NOT NULL,
+    tipo_marca VARCHAR(20) NULL,
     observaciones NVARCHAR(MAX) NULL,
+    created_at DATETIME NULL CONSTRAINT DF_Asistencia_Created_At DEFAULT (GETDATE()),
+    updated_at DATETIME NULL CONSTRAINT DF_Asistencia_Updated_At DEFAULT (GETDATE()),
     latitud DECIMAL(9, 6) NULL,
     longitud DECIMAL(9, 6) NULL,
-    CONSTRAINT FK_Asistencia_Empleado FOREIGN KEY(id_empleado) REFERENCES Empleados(id_empleado)
+    justificado BIT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0),
+    justificacion NVARCHAR(MAX) NULL,
+    estado NVARCHAR(20) NOT NULL CONSTRAINT DF_Asistencia_Estado DEFAULT ('Presente'),
+    CONSTRAINT FK_Asistencia_Empleado FOREIGN KEY(id_empleado) REFERENCES Empleados(id_empleado),
+    CONSTRAINT CHK_Asistencia_Estado CHECK (
+      estado IN ('Incapacidad', 'Vacaciones', 'Permiso', 'Ausente', 'Presente')
+    ),
+    CONSTRAINT CHK_Asistencia_TipoMarca CHECK (
+      tipo_marca IN ('almuerzo_fin', 'almuerzo_inicio', 'salida', 'entrada')
+    )
   );
-END;
-
-IF OBJECT_ID('dbo.Asistencia', 'U') IS NOT NULL
-BEGIN
-  IF COL_LENGTH('dbo.Asistencia', 'justificado') IS NULL
-  BEGIN
-    ALTER TABLE dbo.Asistencia
-      ADD justificado BIT NOT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0);
-  END;
-
-  IF COL_LENGTH('dbo.Asistencia', 'justificacion') IS NULL
-  BEGIN
-    ALTER TABLE dbo.Asistencia
-      ADD justificacion NVARCHAR(MAX) NULL;
-  END;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM sys.indexes
-    WHERE name = 'IX_Asistencia_Empleado_Fecha'
-      AND object_id = OBJECT_ID('dbo.Asistencia')
-  )
-  BEGIN
-    CREATE INDEX IX_Asistencia_Empleado_Fecha ON dbo.Asistencia (id_empleado, fecha);
-  END;
 END;
 `;
 
@@ -187,21 +175,72 @@ class Asistencia {
     }
 
     const pool = await poolPromise;
-    await pool.request().query(ENSURE_ASISTENCIA_SCHEMA_QUERY);
+    const tableExistsQuery = `
+      SELECT 1 AS existe
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = 'dbo'
+        AND TABLE_NAME = 'Asistencia'
+    `;
+    const columnQuery = `
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'dbo'
+        AND TABLE_NAME = 'Asistencia'
+        AND COLUMN_NAME IN ('justificado', 'justificacion')
+    `;
 
-    const result = await pool
-      .request()
-      .query(`
-        SELECT COLUMN_NAME
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = 'Asistencia'
-          AND COLUMN_NAME IN ('justificado', 'justificacion')
-      `);
+    let tableExists = false;
+    try {
+      const tableResult = await pool.request().query(tableExistsQuery);
+      tableExists = tableResult.recordset.length > 0;
+    } catch (error) {
+      tableExists = false;
+    }
 
-    const columns = new Set(result.recordset.map((row) => row.COLUMN_NAME));
+    if (!tableExists) {
+      try {
+        await pool.request().query(ENSURE_ASISTENCIA_SCHEMA_QUERY);
+        tableExists = true;
+      } catch (error) {
+        schemaState.checked = false;
+        return schemaState;
+      }
+    }
+
+    let columns = new Set();
+    if (tableExists) {
+      try {
+        const result = await pool.request().query(columnQuery);
+        columns = new Set(result.recordset.map((row) => row.COLUMN_NAME));
+      } catch (error) {
+        columns = new Set();
+      }
+    }
+
+    if (tableExists && (!columns.has('justificado') || !columns.has('justificacion'))) {
+      try {
+        if (!columns.has('justificado')) {
+          await pool.request().query(`
+            ALTER TABLE dbo.Asistencia
+              ADD justificado BIT NULL CONSTRAINT DF_Asistencia_Justificado DEFAULT (0);
+          `);
+        }
+        if (!columns.has('justificacion')) {
+          await pool.request().query(`
+            ALTER TABLE dbo.Asistencia
+              ADD justificacion NVARCHAR(MAX) NULL;
+          `);
+        }
+        const result = await pool.request().query(columnQuery);
+        columns = new Set(result.recordset.map((row) => row.COLUMN_NAME));
+      } catch (error) {
+        // Si no hay permisos para alterar, seguimos con el estado actual.
+      }
+    }
+
     schemaState.hasJustificadoColumn = columns.has('justificado');
     schemaState.hasJustificacionColumn = columns.has('justificacion');
-    schemaState.checked = schemaState.hasJustificadoColumn && schemaState.hasJustificacionColumn;
+    schemaState.checked = tableExists;
 
     return schemaState;
   }
