@@ -2078,6 +2078,26 @@ export const usePlanilla = () => {
               siguiente.asistio = false;
               siguiente.salario_base = baseNormalizado;
               siguiente.salario_dia = SALARIO_CERO_TEXTO;
+              siguiente.es_descanso = false;
+            } else if (nuevoEstado === ESTADO_DESCANSO) {
+              siguiente.asistio = false;
+              siguiente.es_descanso = true;
+              siguiente.justificado = true;
+              if (!siguiente.justificacion) {
+                siguiente.justificacion = "Descanso programado";
+              }
+              const ausenciaSalario = resolveAusenciaSalario({
+                ...siguiente,
+                asistio: false,
+                es_descanso: true,
+              });
+              siguiente.salario_dia = ausenciaSalario.salario;
+              if (ausenciaSalario.salarioBase !== null) {
+                siguiente.salario_base = ausenciaSalario.salarioBase;
+              }
+            }
+            if (nuevoEstado !== ESTADO_DESCANSO) {
+              siguiente.es_descanso = false;
             }
           }
 
