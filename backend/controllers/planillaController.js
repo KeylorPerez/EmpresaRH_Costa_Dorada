@@ -1048,6 +1048,8 @@ const calcularPlanilla = async (req, res) => {
 
     const esAutomaticaValue = parseFlagValue(es_automatica, null);
 
+    const detallesConDescanso = await applyDescansosToDetalle(id_empleado, detalles);
+
     const planilla = await Planilla.calcularPlanilla({
       id_empleado,
       periodo_inicio,
@@ -1062,7 +1064,7 @@ const calcularPlanilla = async (req, res) => {
       monto_descuento_dias,
       dias_dobles,
       monto_dias_dobles,
-      detalles,
+      detalles: detallesConDescanso,
       es_automatica: esAutomaticaValue,
     });
 
@@ -1106,6 +1108,13 @@ const updatePlanilla = async (req, res) => {
 
     const esAutomaticaValue = parseFlagValue(es_automatica, null);
 
+    const planilla = await Planilla.getById(id_planilla);
+    if (!planilla) {
+      return res.status(404).json({ error: 'Planilla no encontrada' });
+    }
+
+    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
+
     await Planilla.update(id_planilla, {
       horas_extras,
       bonificaciones,
@@ -1116,7 +1125,7 @@ const updatePlanilla = async (req, res) => {
       monto_descuento_dias,
       dias_dobles,
       monto_dias_dobles,
-      detalles,
+      detalles: detallesConDescanso,
       es_automatica: esAutomaticaValue,
     });
 
