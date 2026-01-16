@@ -737,7 +737,12 @@ const createMarca = async (req, res) => {
 
     const latitud = parseCoordinate(latitudBody);
     const longitud = parseCoordinate(longitudBody);
-    const requiereUbicacion = userToken.id_rol !== 1;
+    const permitirFuera = isTruthy(empleado.permitir_marcacion_fuera);
+    const requiereUbicacion = userToken.id_rol !== 1 && !permitirFuera;
+
+    if ((latitud === null) !== (longitud === null)) {
+      return res.status(400).json({ error: 'Completa la latitud y la longitud para registrar la ubicación' });
+    }
 
     if (requiereUbicacion && (latitud === null || longitud === null)) {
       return res.status(400).json({ error: 'No se pudo obtener la ubicación para registrar la marca' });
@@ -745,7 +750,6 @@ const createMarca = async (req, res) => {
 
     if (geofenceConfigured && latitud !== null && longitud !== null) {
       const distancia = calculateDistanceMeters(latitud, longitud, geofenceLatitude, geofenceLongitude);
-      const permitirFuera = isTruthy(empleado.permitir_marcacion_fuera);
       if (!permitirFuera && userToken.id_rol !== 1 && distancia > effectiveGeofenceRadius) {
         return res.status(403).json({ error: 'La ubicación se encuentra fuera del rango permitido para este colaborador' });
       }
