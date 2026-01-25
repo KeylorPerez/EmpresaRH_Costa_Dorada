@@ -140,7 +140,12 @@ const resolveDescansoDiaFromConfigs = (configs, fecha) => {
   const ciclo = config.ciclo || 'SEMANAL';
   const periodo_tipo = resolvePeriodoTipo({ ciclo, fechaBase: config.fecha_base, fecha: fechaEvaluada });
   const dia_semana = fechaEvaluada.getUTCDay();
-  const descansoValue = config.dias?.[periodo_tipo]?.[dia_semana];
+  const periodosDisponibles = config.dias ? Object.keys(config.dias) : [];
+  let descansoValue = config.dias?.[periodo_tipo]?.[dia_semana];
+
+  if (descansoValue === undefined && periodosDisponibles.length === 1) {
+    descansoValue = config.dias?.[periodosDisponibles[0]]?.[dia_semana];
+  }
 
   return {
     es_descanso: isTruthyBit(descansoValue),
