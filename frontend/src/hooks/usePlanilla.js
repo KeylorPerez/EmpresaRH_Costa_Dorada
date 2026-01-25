@@ -448,34 +448,6 @@ const aplicarJustificacionesAuto = (detalles, registros) => {
   });
 };
 
-const applyAusenciaDetalle = (detalle, ausenciaSalario) => {
-  if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
-    if (detalle.salario_dia === SALARIO_CERO_TEXTO) {
-      return detalle;
-    }
-    return {
-      ...detalle,
-      salario_dia: ausenciaSalario.salario,
-      ...(ausenciaSalario.salarioBase !== null && {
-        salario_base: ausenciaSalario.salarioBase,
-      }),
-      estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-      asistenciaManual: false,
-    };
-  }
-
-  return {
-    ...detalle,
-    asistio: false,
-    salario_dia: ausenciaSalario.salario,
-    ...(ausenciaSalario.salarioBase !== null && {
-      salario_base: ausenciaSalario.salarioBase,
-    }),
-    estado: ajustarEstadoPorAsistencia(detalle.estado, false),
-    asistenciaManual: false,
-  };
-};
-
 const createEmptyForm = (defaults = {}) => ({
   id_empleado: "",
   periodo_inicio: "",
@@ -901,6 +873,7 @@ export const usePlanilla = () => {
       .filter((fecha) => fecha.length > 0);
 
     const asistenciaSet = new Set(fechasNormalizadas);
+    const salarioCero = Number(0).toFixed(2);
 
     if (asistenciaSet.size === 0) {
       return detalles.map((detalle) => {
@@ -909,7 +882,31 @@ export const usePlanilla = () => {
         }
 
         const ausenciaSalario = resolveAusenciaSalario(detalle);
-        return applyAusenciaDetalle(detalle, ausenciaSalario);
+
+        if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
+          return detalle.salario_dia === salarioCero
+            ? detalle
+            : {
+                ...detalle,
+                salario_dia: ausenciaSalario.salario,
+                ...(ausenciaSalario.salarioBase !== null && {
+                  salario_base: ausenciaSalario.salarioBase,
+                }),
+                estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                asistenciaManual: false,
+              };
+        }
+
+        return {
+          ...detalle,
+          asistio: false,
+          salario_dia: ausenciaSalario.salario,
+          ...(ausenciaSalario.salarioBase !== null && {
+            salario_base: ausenciaSalario.salarioBase,
+          }),
+          estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+          asistenciaManual: false,
+        };
       });
     }
 
@@ -922,7 +919,31 @@ export const usePlanilla = () => {
 
       if (!asistio) {
         const ausenciaSalario = resolveAusenciaSalario(detalle);
-        return applyAusenciaDetalle(detalle, ausenciaSalario);
+
+        if (!detalle.asistio && toPositiveNumber(detalle.salario_dia) === 0) {
+          return detalle.salario_dia === salarioCero
+            ? detalle
+            : {
+                ...detalle,
+                salario_dia: ausenciaSalario.salario,
+                ...(ausenciaSalario.salarioBase !== null && {
+                  salario_base: ausenciaSalario.salarioBase,
+                }),
+                estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+                asistenciaManual: false,
+              };
+        }
+
+        return {
+          ...detalle,
+          asistio: false,
+          salario_dia: ausenciaSalario.salario,
+          ...(ausenciaSalario.salarioBase !== null && {
+            salario_base: ausenciaSalario.salarioBase,
+          }),
+          estado: ajustarEstadoPorAsistencia(detalle.estado, false),
+          asistenciaManual: false,
+        };
       }
 
       const salarioBase = parseNumberInput(detalle.salario_base);
