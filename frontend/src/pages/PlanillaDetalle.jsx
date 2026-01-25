@@ -196,10 +196,7 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                 Boolean(item.es_descanso) ||
                 estadoNormalizado.toLowerCase() === "descanso" ||
                 asistenciaNormalizada.toLowerCase() === "descanso";
-              const estadoFinal =
-                esDescanso && estadoNormalizado.toLowerCase() === "presente"
-                  ? "Descanso"
-                  : estadoNormalizado;
+              const estadoFinal = esDescanso ? "Descanso" : estadoNormalizado;
 
               return {
                 ...item,

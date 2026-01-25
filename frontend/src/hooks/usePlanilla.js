@@ -169,7 +169,11 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     return asistio ? ESTADO_PRESENTE : ESTADO_AUSENTE;
   })();
 
-  const esDescanso = estado === ESTADO_DESCANSO;
+  const esDescanso = Boolean(
+    detalle.es_descanso === true || Number(detalle.es_descanso) === 1,
+  );
+  const estadoFinal =
+    esDescanso && estado !== ESTADO_DESCANSO ? ESTADO_DESCANSO : estado;
 
   const justificado = Boolean(
     detalle.justificado === true || Number(detalle.justificado) === 1,
@@ -200,8 +204,8 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     asistio,
     es_dia_doble: esDiaDoble,
     multiplicador_dia_doble: multiplicadorDiaDoble,
-    es_descanso: esDescanso,
-    estado,
+    es_descanso: esDescanso || estadoFinal === ESTADO_DESCANSO,
+    estado: estadoFinal,
     justificado,
     justificacion,
     observacion,
