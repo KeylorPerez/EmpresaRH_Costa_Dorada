@@ -188,13 +188,24 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                 typeof item.estado === "string" && item.estado.trim() !== ""
                   ? item.estado.trim()
                   : "Presente";
-              const esDescanso = estadoNormalizado.toLowerCase() === "descanso";
+              const asistenciaNormalizada =
+                typeof item.asistencia === "string" && item.asistencia.trim() !== ""
+                  ? item.asistencia.trim()
+                  : "";
+              const esDescanso =
+                Boolean(item.es_descanso) ||
+                estadoNormalizado.toLowerCase() === "descanso" ||
+                asistenciaNormalizada.toLowerCase() === "descanso";
+              const estadoFinal =
+                esDescanso && estadoNormalizado.toLowerCase() === "presente"
+                  ? "Descanso"
+                  : estadoNormalizado;
 
               return {
                 ...item,
                 asistio: Boolean(item.asistio),
                 es_dia_doble: Boolean(item.es_dia_doble),
-                estado: estadoNormalizado,
+                estado: estadoFinal,
                 es_descanso: esDescanso,
                 justificado:
                   item.justificado === true || item.justificado === 1 || item.justificado === "1",
@@ -372,26 +383,6 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
     }
   };
 
-  const detalleResumen = useMemo(() => {
-    if (!detalle || detalle.length === 0) {
-      return { dias: 0, asistencias: 0, total: 0 };
-    }
-
-    return detalle.reduce(
-      (acumulado, item) => {
-        const salario = parseMonto(item.salario_dia);
-        const factor = item.es_dia_doble ? 2 : 1;
-        if (item.asistio) {
-          acumulado.asistencias += factor;
-          acumulado.total += salario * factor;
-        }
-        acumulado.dias += 1;
-        return acumulado;
-      },
-      { dias: 0, asistencias: 0, total: 0 }
-    );
-  }, [detalle]);
-
   const resolveAsistenciaBadge = (item) => {
     if (item.es_descanso && !item.asistio) {
       return {
@@ -435,6 +426,26 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
         : "No especificado",
     [planillaInfo]
   );
+
+  const detalleResumen = useMemo(() => {
+    if (!detalle || detalle.length === 0) {
+      return { dias: 0, asistencias: 0, total: 0 };
+    }
+
+    return detalle.reduce(
+      (acumulado, item) => {
+        const salario = parseMonto(item.salario_dia);
+        const factor = item.es_dia_doble ? 2 : 1;
+        if (item.asistio) {
+          acumulado.asistencias += factor;
+          acumulado.total += salario * factor;
+        }
+        acumulado.dias += 1;
+        return acumulado;
+      },
+      { dias: 0, asistencias: 0, total: 0 }
+    );
+  }, [detalle]);
 
   const planillaMetricas = useMemo(() => {
     if (!planillaInfo) {
