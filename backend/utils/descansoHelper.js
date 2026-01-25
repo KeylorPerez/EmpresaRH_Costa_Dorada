@@ -141,18 +141,28 @@ const resolveDescansoDiaFromConfigs = (configs, fecha) => {
 
   const ciclo = config.ciclo || 'SEMANAL';
   const periodo_tipo = resolvePeriodoTipo({ ciclo, fechaBase: config.fecha_base, fecha: fechaEvaluada });
-  const dia_semana = fechaEvaluada.getUTCDay();
+  const diaSemanaUtc = fechaEvaluada.getUTCDay();
+  const diaSemanaLocal = fechaEvaluada.getDay();
   const periodosDisponibles = config.dias ? Object.keys(config.dias) : [];
-  let descansoValue = config.dias?.[periodo_tipo]?.[dia_semana];
+  const diaSemanaCandidates = diaSemanaUtc === diaSemanaLocal
+    ? [diaSemanaUtc]
+    : [diaSemanaUtc, diaSemanaLocal];
+  let descansoValue = diaSemanaCandidates.reduce((valor, dia) => {
+    if (valor !== undefined) return valor;
+    return config.dias?.[periodo_tipo]?.[dia];
+  }, undefined);
 
   if (config.tipo_patron === 'FIJO' && periodosDisponibles.length > 0) {
     descansoValue = periodosDisponibles.some((periodo) =>
-      isTruthyBit(config.dias?.[periodo]?.[dia_semana])
+      diaSemanaCandidates.some((dia) => isTruthyBit(config.dias?.[periodo]?.[dia]))
     );
   }
 
   if (descansoValue === undefined && periodosDisponibles.length === 1) {
-    descansoValue = config.dias?.[periodosDisponibles[0]]?.[dia_semana];
+    descansoValue = diaSemanaCandidates.reduce((valor, dia) => {
+      if (valor !== undefined) return valor;
+      return config.dias?.[periodosDisponibles[0]]?.[dia];
+    }, undefined);
   }
 
   return {
@@ -252,14 +262,23 @@ const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
 
   const ciclo = typeof config.ciclo === 'string' ? config.ciclo.trim().toUpperCase() : 'SEMANAL';
   const periodo_tipo = resolvePeriodoTipo({ ciclo, fechaBase, fecha: fechaEvaluada });
-  const dia_semana = fechaEvaluada.getUTCDay();
+  const diaSemanaUtc = fechaEvaluada.getUTCDay();
+  const diaSemanaLocal = fechaEvaluada.getDay();
+  const diaSemanaCandidates = diaSemanaUtc === diaSemanaLocal
+    ? [diaSemanaUtc]
+    : [diaSemanaUtc, diaSemanaLocal];
 
-  const descansoDia = await getDescansoDiaConfig({
-    id_config: config.id_config,
-    periodo_tipo,
-    dia_semana,
-    transaction,
-  });
+  let descansoDia = null;
+
+  for (const dia_semana of diaSemanaCandidates) {
+    descansoDia = await getDescansoDiaConfig({
+      id_config: config.id_config,
+      periodo_tipo,
+      dia_semana,
+      transaction,
+    });
+    if (descansoDia) break;
+  }
   const tipoPatron = typeof config.tipo_patron === 'string'
     ? config.tipo_patron.trim().toUpperCase()
     : null;
@@ -267,12 +286,15 @@ const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
 
   if (!descansoEvaluado && tipoPatron === 'FIJO') {
     const periodoAlterno = periodo_tipo === 'A' ? 'B' : 'A';
-    descansoEvaluado = await getDescansoDiaConfig({
-      id_config: config.id_config,
-      periodo_tipo: periodoAlterno,
-      dia_semana,
-      transaction,
-    });
+    for (const dia_semana of diaSemanaCandidates) {
+      descansoEvaluado = await getDescansoDiaConfig({
+        id_config: config.id_config,
+        periodo_tipo: periodoAlterno,
+        dia_semana,
+        transaction,
+      });
+      if (descansoEvaluado) break;
+    }
   }
 
   return {
