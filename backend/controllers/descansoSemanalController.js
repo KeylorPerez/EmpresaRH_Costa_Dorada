@@ -1,13 +1,7 @@
 const DescansoConfig = require('../models/DescansoConfig');
 const DescansoDias = require('../models/DescansoDias');
-const DescansoSemanal = require('../models/DescansoSemanal');
 const { addDays, buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
-const {
-  buildFechasDescanso,
-  formatDate,
-  normalizeScheduleRows,
-  parseDate,
-} = require('../utils/descansoSemanalHelper');
+const { formatDate, parseDate } = require('../utils/descansoSemanalHelper');
 
 const buildFechasDescansoFromConfig = async ({ id_empleado, inicio, fin }) => {
   const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
@@ -58,20 +52,11 @@ const getDescansosSummary = async (req, res) => {
       fin,
     });
 
-    if (configAplicada) {
-      return res.json({ fechas: fechasConfig, total: fechasConfig.length });
+    if (!configAplicada) {
+      return res.json({ fechas: [], total: 0 });
     }
 
-    const rows = await DescansoSemanal.getByEmpleadoInRange(
-      Number(id_empleado),
-      periodo_inicio,
-      periodo_fin,
-    );
-
-    const normalizedRows = normalizeScheduleRows(rows);
-    const fechas = buildFechasDescanso({ rows: normalizedRows, inicio, fin });
-
-    return res.json({ fechas, total: fechas.length });
+    return res.json({ fechas: fechasConfig, total: fechasConfig.length });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'No fue posible obtener los descansos.' });
@@ -92,14 +77,12 @@ const getDescansosByEmpleado = async (req, res) => {
       }
     }
 
-    const descansos = await DescansoSemanal.getByEmpleado(idEmpleado);
     const descansoConfig = await DescansoConfig.getLatestByEmpleado(idEmpleado);
     const descansoDias = descansoConfig?.id_config
       ? await DescansoDias.getByConfig(descansoConfig.id_config)
       : [];
 
     return res.json({
-      descansos,
       descanso_config: descansoConfig,
       descanso_dias: descansoDias,
     });
