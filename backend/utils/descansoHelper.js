@@ -103,7 +103,12 @@ const buildDescansoConfigMap = (rows = []) => {
     config.dias[periodoTipo][diaSemana] = isTruthyBit(row.es_descanso);
   });
 
-  return Array.from(configMap.values()).sort((a, b) => {
+  const configs = Array.from(configMap.values()).filter((config) => {
+    if (!config.dias) return false;
+    return Object.keys(config.dias).length > 0;
+  });
+
+  return configs.sort((a, b) => {
     const startA = a.fecha_inicio_vigencia ? a.fecha_inicio_vigencia.getTime() : 0;
     const startB = b.fecha_inicio_vigencia ? b.fecha_inicio_vigencia.getTime() : 0;
     if (startA !== startB) return startB - startA;
