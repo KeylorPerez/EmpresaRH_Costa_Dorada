@@ -100,6 +100,36 @@ const formatDateDisplay = (value) => {
   return `${day}/${month}/${year}`;
 };
 
+const parseDateInput = (value) => {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+  const [datePart] = text.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (
+    Number.isFinite(year) &&
+    Number.isFinite(month) &&
+    Number.isFinite(day)
+  ) {
+    return new Date(year, month - 1, day);
+  }
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const formatDateOnly = (value) => {
+  const date = parseDateInput(value);
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const formatHourDisplay = (value) => {
   if (!value) return '-';
   if (typeof value === 'string') {
@@ -1044,7 +1074,14 @@ const calcularPlanilla = async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos requeridos: id_empleado, periodo_inicio y periodo_fin' });
     }
 
-    const fechaPagoFinal = fecha_pago || periodo_fin;
+    const periodoInicioDate = parseDateInput(periodo_inicio);
+    const periodoFinDate = parseDateInput(periodo_fin);
+
+    if (!periodoInicioDate || !periodoFinDate) {
+      return res.status(400).json({ error: 'El periodo es inválido: revise periodo_inicio y periodo_fin' });
+    }
+
+    const fechaPagoFinal = parseDateInput(fecha_pago || periodoFinDate);
 
     const esAutomaticaValue = parseFlagValue(es_automatica, null);
 
@@ -1052,8 +1089,8 @@ const calcularPlanilla = async (req, res) => {
 
     const planilla = await Planilla.calcularPlanilla({
       id_empleado,
-      periodo_inicio,
-      periodo_fin,
+      periodo_inicio: periodoInicioDate,
+      periodo_fin: periodoFinDate,
       horas_extras,
       bonificaciones,
       deducciones,
@@ -1115,11 +1152,16 @@ const updatePlanilla = async (req, res) => {
 
     const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
 
+    const fechaPagoFinal = fecha_pago ? parseDateInput(fecha_pago) : null;
+    if (fecha_pago && !fechaPagoFinal) {
+      return res.status(400).json({ error: 'La fecha de pago no es válida' });
+    }
+
     await Planilla.update(id_planilla, {
       horas_extras,
       bonificaciones,
       deducciones,
-      fecha_pago,
+      fecha_pago: fechaPagoFinal,
       dias_trabajados,
       dias_descuento,
       monto_descuento_dias,
@@ -1154,10 +1196,10 @@ const getPlanillaAttendance = async (req, res) => {
       return res.status(400).json({ error: 'periodo_inicio y periodo_fin son requeridos' });
     }
 
-    const inicio = new Date(periodo_inicio);
-    const fin = new Date(periodo_fin);
+    const inicio = parseDateInput(periodo_inicio);
+    const fin = parseDateInput(periodo_fin);
 
-    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) {
+    if (!inicio || !fin) {
       return res.status(400).json({ error: 'Las fechas proporcionadas no son válidas' });
     }
 
@@ -1174,7 +1216,11 @@ const getPlanillaAttendance = async (req, res) => {
       return res.json({ dias: 0 });
     }
 
-    const fechas = await Asistencia.getDistinctAttendanceDays(empleadoId, periodo_inicio, periodo_fin);
+    const fechas = await Asistencia.getDistinctAttendanceDays(
+      empleadoId,
+      formatDateOnly(inicio),
+      formatDateOnly(fin)
+    );
     const dias = Array.isArray(fechas) ? fechas.length : 0;
 
     return res.json({ dias, fechas });
@@ -1321,14 +1367,14 @@ const exportPlanillasResumen = async (req, res) => {
       periodoFinRaw = defaultRange.fin.toISOString().slice(0, 10);
     }
 
-    const periodoInicio = periodoInicioRaw ? new Date(periodoInicioRaw) : null;
-    const periodoFin = periodoFinRaw ? new Date(periodoFinRaw) : null;
+    const periodoInicio = periodoInicioRaw ? parseDateInput(periodoInicioRaw) : null;
+    const periodoFin = periodoFinRaw ? parseDateInput(periodoFinRaw) : null;
 
-    if (periodoInicioRaw && (Number.isNaN(periodoInicio?.getTime()) || !periodoInicio)) {
+    if (periodoInicioRaw && !periodoInicio) {
       return res.status(400).json({ error: 'El periodo_inicio no es una fecha válida' });
     }
 
-    if (periodoFinRaw && (Number.isNaN(periodoFin?.getTime()) || !periodoFin)) {
+    if (periodoFinRaw && !periodoFin) {
       return res.status(400).json({ error: 'El periodo_fin no es una fecha válida' });
     }
 
