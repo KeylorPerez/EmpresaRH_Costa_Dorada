@@ -52,6 +52,7 @@ const getDescansoConfigDiasInRange = async ({
     .query(`
       SELECT
         c.id_config,
+        c.tipo_patron,
         c.ciclo,
         c.fecha_base,
         c.fecha_inicio_vigencia,
@@ -79,6 +80,9 @@ const buildDescansoConfigMap = (rows = []) => {
     if (!configMap.has(idConfig)) {
       configMap.set(idConfig, {
         id_config: idConfig,
+        tipo_patron: typeof row.tipo_patron === 'string'
+          ? row.tipo_patron.trim().toUpperCase()
+          : null,
         ciclo: typeof row.ciclo === 'string' ? row.ciclo.trim().toUpperCase() : 'SEMANAL',
         fecha_base: parseUtcDate(row.fecha_base),
         fecha_inicio_vigencia: parseUtcDate(row.fecha_inicio_vigencia),
@@ -136,6 +140,12 @@ const resolveDescansoDiaFromConfigs = (configs, fecha) => {
   const periodosDisponibles = config.dias ? Object.keys(config.dias) : [];
   let descansoValue = config.dias?.[periodo_tipo]?.[dia_semana];
 
+  if (config.tipo_patron === 'FIJO' && periodosDisponibles.length > 0) {
+    descansoValue = periodosDisponibles.some((periodo) =>
+      isTruthyBit(config.dias?.[periodo]?.[dia_semana])
+    );
+  }
+
   if (descansoValue === undefined && periodosDisponibles.length === 1) {
     descansoValue = config.dias?.[periodosDisponibles[0]]?.[dia_semana];
   }
@@ -175,6 +185,7 @@ const getDescansoConfigVigente = async ({ id_empleado, fecha, transaction }) => 
     .query(`
       SELECT TOP 1
         id_config,
+        tipo_patron,
         ciclo,
         fecha_base,
         fecha_inicio_vigencia,
@@ -244,9 +255,23 @@ const resolveDescansoDia = async (id_empleado, fecha, { transaction } = {}) => {
     dia_semana,
     transaction,
   });
+  const tipoPatron = typeof config.tipo_patron === 'string'
+    ? config.tipo_patron.trim().toUpperCase()
+    : null;
+  let descansoEvaluado = descansoDia;
+
+  if (!descansoEvaluado && tipoPatron === 'FIJO') {
+    const periodoAlterno = periodo_tipo === 'A' ? 'B' : 'A';
+    descansoEvaluado = await getDescansoDiaConfig({
+      id_config: config.id_config,
+      periodo_tipo: periodoAlterno,
+      dia_semana,
+      transaction,
+    });
+  }
 
   return {
-    es_descanso: descansoDia ? isTruthyBit(descansoDia.es_descanso) : false,
+    es_descanso: descansoEvaluado ? isTruthyBit(descansoEvaluado.es_descanso) : false,
     periodo_tipo,
     config_aplicada: true,
     id_config: config.id_config,

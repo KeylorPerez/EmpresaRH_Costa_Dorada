@@ -169,7 +169,11 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     return asistio ? ESTADO_PRESENTE : ESTADO_AUSENTE;
   })();
 
-  const esDescanso = estado === ESTADO_DESCANSO;
+  const esDescanso = Boolean(
+    detalle.es_descanso === true || Number(detalle.es_descanso) === 1,
+  );
+  const estadoFinal =
+    esDescanso && estado !== ESTADO_DESCANSO ? ESTADO_DESCANSO : estado;
 
   const justificado = Boolean(
     detalle.justificado === true || Number(detalle.justificado) === 1,
@@ -200,8 +204,8 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     asistio,
     es_dia_doble: esDiaDoble,
     multiplicador_dia_doble: multiplicadorDiaDoble,
-    es_descanso: esDescanso,
-    estado,
+    es_descanso: esDescanso || estadoFinal === ESTADO_DESCANSO,
+    estado: estadoFinal,
     justificado,
     justificacion,
     observacion,
@@ -1424,7 +1428,7 @@ export const usePlanilla = () => {
   }, [prestamos, formData.id_empleado]);
 
   useEffect(() => {
-    if (!modalOpen || editingPlanilla) return;
+    if (!modalOpen) return;
 
     if (!formData.id_empleado) {
       setPrestamoSelections({});
@@ -1556,7 +1560,6 @@ export const usePlanilla = () => {
     };
   }, [
     modalOpen,
-    editingPlanilla,
     formData,
     formData.id_empleado,
     formData.periodo_inicio,
@@ -1649,7 +1652,7 @@ export const usePlanilla = () => {
   ]);
 
   useEffect(() => {
-    if (!modalOpen || editingPlanilla) {
+    if (!modalOpen) {
       setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
@@ -1712,7 +1715,6 @@ export const usePlanilla = () => {
     };
   }, [
     modalOpen,
-    editingPlanilla,
     formData.id_empleado,
     formData.periodo_inicio,
     formData.periodo_fin,
@@ -1810,7 +1812,7 @@ export const usePlanilla = () => {
   ]);
 
   useEffect(() => {
-    if (!modalOpen || editingPlanilla) return;
+    if (!modalOpen) return;
 
     const { id_empleado, periodo_inicio, periodo_fin } = formData;
 
@@ -1897,7 +1899,7 @@ export const usePlanilla = () => {
   ]);
 
   useEffect(() => {
-    if (!modalOpen || editingPlanilla) return;
+    if (!modalOpen) return;
 
     const contextoActual = detalleContextRef.current;
     const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
@@ -1975,7 +1977,6 @@ export const usePlanilla = () => {
     });
   }, [
     modalOpen,
-    editingPlanilla,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     detalleDias,
