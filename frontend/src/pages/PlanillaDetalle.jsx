@@ -7,6 +7,7 @@ import Button from "../components/Button";
 import { useAuth } from "../hooks/useAuth";
 import api from "../api/axiosConfig";
 import planillaService from "../services/planillaService";
+import descansosService from "../services/descansosService";
 import {
   adminLinks as adminNavigationLinks,
   empleadoLinks as empleadoNavigationLinks,
@@ -80,6 +81,19 @@ const formatDate = (value) => {
 const formatPeriodo = (inicio, fin) => {
   if (!inicio || !fin) return "-";
   return `${formatDate(inicio)} - ${formatDate(fin)}`;
+};
+
+const normalizeFechaKey = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    return trimmed.split("T")[0];
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0];
 };
 
 const normalizarTipoPago = (valor) => (valor ?? "").toString().trim().toLowerCase();
@@ -160,6 +174,8 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
   const [exportMessage, setExportMessage] = useState("");
   const [exportErrorMessage, setExportErrorMessage] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [descansosFechas, setDescansosFechas] = useState([]);
+  const [descansosError, setDescansosError] = useState("");
 
   const sidebarLinks = useMemo(
     () => (isAdminMode ? adminNavigationLinks : empleadoNavigationLinks),
@@ -372,26 +388,6 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
     }
   };
 
-  const detalleResumen = useMemo(() => {
-    if (!detalle || detalle.length === 0) {
-      return { dias: 0, asistencias: 0, total: 0 };
-    }
-
-    return detalle.reduce(
-      (acumulado, item) => {
-        const salario = parseMonto(item.salario_dia);
-        const factor = item.es_dia_doble ? 2 : 1;
-        if (item.asistio) {
-          acumulado.asistencias += factor;
-          acumulado.total += salario * factor;
-        }
-        acumulado.dias += 1;
-        return acumulado;
-      },
-      { dias: 0, asistencias: 0, total: 0 }
-    );
-  }, [detalle]);
-
   const resolveAsistenciaBadge = (item) => {
     if (item.es_descanso && !item.asistio) {
       return {
@@ -421,6 +417,22 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
     [planillaInfo]
   );
 
+  const planillaPeriodoInicio = useMemo(
+    () =>
+      planillaInfo
+        ? getPlanillaDateField(planillaInfo, ["periodo_inicio", "periodoInicio"])
+        : null,
+    [planillaInfo]
+  );
+
+  const planillaPeriodoFin = useMemo(
+    () =>
+      planillaInfo
+        ? getPlanillaDateField(planillaInfo, ["periodo_fin", "periodoFin"])
+        : null,
+    [planillaInfo]
+  );
+
   const planillaFechaPago = useMemo(
     () => (planillaInfo ? getPlanillaDateField(planillaInfo, ["fecha_pago", "fechaPago"]) : null),
     [planillaInfo]
@@ -435,6 +447,102 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
         : "No especificado",
     [planillaInfo]
   );
+
+  useEffect(() => {
+    if (!planillaEmpleadoId || !planillaPeriodoInicio || !planillaPeriodoFin) {
+      setDescansosFechas([]);
+      setDescansosError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchDescansos = async () => {
+      setDescansosError("");
+      try {
+        const data = await descansosService.getSummary({
+          id_empleado: planillaEmpleadoId,
+          periodo_inicio: planillaPeriodoInicio,
+          periodo_fin: planillaPeriodoFin,
+        });
+        if (cancelled) return;
+        const fechasDescanso = Array.isArray(data?.fechas)
+          ? data.fechas
+              .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
+              .filter((fecha) => fecha.length > 0)
+          : [];
+        setDescansosFechas(fechasDescanso);
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err?.response?.data?.error ||
+          err?.message ||
+          "No se pudieron obtener los días de descanso del periodo.";
+        setDescansosError(message);
+        setDescansosFechas([]);
+      }
+    };
+
+    fetchDescansos();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planillaEmpleadoId, planillaPeriodoInicio, planillaPeriodoFin]);
+
+  const detalleConDescansos = useMemo(() => {
+    if (!detalle || detalle.length === 0 || descansosFechas.length === 0) {
+      return detalle;
+    }
+
+    const descansoSet = new Set(
+      descansosFechas.map((fecha) => normalizeFechaKey(fecha)).filter(Boolean)
+    );
+
+    return detalle.map((item) => {
+      const fechaKey = normalizeFechaKey(item.fecha);
+      if (!fechaKey || !descansoSet.has(fechaKey)) {
+        return item;
+      }
+
+      if (item.asistio) {
+        return { ...item, es_descanso: true };
+      }
+
+      return {
+        ...item,
+        es_descanso: true,
+        estado: "Descanso",
+        justificado: item.justificado ? item.justificado : true,
+        justificacion:
+          item.justificacion && item.justificacion.trim() !== ""
+            ? item.justificacion
+            : "Descanso programado",
+      };
+    });
+  }, [detalle, descansosFechas]);
+
+  const detalleListado = detalleConDescansos || detalle;
+
+  const detalleResumen = useMemo(() => {
+    if (!detalleListado || detalleListado.length === 0) {
+      return { dias: 0, asistencias: 0, total: 0 };
+    }
+
+    return detalleListado.reduce(
+      (acumulado, item) => {
+        const salario = parseMonto(item.salario_dia);
+        const factor = item.es_dia_doble ? 2 : 1;
+        if (item.asistio) {
+          acumulado.asistencias += factor;
+          acumulado.total += salario * factor;
+        }
+        acumulado.dias += 1;
+        return acumulado;
+      },
+      { dias: 0, asistencias: 0, total: 0 }
+    );
+  }, [detalleListado]);
 
   const planillaMetricas = useMemo(() => {
     if (!planillaInfo) {
@@ -662,11 +770,16 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
               </p>
             </header>
             <div className="px-6 py-4">
+              {descansosError && (
+                <div className="mb-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs text-yellow-700">
+                  {descansosError}
+                </div>
+              )}
               {detalleLoading ? (
                 <p className="text-sm text-gray-500">Cargando detalle...</p>
               ) : detalleError ? (
                 <p className="text-sm text-red-600">{detalleError}</p>
-              ) : detalle.length === 0 ? (
+              ) : detalleListado.length === 0 ? (
                 <p className="text-sm text-gray-500">Esta planilla no tiene detalles registrados.</p>
               ) : (
                 <div className="rounded-lg border border-gray-200">
@@ -686,7 +799,7 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
-                        {detalle.map((item) => (
+                        {detalleListado.map((item) => (
                           <tr key={`${item.id_detalle}-${item.fecha}`} className="hover:bg-gray-50/70">
                             <td className="px-4 py-3 whitespace-nowrap text-gray-700">{formatDate(item.fecha)}</td>
                             <td className="px-4 py-3 capitalize text-gray-600">{item.dia_semana}</td>
