@@ -196,14 +196,13 @@ const applyDescansosToDetalle = async (id_empleado, detalles = []) => {
       return detalle;
     }
 
-    const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
     const estadoActual = normalizeEstadoDetalle(detalle);
 
     if (estadoActual.toLowerCase() === 'descanso') {
       return { ...detalle, es_descanso: true };
     }
 
-    if (asistio || !['Presente', 'Ausente'].includes(estadoActual)) {
+    if (!['Presente', 'Ausente'].includes(estadoActual)) {
       return { ...detalle, es_descanso: true };
     }
 
