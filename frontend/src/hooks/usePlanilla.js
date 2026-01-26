@@ -1002,7 +1002,7 @@ export const usePlanilla = () => {
 
     if (asistenciaSet.size === 0) {
       return detalles.map((detalle) => {
-        if (detalle.asistenciaManual) {
+        if (detalle.asistenciaManual || detalle.es_descanso) {
           return detalle;
         }
 
@@ -1041,6 +1041,9 @@ export const usePlanilla = () => {
       }
 
       const asistio = asistenciaSet.has(detalle.fecha);
+      if (detalle.es_descanso && !asistio) {
+        return detalle;
+      }
 
       if (!asistio) {
         const ausenciaSalario = resolveAusenciaSalario(detalle);
