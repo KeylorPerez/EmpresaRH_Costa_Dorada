@@ -20,8 +20,6 @@ const Empleados = ({ mode = "admin" }) => {
     editingEmpleado,
     formData,
     handleChange,
-    handleToggleDescanso,
-    handleToggleDescansoDia,
     handleSubmit,
     handleEdit,
     resetForm,
@@ -45,7 +43,6 @@ const Empleados = ({ mode = "admin" }) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeDescansoTab, setActiveDescansoTab] = useState("A");
   const currentEmpleadoId = useMemo(() => {
     const possibleIds = [
       user?.id_empleado,
@@ -101,23 +98,6 @@ const Empleados = ({ mode = "admin" }) => {
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
   const columnsCount = isAdmin ? 14 : 13;
-  const isPagoDiario = String(formData.tipo_pago || "")
-    .toLowerCase()
-    .startsWith("diar");
-  const descansoTabs = [
-    { value: "A", label: "Periodo A" },
-    { value: "B", label: "Periodo B" },
-  ];
-  const diasSemana = [
-    { value: "0", label: "Domingo" },
-    { value: "1", label: "Lunes" },
-    { value: "2", label: "Martes" },
-    { value: "3", label: "Miércoles" },
-    { value: "4", label: "Jueves" },
-    { value: "5", label: "Viernes" },
-    { value: "6", label: "Sábado" },
-  ];
-
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
@@ -382,7 +362,7 @@ const Empleados = ({ mode = "admin" }) => {
                       {editingEmpleado ? "Editar empleado" : "Agregar empleado"}
                     </h2>
                     <p className="text-xs text-gray-500">
-                      Completa la información general y la configuración de descanso.
+                      Completa la información general del empleado.
                     </p>
                   </div>
                   <button
@@ -642,159 +622,6 @@ const Empleados = ({ mode = "admin" }) => {
                       </div>
                     )}
                   </section>
-
-                  {!isPagoDiario && (
-                    <section className="border border-gray-200 rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-800">
-                            Configuración de descansos
-                          </h3>
-                          <p className="text-xs text-gray-500">
-                            Define el patrón de descanso semanal o quincenal.
-                          </p>
-                        </div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={formData.descanso_config_habilitado}
-                            onChange={(event) => handleToggleDescanso(event.target.checked)}
-                          />
-                          Activar descanso
-                        </label>
-                      </div>
-
-                      {formData.descanso_config_habilitado && (
-                        <>
-                          <div className="grid gap-4 md:grid-cols-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Tipo de patrón
-                              </label>
-                              <select
-                                name="descanso_tipo_patron"
-                                value={formData.descanso_tipo_patron}
-                                onChange={handleChange}
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                              >
-                                <option value="FIJO">Fijo</option>
-                                <option value="ALTERNADO">Alternado</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Ciclo
-                              </label>
-                              <select
-                                name="descanso_ciclo"
-                                value={formData.descanso_ciclo}
-                                onChange={handleChange}
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                              >
-                                <option value="SEMANAL">Semanal</option>
-                                <option value="QUINCENAL">Quincenal</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Fecha base
-                              </label>
-                              <input
-                                type="date"
-                                name="descanso_fecha_base"
-                                value={formData.descanso_fecha_base}
-                                onChange={handleChange}
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Inicio de vigencia
-                              </label>
-                              <input
-                                type="date"
-                                name="descanso_fecha_inicio_vigencia"
-                                value={formData.descanso_fecha_inicio_vigencia}
-                                onChange={handleChange}
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Fin de vigencia
-                              </label>
-                              <input
-                                type="date"
-                                name="descanso_fecha_fin_vigencia"
-                                value={formData.descanso_fecha_fin_vigencia}
-                                onChange={handleChange}
-                                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex gap-2 flex-wrap">
-                              {descansoTabs.map((tab) => {
-                                const isFixed =
-                                  String(formData.descanso_tipo_patron || "").toUpperCase() === "FIJO";
-                                const isDisabled = isFixed && tab.value === "B";
-                                return (
-                                  <button
-                                    key={tab.value}
-                                    type="button"
-                                    onClick={() => setActiveDescansoTab(tab.value)}
-                                    disabled={isDisabled}
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                                      activeDescansoTab === tab.value
-                                        ? "bg-blue-600 text-white border-blue-600"
-                                        : "bg-white text-gray-600 border-gray-200"
-                                    } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                                  >
-                                    {tab.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                              {String(formData.descanso_tipo_patron || "").toUpperCase() === "FIJO"
-                                ? "El patrón fijo replica los mismos días en ambos periodos."
-                                : "Define los días de descanso para cada periodo."}
-                            </p>
-                          </div>
-
-                          <div className="grid gap-2 md:grid-cols-3">
-                            {diasSemana.map((dia) => {
-                              const checked = (formData.descanso_dias?.[activeDescansoTab] || []).includes(
-                                dia.value
-                              );
-                              return (
-                                <label
-                                  key={`${activeDescansoTab}-${dia.value}`}
-                                  className="flex items-center gap-2 text-sm text-gray-700"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() =>
-                                      handleToggleDescansoDia(activeDescansoTab, dia.value)
-                                    }
-                                  />
-                                  {dia.label}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </section>
-                  )}
-
-                  {isPagoDiario && (
-                    <p className="text-xs text-gray-500">
-                      El descanso semanal aplica para pagos quincenales o mensuales.
-                    </p>
-                  )}
 
                   <div className="flex justify-end gap-2">
                     <Button variant="secondary" size="sm" type="button" onClick={closeModal}>

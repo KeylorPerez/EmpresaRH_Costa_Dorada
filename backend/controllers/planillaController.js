@@ -10,7 +10,6 @@ const Usuario = require('../models/Usuario');
 const Asistencia = require('../models/Asistencia');
 const Empleado = require('../models/Empleado');
 const DetallePlanilla = require('../models/DetallePlanilla');
-const { buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
 
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
 const { promises: fsPromises } = fs;
@@ -149,59 +148,6 @@ const normalizeEstadoDetalle = (detalle) => {
   }
   const asistio = detalle.asistio === true || Number(detalle.asistio) === 1;
   return asistio ? 'Presente' : 'Ausente';
-};
-
-const applyDescansosToDetalle = async (id_empleado, detalles = []) => {
-  if (!id_empleado || !Array.isArray(detalles) || detalles.length === 0) {
-    return detalles;
-  }
-
-  const fechas = detalles
-    .map((detalle) => parseUtcDate(detalle?.fecha))
-    .filter(Boolean);
-  if (fechas.length === 0) return detalles;
-
-  const inicio = new Date(Math.min(...fechas.map((fecha) => fecha.getTime())));
-  const fin = new Date(Math.max(...fechas.map((fecha) => fecha.getTime())));
-  const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
-
-  const updated = detalles.map((detalle) => {
-    if (!detalle?.fecha || !resolveDescanso) return detalle;
-
-    const es_descanso = resolveDescanso(detalle.fecha)?.es_descanso;
-
-    if (!es_descanso) {
-      return detalle;
-    }
-
-    const estadoActual = normalizeEstadoDetalle(detalle);
-
-    if (estadoActual.toLowerCase() === 'descanso') {
-      return { ...detalle, es_descanso: true };
-    }
-
-    if (!['Presente', 'Ausente'].includes(estadoActual)) {
-      return { ...detalle, es_descanso: true };
-    }
-
-    const justificado = detalle.justificado === true || Number(detalle.justificado) === 1;
-    const justificacion =
-      detalle.justificacion !== undefined && detalle.justificacion !== null
-        ? String(detalle.justificacion).trim()
-        : '';
-
-    return {
-      ...detalle,
-      es_descanso: true,
-      asistio: false,
-      estado: 'Descanso',
-      asistencia: 'Descanso',
-      justificado: justificado || 1,
-      justificacion: justificacion || 'Descanso programado',
-    };
-  });
-
-  return updated;
 };
 
 const stripDiacritics = (text = '') => {
@@ -1062,8 +1008,6 @@ const calcularPlanilla = async (req, res) => {
 
     const esAutomaticaValue = parseFlagValue(es_automatica, null);
 
-    const detallesConDescanso = await applyDescansosToDetalle(id_empleado, detalles);
-
     const planilla = await Planilla.calcularPlanilla({
       id_empleado,
       periodo_inicio: periodoInicioDate,
@@ -1078,7 +1022,7 @@ const calcularPlanilla = async (req, res) => {
       monto_descuento_dias,
       dias_dobles,
       monto_dias_dobles,
-      detalles: detallesConDescanso,
+      detalles,
       es_automatica: esAutomaticaValue,
     });
 
@@ -1127,8 +1071,6 @@ const updatePlanilla = async (req, res) => {
       return res.status(404).json({ error: 'Planilla no encontrada' });
     }
 
-    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
-
     const fechaPagoFinal = fecha_pago ? parseDateInput(fecha_pago) : null;
     if (fecha_pago && !fechaPagoFinal) {
       return res.status(400).json({ error: 'La fecha de pago no es válida' });
@@ -1144,7 +1086,7 @@ const updatePlanilla = async (req, res) => {
       monto_descuento_dias,
       dias_dobles,
       monto_dias_dobles,
-      detalles: detallesConDescanso,
+      detalles,
       es_automatica: esAutomaticaValue,
     });
 
@@ -1236,8 +1178,7 @@ const getPlanillaDetalle = async (req, res) => {
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
-    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
-    return res.json(detallesConDescanso);
+    return res.json(detalles);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -1287,7 +1228,6 @@ const exportPlanillaArchivo = async (req, res) => {
     }
 
     const detalles = await DetallePlanilla.getByPlanilla(id_planilla);
-    const detallesConDescanso = await applyDescansosToDetalle(planilla.id_empleado, detalles);
 
     await ensureExportsDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1297,9 +1237,9 @@ const exportPlanillaArchivo = async (req, res) => {
     const filePath = path.join(EXPORTS_DIR, filename);
 
     if (format === 'pdf') {
-      await createPdfFile(filePath, planilla, detallesConDescanso);
+      await createPdfFile(filePath, planilla, detalles);
     } else {
-      await createCsvFile(filePath, planilla, detallesConDescanso);
+      await createCsvFile(filePath, planilla, detalles);
     }
 
     const baseUrl = getBaseUrl(req);
