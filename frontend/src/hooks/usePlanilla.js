@@ -4,8 +4,6 @@ import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
 import diasDoblesService from "../services/diasDoblesService";
-import descansosService from "../services/descansosService";
-import descansoSemanalService from "../services/descansoSemanalService";
 import { parseDateValue } from "../utils/dateUtils";
 import { parseNumberInput, toPositiveNumber } from "../utils/numberUtils";
 import {
@@ -46,126 +44,6 @@ const obtenerDiasReferencia = (tipoPago) =>
   tipoPago === "Mensual" ? DIAS_POR_MES : DIAS_POR_QUINCENA;
 
 const parseDateSafe = (value) => parseDateValue(value);
-
-const isTruthyFlag = (value) => Number(value) === 1 || value === true;
-
-const parseUtcDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-};
-
-const resolvePeriodoTipo = ({ ciclo, fechaBase, fecha }) => {
-  const diffDays = Math.floor((fecha.getTime() - fechaBase.getTime()) / MS_POR_DIA);
-  const blockSize = ciclo === "QUINCENAL" ? 15 : 7;
-  const blockIndex = Math.floor(diffDays / blockSize);
-  const isEven = Math.abs(blockIndex) % 2 === 0;
-  return isEven ? "A" : "B";
-};
-
-const normalizePeriodoTipo = (value) => {
-  if (!value) return null;
-  const normalized = String(value).trim().toUpperCase();
-  return normalized ? normalized : null;
-};
-
-const buildDescansoConfigFromPayload = (payload) => {
-  const descansoConfig = payload?.descanso_config;
-  if (!descansoConfig) return null;
-
-  const config = {
-    tipo_patron: String(descansoConfig.tipo_patron || "").trim().toUpperCase(),
-    ciclo: String(descansoConfig.ciclo || "").trim().toUpperCase(),
-    fecha_inicio_vigencia: parseUtcDate(descansoConfig.fecha_inicio_vigencia),
-    fecha_fin_vigencia: parseUtcDate(descansoConfig.fecha_fin_vigencia),
-    fecha_base: parseUtcDate(descansoConfig.fecha_base),
-    dias: {},
-  };
-
-  if (!Array.isArray(payload?.descanso_dias)) {
-    return config;
-  }
-
-  payload.descanso_dias.forEach((dia) => {
-    if (!isTruthyFlag(dia?.es_descanso)) return;
-    const periodo = normalizePeriodoTipo(dia?.periodo_tipo);
-    const diaSemana =
-      dia?.dia_semana === 0 || dia?.dia_semana ? Number(dia.dia_semana) : Number.NaN;
-    if (!periodo || Number.isNaN(diaSemana)) return;
-    if (!config.dias[periodo]) {
-      config.dias[periodo] = {};
-    }
-    config.dias[periodo][diaSemana] = true;
-  });
-
-  return config;
-};
-
-const resolveDescansoFromConfig = (config, fecha) => {
-  if (!config?.fecha_inicio_vigencia || !config?.fecha_base) {
-    return false;
-  }
-
-  if (fecha < config.fecha_inicio_vigencia) return false;
-  if (config.fecha_fin_vigencia && fecha > config.fecha_fin_vigencia) return false;
-
-  const periodoTipo = resolvePeriodoTipo({
-    ciclo: config.ciclo || "SEMANAL",
-    fechaBase: config.fecha_base,
-    fecha,
-  });
-  const diaSemanaUtc = fecha.getUTCDay();
-  const diaSemanaLocal = fecha.getDay();
-  const diaSemanaCandidates =
-    diaSemanaUtc === diaSemanaLocal ? [diaSemanaUtc] : [diaSemanaUtc, diaSemanaLocal];
-  const periodosDisponibles = Object.keys(config.dias || {});
-
-  let descansoValue = diaSemanaCandidates.reduce((valor, dia) => {
-    if (valor !== undefined) return valor;
-    return config.dias?.[periodoTipo]?.[dia];
-  }, undefined);
-
-  if (config.tipo_patron === "FIJO" && periodosDisponibles.length > 0) {
-    descansoValue = periodosDisponibles.some((periodo) =>
-      diaSemanaCandidates.some((dia) => config.dias?.[periodo]?.[dia] === true),
-    );
-  }
-
-  if (descansoValue === undefined && periodosDisponibles.length === 1) {
-    descansoValue = diaSemanaCandidates.reduce((valor, dia) => {
-      if (valor !== undefined) return valor;
-      return config.dias?.[periodosDisponibles[0]]?.[dia];
-    }, undefined);
-  }
-
-  return Boolean(descansoValue);
-};
-
-const buildDescansoFechasFromConfig = ({
-  descanso_config,
-  descanso_dias,
-  periodo_inicio,
-  periodo_fin,
-}) => {
-  const inicio = parseUtcDate(periodo_inicio);
-  const fin = parseUtcDate(periodo_fin);
-  if (!inicio || !fin || fin < inicio) return [];
-
-  const config = buildDescansoConfigFromPayload({ descanso_config, descanso_dias });
-  if (!config || !config.fecha_base) return [];
-
-  const fechas = [];
-  for (let cursor = new Date(inicio.getTime()); cursor <= fin; cursor.setDate(cursor.getDate() + 1)) {
-    const fechaEvaluada = parseUtcDate(cursor);
-    if (!fechaEvaluada) continue;
-    if (resolveDescansoFromConfig(config, fechaEvaluada)) {
-      fechas.push(formatInputDate(fechaEvaluada));
-    }
-  }
-
-  return fechas;
-};
 
 const matchesDetalleKey = (currentKey, baseKey) =>
   Boolean(currentKey) &&
@@ -708,12 +586,6 @@ export const usePlanilla = () => {
     fechas: [],
     error: "",
   });
-  const [detalleDescansos, setDetalleDescansos] = useState({
-    key: "",
-    loading: false,
-    fechas: [],
-    error: "",
-  });
   const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
   const [detalleDias, setDetalleDias] = useState([]);
   const [detalleJustificaciones, setDetalleJustificaciones] = useState(
@@ -735,25 +607,7 @@ export const usePlanilla = () => {
     );
   }, [empleados, formData.id_empleado]);
 
-  const descansoProgramadoActivo = useMemo(() => {
-    if (!formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
-      return false;
-    }
-
-    const keyActual = `${formData.id_empleado}-${formData.periodo_inicio}-${formData.periodo_fin}`;
-
-    if (detalleDescansos.key !== keyActual) {
-      return false;
-    }
-
-    return Array.isArray(detalleDescansos.fechas) && detalleDescansos.fechas.length > 0;
-  }, [
-    detalleDescansos.fechas,
-    detalleDescansos.key,
-    formData.id_empleado,
-    formData.periodo_fin,
-    formData.periodo_inicio,
-  ]);
+  const descansoProgramadoActivo = false;
 
   const salarioDetalleReferencia = useMemo(() => {
     if (!empleadoDetalleActivo) {
@@ -1160,71 +1014,6 @@ export const usePlanilla = () => {
     });
   }, []);
 
-  const aplicarDescansosAuto = useCallback(
-    (detalles, fechasDescanso) => {
-      if (!Array.isArray(detalles) || detalles.length === 0) {
-        return detalles;
-      }
-
-      const fechasNormalizadas = Array.isArray(fechasDescanso)
-        ? fechasDescanso
-            .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
-            .filter((fecha) => fecha.length > 0)
-        : [];
-
-      const descansoSet = new Set(fechasNormalizadas);
-
-      return detalles.map((detalle) => {
-        const es_descanso = descansoSet.has(detalle.fecha);
-
-        if (!es_descanso) {
-          if (detalle.asistenciaManual || !detalle.es_descanso) {
-            return detalle;
-          }
-
-          return {
-            ...detalle,
-            es_descanso: false,
-            justificado: false,
-            justificacion: "",
-            estado: ajustarEstadoPorAsistencia(detalle.estado, detalle.asistio),
-          };
-        }
-
-        if (detalle.es_descanso && detalle.asistenciaManual) {
-          return detalle;
-        }
-
-        const ausenciaSalario = resolveAusenciaSalario({
-          ...detalle,
-          asistio: false,
-          es_descanso: true,
-        });
-
-        const salarioActual = parseNumberInput(detalle.salario_dia);
-        const salarioFinal =
-          detalle.salario_manual &&
-          Number.isFinite(salarioActual) &&
-          salarioActual >= 0
-            ? detalle.salario_dia
-            : ausenciaSalario.salario;
-
-        return {
-          ...detalle,
-          asistio: false,
-          es_descanso: true,
-          estado: ESTADO_DESCANSO,
-          justificado: true,
-          justificacion: detalle.justificacion || "Descanso programado",
-          salario_dia: salarioFinal,
-          ...(ausenciaSalario.salarioBase !== null && {
-            salario_base: ausenciaSalario.salarioBase,
-          }),
-        };
-      });
-    },
-    [resolveAusenciaSalario],
-  );
 
   const aplicarDiasDoblesAuto = useCallback(
     (detalles, fechasDobles) => {
@@ -1775,91 +1564,6 @@ export const usePlanilla = () => {
     detalleDiasDobles.loading,
   ]);
 
-  useEffect(() => {
-    if (!modalOpen) {
-      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const { id_empleado, periodo_inicio, periodo_fin } = formData;
-
-    if (!id_empleado || !periodo_inicio || !periodo_fin) {
-      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const empleadoSeleccionado = empleados.find(
-      (empleado) => String(empleado.id_empleado) === String(id_empleado),
-    );
-
-    if (!empleadoSeleccionado) {
-      setDetalleDescansos({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
-    if (detalleDescansos.key === key) {
-      return;
-    }
-    let cancelado = false;
-
-    const fetchDescansos = async () => {
-      setDetalleDescansos({ key, loading: true, fechas: [], error: "" });
-
-      try {
-        const data = await descansosService.getSummary({
-          id_empleado,
-          periodo_inicio,
-          periodo_fin,
-        });
-        if (cancelado) return;
-
-        let fechasDescanso = Array.isArray(data?.fechas)
-          ? data.fechas
-              .map((fecha) => (typeof fecha === "string" ? fecha.trim() : ""))
-              .filter((fecha) => fecha.length > 0)
-          : [];
-
-        if (fechasDescanso.length === 0) {
-          try {
-            const configPayload = await descansoSemanalService.getByEmpleado(id_empleado);
-            fechasDescanso = buildDescansoFechasFromConfig({
-              ...configPayload,
-              periodo_inicio,
-              periodo_fin,
-            });
-          } catch (fallbackError) {
-            console.error(fallbackError);
-          }
-        }
-
-        setDetalleDescansos({ key, loading: false, fechas: fechasDescanso, error: "" });
-      } catch (err) {
-        if (cancelado) return;
-
-        const message =
-          err?.response?.data?.error ||
-          err?.message ||
-          "No se pudieron obtener los días de descanso del periodo.";
-        setDetalleDescansos({ key, loading: false, fechas: [], error: message });
-      }
-    };
-
-    fetchDescansos();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [
-    modalOpen,
-    formData.id_empleado,
-    formData.periodo_inicio,
-    formData.periodo_fin,
-    empleados,
-    detalleDescansos.key,
-    detalleDescansos.loading,
-  ]);
-
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
@@ -1988,12 +1692,9 @@ export const usePlanilla = () => {
       detalleAsistencia.key === keyNuevo ? detalleAsistencia.registros : [];
     const fechasDobles =
       matchesDetalleKey(detalleDiasDobles.key, keyNuevo) ? detalleDiasDobles.fechas : [];
-    const fechasDescanso =
-      detalleDescansos.key === keyNuevo ? detalleDescansos.fechas : [];
     const aplicarAsistencia = formData.es_automatica === "1";
 
     let nuevosDetalles = aplicarDiasDoblesAuto(nuevosDetallesBase, fechasDobles);
-    nuevosDetalles = aplicarDescansosAuto(nuevosDetalles, fechasDescanso);
     if (aplicarAsistencia) {
       nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
       nuevosDetalles = aplicarAsistenciaManual(nuevosDetalles, registrosAsistencia);
@@ -2026,13 +1727,10 @@ export const usePlanilla = () => {
     detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
-    detalleDescansos.key,
-    detalleDescansos.fechas,
     formData.es_automatica,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     aplicarPoliticaAusencias,
-    aplicarDescansosAuto,
   ]);
 
   useEffect(() => {
@@ -2050,8 +1748,6 @@ export const usePlanilla = () => {
       detalleAsistencia.key === keyActual ? detalleAsistencia.registros : null;
     const fechasDobles =
       matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : null;
-    const fechasDescanso =
-      detalleDescansos.key === keyActual ? detalleDescansos.fechas : null;
     const aplicarAsistencia = formData.es_automatica === "1";
 
     if (!keyJustificaciones || keyActual !== keyJustificaciones) {
@@ -2064,9 +1760,6 @@ export const usePlanilla = () => {
           let restaurados = aplicarJustificacionesAuto(prev, []);
           if (fechasDobles) {
             restaurados = aplicarDiasDoblesAuto(restaurados, fechasDobles);
-          }
-          if (fechasDescanso) {
-            restaurados = aplicarDescansosAuto(restaurados, fechasDescanso);
           }
           if (fechasAsistencia && aplicarAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
@@ -2096,9 +1789,6 @@ export const usePlanilla = () => {
       if (fechasDobles) {
         aplicados = aplicarDiasDoblesAuto(aplicados, fechasDobles);
       }
-      if (fechasDescanso) {
-        aplicados = aplicarDescansosAuto(aplicados, fechasDescanso);
-      }
       if (fechasAsistencia && aplicarAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
         aplicados = aplicarAsistenciaManual(aplicados, registrosAsistencia || []);
@@ -2122,12 +1812,9 @@ export const usePlanilla = () => {
     detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
-    detalleDescansos.key,
-    detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
     aplicarAsistenciaManual,
     aplicarDiasDoblesAuto,
-    aplicarDescansosAuto,
     aplicarPoliticaAusencias,
     formData.es_automatica,
   ]);
@@ -2789,11 +2476,8 @@ export const usePlanilla = () => {
         detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : [];
       const fechasDobles =
         matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : [];
-      const fechasDescanso =
-        detalleDescansos.key === keyActual ? detalleDescansos.fechas : [];
 
       let detallesRestaurados = aplicarDiasDoblesAuto(detallesBase, fechasDobles);
-      detallesRestaurados = aplicarDescansosAuto(detallesRestaurados, fechasDescanso);
       detallesRestaurados = aplicarAsistenciaDetalle(detallesRestaurados, fechasAsistencia);
       detallesRestaurados = aplicarAsistenciaManual(
         detallesRestaurados,
@@ -2850,12 +2534,9 @@ export const usePlanilla = () => {
     detalleAsistencia.registros,
     detalleDiasDobles.key,
     detalleDiasDobles.fechas,
-    detalleDescansos.key,
-    detalleDescansos.fechas,
     aplicarAsistenciaDetalle,
     aplicarAsistenciaManual,
     aplicarDiasDoblesAuto,
-    aplicarDescansosAuto,
     aplicarPoliticaAusencias,
   ]);
 

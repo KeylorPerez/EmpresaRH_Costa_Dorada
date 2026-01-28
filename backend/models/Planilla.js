@@ -7,7 +7,12 @@ const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
-const { addDays, buildDescansoResolver, parseUtcDate } = require('../utils/descansoHelper');
+const parseUtcDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
 
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
@@ -84,27 +89,7 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
-const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
-  const inicio = parseUtcDate(periodo_inicio);
-  const fin = parseUtcDate(periodo_fin);
-  if (!inicio || !fin || fin < inicio) return 0;
-
-  const resolveDescanso = await buildDescansoResolver(id_empleado, inicio, fin);
-  if (!resolveDescanso) return 0;
-
-  let cursor = new Date(inicio.getTime());
-  let descansoDias = 0;
-
-  while (cursor <= fin) {
-    const { es_descanso } = resolveDescanso(cursor);
-    if (es_descanso) {
-      descansoDias += 1;
-    }
-    cursor = addDays(cursor, 1);
-  }
-
-  return descansoDias;
-};
+const countDescansoDays = async () => 0;
 
 const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);

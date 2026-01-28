@@ -21,7 +21,6 @@ const liquidacionRoutes = require('./routes/liquidacionRoutes');
 const puestoRoutes = require('./routes/puestoRoutes');
 const aguinaldoRoutes = require('./routes/aguinaldoRoutes');
 const diasDoblesRoutes = require('./routes/diasDoblesRoutes');
-const descansoSemanalRoutes = require('./routes/descansoSemanalRoutes');
 const Planilla = require('./models/Planilla');
 const DetallePlanilla = require('./models/DetallePlanilla');
 
@@ -68,7 +67,6 @@ app.use('/api/liquidaciones', liquidacionRoutes);
 app.use('/api/puestos', puestoRoutes);
 app.use('/api/aguinaldos', aguinaldoRoutes);
 app.use('/api/dias-dobles', diasDoblesRoutes);
-app.use('/api/descansos', descansoSemanalRoutes);
 
 // Puerto
 const PORT = process.env.PORT || 3000;
