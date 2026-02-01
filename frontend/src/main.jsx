@@ -14,8 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </HashRouter>
   </React.StrictMode>
 );
-const isElectron = window.electron?.isElectron;
-if ("serviceWorker" in navigator && !isElectron) {
+if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js", { updateViaCache: "none" })
