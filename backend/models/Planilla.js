@@ -5,6 +5,7 @@
 const { poolPromise, sql } = require('../db/db');
 const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
+const DescansoConfig = require('./DescansoConfig');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
 const parseUtcDate = (value) => {
@@ -89,7 +90,91 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
-const countDescansoDays = async () => 0;
+const resolveDescansoPeriod = (fecha, config) => {
+  if (!fecha || !config) return null;
+  const tipoPatron = String(config.tipo_patron || '').trim().toUpperCase();
+  if (tipoPatron !== 'ALTERNADO') {
+    return 'A';
+  }
+
+  const fechaBase = parseUtcDate(config.fecha_base);
+  if (!fechaBase) return 'A';
+
+  const ciclo = String(config.ciclo || '').trim().toUpperCase();
+  const cicloDias = ciclo === 'QUINCENAL' ? 15 : 7;
+  if (!Number.isFinite(cicloDias) || cicloDias <= 0) {
+    return 'A';
+  }
+
+  const diffDays = Math.floor((fecha.getTime() - fechaBase.getTime()) / MS_POR_DIA);
+  const periodIndex = Math.floor(diffDays / cicloDias);
+  const parity = ((periodIndex % 2) + 2) % 2;
+  return parity === 0 ? 'A' : 'B';
+};
+
+const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
+  if (!id_empleado || !periodo_inicio || !periodo_fin) {
+    return 0;
+  }
+
+  const descansoConfig = await DescansoConfig.getByEmpleadoId(id_empleado);
+  if (!descansoConfig) {
+    return 0;
+  }
+
+  const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
+  const diasA = new Set();
+  const diasB = new Set();
+
+  if (Array.isArray(descansoDias)) {
+    descansoDias.forEach((dia) => {
+      if (!dia || !dia.es_descanso) return;
+      const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
+      const diaSemana = Number(dia.dia_semana);
+      if (!Number.isInteger(diaSemana) || diaSemana < 0 || diaSemana > 6) return;
+      if (periodo === 'B') {
+        diasB.add(diaSemana);
+      } else {
+        diasA.add(diaSemana);
+      }
+    });
+  }
+
+  if (diasA.size === 0 && diasB.size === 0) {
+    return 0;
+  }
+
+  const inicioVigencia = parseUtcDate(descansoConfig.fecha_inicio_vigencia);
+  const finVigencia = parseUtcDate(descansoConfig.fecha_fin_vigencia);
+  const fechaInicio = parseUtcDate(periodo_inicio);
+  const fechaFin = parseUtcDate(periodo_fin);
+
+  if (!inicioVigencia || !fechaInicio || !fechaFin) {
+    return 0;
+  }
+
+  let cursor = fechaInicio > inicioVigencia ? fechaInicio : inicioVigencia;
+  const limite = finVigencia && finVigencia < fechaFin ? finVigencia : fechaFin;
+
+  if (cursor > limite) {
+    return 0;
+  }
+
+  let total = 0;
+  const alternado = String(descansoConfig.tipo_patron || '').trim().toUpperCase() === 'ALTERNADO'
+    && diasB.size > 0;
+
+  while (cursor <= limite) {
+    const periodo = alternado ? resolveDescansoPeriod(cursor, descansoConfig) : 'A';
+    const set = periodo === 'B' ? diasB : diasA;
+    if (set.has(cursor.getUTCDay())) {
+      total += 1;
+    }
+    cursor = new Date(cursor.getTime() + MS_POR_DIA);
+  }
+
+  return total;
+};
 
 const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
