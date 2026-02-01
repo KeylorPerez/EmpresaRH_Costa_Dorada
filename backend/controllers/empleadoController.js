@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const Empleado = require('../models/Empleado');
+const DescansoConfig = require('../models/DescansoConfig');
 const { sql, poolPromise } = require('../db/db');
 
 const { promises: fsPromises } = fs;
@@ -462,7 +463,33 @@ const getEmpleadoById = async (req, res) => {
     const empleado = await Empleado.getById(id);
     if (!empleado) return res.status(404).json({ error: 'Empleado no encontrado o inactivo' });
 
-    res.json(empleado);
+    const descansoConfig = await DescansoConfig.getByEmpleadoId(id);
+    if (!descansoConfig) {
+      return res.json(empleado);
+    }
+
+    const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
+    const diasAgrupados = descansoDias.reduce(
+      (acc, dia) => {
+        const periodo = dia.periodo_tipo?.toUpperCase();
+        if (!['A', 'B'].includes(periodo)) {
+          return acc;
+        }
+        if (dia.es_descanso) {
+          acc[periodo].push(dia.dia_semana);
+        }
+        return acc;
+      },
+      { A: [], B: [] }
+    );
+
+    res.json({
+      ...empleado,
+      descanso_config: {
+        ...descansoConfig,
+        dias: diasAgrupados,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -494,6 +521,99 @@ const parseFlagValue = (value, defaultValue = null) => {
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
+const normalizeDateInput = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+};
+
+const normalizeDescansoDays = (value) => {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    )
+  ).sort((a, b) => a - b);
+};
+
+const buildDescansoDiasEntries = ({ tipo_patron, diasA = [], diasB = [] }) => {
+  const entries = [];
+  const daysMap = [
+    { periodo: 'A', dias: diasA },
+    { periodo: 'B', dias: diasB },
+  ];
+
+  daysMap.forEach(({ periodo, dias }) => {
+    if (periodo === 'B' && tipo_patron !== 'ALTERNADO') {
+      return;
+    }
+    const selected = new Set(dias);
+    for (let dia = 0; dia <= 6; dia += 1) {
+      entries.push({
+        periodo_tipo: periodo,
+        dia_semana: dia,
+        es_descanso: selected.has(dia),
+      });
+    }
+  });
+
+  return entries;
+};
+
+const normalizeDescansoConfig = (payload) => {
+  if (!payload) return null;
+
+  const tipoPatronRaw = String(payload.tipo_patron || '').trim().toUpperCase();
+  const cicloRaw = String(payload.ciclo || '').trim().toUpperCase();
+  const fechaInicio = normalizeDateInput(payload.fecha_inicio_vigencia);
+  const fechaFin = normalizeDateInput(payload.fecha_fin_vigencia);
+  const fechaBase = normalizeDateInput(payload.fecha_base);
+
+  if (!['FIJO', 'ALTERNADO'].includes(tipoPatronRaw)) {
+    return { error: 'Tipo de patrón de descanso inválido' };
+  }
+
+  if (!['SEMANAL', 'QUINCENAL'].includes(cicloRaw)) {
+    return { error: 'Ciclo de descanso inválido' };
+  }
+
+  if (!fechaInicio || !fechaBase) {
+    return { error: 'Las fechas de vigencia y base de descanso son obligatorias' };
+  }
+
+  if (fechaFin && fechaFin < fechaInicio) {
+    return { error: 'La fecha fin de vigencia debe ser posterior a la fecha de inicio' };
+  }
+
+  const diasA = normalizeDescansoDays(payload?.dias?.A || payload?.dias?.a);
+  const diasB = normalizeDescansoDays(payload?.dias?.B || payload?.dias?.b);
+
+  if (diasA.length === 0) {
+    return { error: 'Selecciona al menos un día de descanso en el periodo A' };
+  }
+
+  if (tipoPatronRaw === 'ALTERNADO' && diasB.length === 0) {
+    return { error: 'Selecciona al menos un día de descanso en el periodo B' };
+  }
+
+  return {
+    config: {
+      tipo_patron: tipoPatronRaw,
+      ciclo: cicloRaw,
+      fecha_inicio_vigencia: fechaInicio,
+      fecha_fin_vigencia: fechaFin,
+      fecha_base: fechaBase,
+    },
+    dias: buildDescansoDiasEntries({ tipo_patron: tipoPatronRaw, diasA, diasB }),
+  };
+};
+
 // Crear un nuevo empleado (solo admin)
 const createEmpleado = async (req, res) => {
   try {
@@ -515,6 +635,7 @@ const createEmpleado = async (req, res) => {
       permitir_marcacion_fuera,
       planilla_automatica,
       es_automatica,
+      descanso_config,
     } = req.body;
 
     const puestoId = Number(id_puesto);
@@ -579,6 +700,11 @@ const createEmpleado = async (req, res) => {
         : es_automatica;
 
     const planillaAutomaticaValue = parseFlagValue(planillaAutomaticaRaw, false);
+    const normalizedDescanso = normalizeDescansoConfig(descanso_config);
+
+    if (normalizedDescanso?.error) {
+      return res.status(400).json({ error: normalizedDescanso.error });
+    }
 
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
@@ -607,6 +733,19 @@ const createEmpleado = async (req, res) => {
         },
         { transaction }
       );
+
+      if (normalizedDescanso) {
+        const config = await DescansoConfig.create(
+          {
+            id_empleado: empleado.id_empleado,
+            ...normalizedDescanso.config,
+          },
+          { transaction }
+        );
+        await DescansoConfig.replaceDias(config.id_config, normalizedDescanso.dias, {
+          transaction,
+        });
+      }
 
       await transaction.commit();
     } catch (err) {
@@ -652,7 +791,8 @@ const updateEmpleado = async (req, res) => {
       permitir_marcacion_fuera,
       planilla_automatica,
       es_automatica,
-      estado
+      estado,
+      descanso_config
     } = req.body;
 
     if (tipo_pago && !['Diario', 'Quincenal', 'Mensual'].includes(tipo_pago)) {
@@ -700,50 +840,82 @@ const updateEmpleado = async (req, res) => {
         : es_automatica;
 
     const planillaAutomaticaValue = parseFlagValue(planillaAutomaticaRaw, null);
+    const normalizedDescanso = normalizeDescansoConfig(descanso_config);
+
+    if (normalizedDescanso?.error) {
+      return res.status(400).json({ error: normalizedDescanso.error });
+    }
     const pool = await poolPromise;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
     try {
-      await Empleado.update(id, {
-      nombre,
-      apellido,
-      id_puesto,
-      cedula,
-      fecha_nacimiento: fecha_nacimiento || null,
-      telefono: telefono || null,
-      email: email || null,
-      fecha_ingreso,
-      salario_monto,
-      tipo_pago,
-      bonificacion_fija: bonificacionValue,
-      porcentaje_ccss: porcentajeValue,
-      usa_deduccion_fija:
-        usaDeduccionFijaValue === null
-          ? null
-          : usaDeduccionFijaValue
-          ? 1
-          : 0,
-      deduccion_fija:
-        deduccionFijaValue === null
-          ? null
-          : usaDeduccionFijaValue
-          ? deduccionFijaValue || 0
-          : 0,
-      permitir_marcacion_fuera:
-        permitirMarcacionFueraValue === null
-          ? null
-          : permitirMarcacionFueraValue
-          ? 1
-          : 0,
-      planilla_automatica:
-        planillaAutomaticaValue === null
-          ? null
-          : planillaAutomaticaValue
-          ? 1
-          : 0,
-      estado
-      }, { transaction });
+      await Empleado.update(
+        id,
+        {
+          nombre,
+          apellido,
+          id_puesto,
+          cedula,
+          fecha_nacimiento: fecha_nacimiento || null,
+          telefono: telefono || null,
+          email: email || null,
+          fecha_ingreso,
+          salario_monto,
+          tipo_pago,
+          bonificacion_fija: bonificacionValue,
+          porcentaje_ccss: porcentajeValue,
+          usa_deduccion_fija:
+            usaDeduccionFijaValue === null
+              ? null
+              : usaDeduccionFijaValue
+              ? 1
+              : 0,
+          deduccion_fija:
+            deduccionFijaValue === null
+              ? null
+              : usaDeduccionFijaValue
+              ? deduccionFijaValue || 0
+              : 0,
+          permitir_marcacion_fuera:
+            permitirMarcacionFueraValue === null
+              ? null
+              : permitirMarcacionFueraValue
+              ? 1
+              : 0,
+          planilla_automatica:
+            planillaAutomaticaValue === null
+              ? null
+              : planillaAutomaticaValue
+              ? 1
+              : 0,
+          estado,
+        },
+        { transaction }
+      );
+
+      if (normalizedDescanso) {
+        const existingConfig = await DescansoConfig.getByEmpleadoId(id, { transaction });
+        if (existingConfig) {
+          await DescansoConfig.update(existingConfig.id_config, normalizedDescanso.config, {
+            transaction,
+          });
+          await DescansoConfig.replaceDias(existingConfig.id_config, normalizedDescanso.dias, {
+            transaction,
+          });
+        } else {
+          const config = await DescansoConfig.create(
+            {
+              id_empleado: id,
+              ...normalizedDescanso.config,
+            },
+            { transaction }
+          );
+          await DescansoConfig.replaceDias(config.id_config, normalizedDescanso.dias, {
+            transaction,
+          });
+        }
+      }
 
       await transaction.commit();
     } catch (err) {

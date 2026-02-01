@@ -24,6 +24,17 @@ const normalizeFlag = (value, fallback = "0") => {
   return numericValue === 1 ? "1" : "0";
 };
 
+const normalizeDescansoDays = (value) => {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    )
+  ).sort((a, b) => a - b);
+};
+
 const createEmptyFormData = () => ({
   nombre: "",
   apellido: "",
@@ -42,6 +53,13 @@ const createEmptyFormData = () => ({
   permitir_marcacion_fuera: "0",
   planilla_automatica: "1",
   estado: "1", // 👈 por defecto activo
+  descanso_tipo_patron: "FIJO",
+  descanso_ciclo: "SEMANAL",
+  descanso_fecha_inicio_vigencia: "",
+  descanso_fecha_fin_vigencia: "",
+  descanso_fecha_base: "",
+  descanso_dias_A: [],
+  descanso_dias_B: [],
 });
 
 export const useEmpleado = () => {
@@ -89,7 +107,23 @@ export const useEmpleado = () => {
       if (name === "usa_deduccion_fija" && value !== "1") {
         return { ...prev, [name]: value, deduccion_fija: "0" };
       }
+      if (name === "descanso_tipo_patron" && value !== "ALTERNADO") {
+        return { ...prev, [name]: value, descanso_dias_B: [] };
+      }
       return { ...prev, [name]: value };
+    });
+  };
+
+  const toggleDescansoDia = (periodo, dia) => {
+    setFormData((prev) => {
+      const key = periodo === "B" ? "descanso_dias_B" : "descanso_dias_A";
+      const current = new Set(prev[key] || []);
+      if (current.has(dia)) {
+        current.delete(dia);
+      } else {
+        current.add(dia);
+      }
+      return { ...prev, [key]: Array.from(current).sort((a, b) => a - b) };
     });
   };
 
@@ -106,6 +140,8 @@ export const useEmpleado = () => {
         { value: formData.fecha_ingreso, label: "Fecha de ingreso" },
         { value: formData.salario_monto, label: "Salario base" },
         { value: formData.tipo_pago, label: "Tipo de pago" },
+        { value: formData.descanso_fecha_inicio_vigencia, label: "Inicio vigencia descanso" },
+        { value: formData.descanso_fecha_base, label: "Fecha base descanso" },
       ];
 
       const missingFields = requiredFields
@@ -152,6 +188,17 @@ export const useEmpleado = () => {
         return;
       }
 
+      const descansoDiasA = normalizeDescansoDays(formData.descanso_dias_A);
+      const descansoDiasB = normalizeDescansoDays(formData.descanso_dias_B);
+      if (descansoDiasA.length === 0) {
+        setError("Selecciona al menos un día de descanso en el periodo A");
+        return;
+      }
+      if (formData.descanso_tipo_patron === "ALTERNADO" && descansoDiasB.length === 0) {
+        setError("Selecciona al menos un día de descanso en el periodo B");
+        return;
+      }
+
       const normalizedTelefono = (formData.telefono || "").trim();
       const normalizedEmail = (formData.email || "").trim();
 
@@ -171,6 +218,17 @@ export const useEmpleado = () => {
         planilla_automatica: formData.planilla_automatica === "1" ? 1 : 0,
         telefono: normalizedTelefono === "" ? null : normalizedTelefono,
         email: normalizedEmail === "" ? null : normalizedEmail,
+        descanso_config: {
+          tipo_patron: formData.descanso_tipo_patron,
+          ciclo: formData.descanso_ciclo,
+          fecha_inicio_vigencia: formData.descanso_fecha_inicio_vigencia,
+          fecha_fin_vigencia: formData.descanso_fecha_fin_vigencia || null,
+          fecha_base: formData.descanso_fecha_base,
+          dias: {
+            A: descansoDiasA,
+            B: descansoDiasB,
+          },
+        },
       };
 
       if (formData.fecha_nacimiento) payload.fecha_nacimiento = formData.fecha_nacimiento;
@@ -195,43 +253,59 @@ export const useEmpleado = () => {
   };
 
   const handleEdit = async (empleado) => {
-    setEditingEmpleado(empleado);
-    setFormData({
-      nombre: empleado.nombre || "",
-      apellido: empleado.apellido || "",
-      id_puesto: empleado.id_puesto ? String(empleado.id_puesto) : "",
-      cedula: empleado.cedula || "",
-      fecha_nacimiento: normalizeDate(empleado.fecha_nacimiento),
-      telefono: empleado.telefono || "",
-      email: empleado.email || "",
-      fecha_ingreso: normalizeDate(empleado.fecha_ingreso),
-      salario_monto:
-        empleado.salario_monto !== undefined && empleado.salario_monto !== null
-          ? String(empleado.salario_monto)
-          : "",
-      tipo_pago: normalizeTipoPago(empleado.tipo_pago || "Diario"),
-      bonificacion_fija:
-        empleado.bonificacion_fija !== undefined && empleado.bonificacion_fija !== null
-          ? String(empleado.bonificacion_fija)
-          : "0",
-      porcentaje_ccss:
-        empleado.porcentaje_ccss !== undefined && empleado.porcentaje_ccss !== null
-          ? String(empleado.porcentaje_ccss)
-          : "9.34",
-      usa_deduccion_fija: normalizeFlag(empleado.usa_deduccion_fija),
-      deduccion_fija:
-        empleado.deduccion_fija !== undefined && empleado.deduccion_fija !== null
-          ? String(empleado.deduccion_fija)
-          : "0",
-      permitir_marcacion_fuera: normalizeFlag(empleado.permitir_marcacion_fuera),
-      planilla_automatica:
-        normalizeFlag(
-          empleado.es_automatica,
-          normalizeFlag(empleado.planilla_automatica)
-        ) || "0",
-      estado: normalizeFlag(empleado.estado),
-    });
-    setModalOpen(true);
+    try {
+      const detalle = await empleadoService.getById(empleado.id_empleado);
+      const descansoConfig = detalle?.descanso_config;
+      setEditingEmpleado(empleado);
+      setFormData({
+        nombre: detalle.nombre || "",
+        apellido: detalle.apellido || "",
+        id_puesto: detalle.id_puesto ? String(detalle.id_puesto) : "",
+        cedula: detalle.cedula || "",
+        fecha_nacimiento: normalizeDate(detalle.fecha_nacimiento),
+        telefono: detalle.telefono || "",
+        email: detalle.email || "",
+        fecha_ingreso: normalizeDate(detalle.fecha_ingreso),
+        salario_monto:
+          detalle.salario_monto !== undefined && detalle.salario_monto !== null
+            ? String(detalle.salario_monto)
+            : "",
+        tipo_pago: normalizeTipoPago(detalle.tipo_pago || "Diario"),
+        bonificacion_fija:
+          detalle.bonificacion_fija !== undefined && detalle.bonificacion_fija !== null
+            ? String(detalle.bonificacion_fija)
+            : "0",
+        porcentaje_ccss:
+          detalle.porcentaje_ccss !== undefined && detalle.porcentaje_ccss !== null
+            ? String(detalle.porcentaje_ccss)
+            : "9.34",
+        usa_deduccion_fija: normalizeFlag(detalle.usa_deduccion_fija),
+        deduccion_fija:
+          detalle.deduccion_fija !== undefined && detalle.deduccion_fija !== null
+            ? String(detalle.deduccion_fija)
+            : "0",
+        permitir_marcacion_fuera: normalizeFlag(detalle.permitir_marcacion_fuera),
+        planilla_automatica:
+          normalizeFlag(
+            detalle.es_automatica,
+            normalizeFlag(detalle.planilla_automatica)
+          ) || "0",
+        estado: normalizeFlag(detalle.estado),
+        descanso_tipo_patron: descansoConfig?.tipo_patron || "FIJO",
+        descanso_ciclo: descansoConfig?.ciclo || "SEMANAL",
+        descanso_fecha_inicio_vigencia: normalizeDate(
+          descansoConfig?.fecha_inicio_vigencia
+        ),
+        descanso_fecha_fin_vigencia: normalizeDate(descansoConfig?.fecha_fin_vigencia),
+        descanso_fecha_base: normalizeDate(descansoConfig?.fecha_base),
+        descanso_dias_A: normalizeDescansoDays(descansoConfig?.dias?.A || []),
+        descanso_dias_B: normalizeDescansoDays(descansoConfig?.dias?.B || []),
+      });
+      setModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      setError("No fue posible cargar la información del empleado.");
+    }
   };
 
   const resetForm = () => {
@@ -388,6 +462,7 @@ export const useEmpleado = () => {
     exportingFormat,
     exportEmpleados,
     shareEmpleados,
+    toggleDescansoDia,
   };
 };
 

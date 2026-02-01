@@ -28,6 +28,7 @@ const Empleados = ({ mode = "admin" }) => {
     exportingFormat,
     exportEmpleados,
     shareEmpleados,
+    toggleDescansoDia,
   } = useEmpleado();
 
   const isAdmin = mode === "admin";
@@ -39,6 +40,15 @@ const Empleados = ({ mode = "admin" }) => {
   const pageSubtitle = isAdmin
     ? "Administra y gestiona la información del personal registrado en el sistema."
     : "Consulta tus datos laborales registrados en el sistema.";
+  const daysOfWeek = [
+    { value: 0, label: "Domingo" },
+    { value: 1, label: "Lunes" },
+    { value: 2, label: "Martes" },
+    { value: 3, label: "Miércoles" },
+    { value: 4, label: "Jueves" },
+    { value: 5, label: "Viernes" },
+    { value: 6, label: "Sábado" },
+  ];
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -98,6 +108,7 @@ const Empleados = ({ mode = "admin" }) => {
   const isExportingExcel = exportingFormat === "excel";
   const exportDisabled = loading || Boolean(exportingFormat);
   const columnsCount = isAdmin ? 14 : 13;
+  const showPeriodoB = formData.descanso_tipo_patron === "ALTERNADO";
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
@@ -621,6 +632,133 @@ const Empleados = ({ mode = "admin" }) => {
                         </select>
                       </div>
                     )}
+                  </section>
+
+                  <section className="border-t pt-4">
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Configuración de descanso
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Define el patrón y los días de descanso para el colaborador.
+                      </p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tipo de patrón
+                        </label>
+                        <select
+                          name="descanso_tipo_patron"
+                          value={formData.descanso_tipo_patron}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                          required
+                        >
+                          <option value="FIJO">Fijo</option>
+                          <option value="ALTERNADO">Alternado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Ciclo
+                        </label>
+                        <select
+                          name="descanso_ciclo"
+                          value={formData.descanso_ciclo}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                          required
+                        >
+                          <option value="SEMANAL">Semanal</option>
+                          <option value="QUINCENAL">Quincenal</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Fecha base
+                        </label>
+                        <input
+                          type="date"
+                          name="descanso_fecha_base"
+                          value={formData.descanso_fecha_base}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Inicio de vigencia
+                        </label>
+                        <input
+                          type="date"
+                          name="descanso_fecha_inicio_vigencia"
+                          value={formData.descanso_fecha_inicio_vigencia}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Fin de vigencia (opcional)
+                        </label>
+                        <input
+                          type="date"
+                          name="descanso_fecha_fin_vigencia"
+                          value={formData.descanso_fecha_fin_vigencia}
+                          onChange={handleChange}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 mt-4 md:grid-cols-2">
+                      <div className="border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-gray-600 mb-2">
+                          Periodo A
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {daysOfWeek.map((day) => (
+                            <label
+                              key={`descanso-A-${day.value}`}
+                              className="flex items-center gap-2 text-sm text-gray-600"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.descanso_dias_A.includes(day.value)}
+                                onChange={() => toggleDescansoDia("A", day.value)}
+                                className="h-4 w-4"
+                              />
+                              {day.label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      {showPeriodoB && (
+                        <div className="border border-gray-200 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                            Periodo B
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {daysOfWeek.map((day) => (
+                              <label
+                                key={`descanso-B-${day.value}`}
+                                className="flex items-center gap-2 text-sm text-gray-600"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.descanso_dias_B.includes(day.value)}
+                                  onChange={() => toggleDescansoDia("B", day.value)}
+                                  className="h-4 w-4"
+                                />
+                                {day.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </section>
 
                   <div className="flex justify-end gap-2">
