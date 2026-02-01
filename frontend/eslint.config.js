@@ -10,29 +10,10 @@ export default defineConfig([
   globalIgnores(['dist']),
 
   // ============================
-  // 🔹 CONFIGURACIÓN PARA ELECTRON (main.js, preload.js)
-  // ============================
-  {
-    files: ['electron/**/*.js'],
-    languageOptions: {
-      globals: {
-        ...globals.node,   // ✔ habilita require, module, __dirname, etc.
-      },
-      ecmaVersion: 2020,
-      sourceType: 'script',
-    },
-    rules: {
-      // Reglas específicas para Node/Electron
-      'no-undef': 'off', // evita errores falsos de require/__dirname
-    },
-  },
-
-  // ============================
   // 🔹 CONFIGURACIÓN PARA FRONTEND (React)
   // ============================
   {
     files: ['**/*.{js,jsx}'],
-    ignores: ['electron/**/*.js'],
     extends: [
       js.configs.recommended,
       reactHooks.configs['recommended-latest'],

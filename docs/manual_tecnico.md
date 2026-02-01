@@ -71,7 +71,7 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
   `VITE_BUSINESS_LONGITUDE` y `VITE_BUSINESS_RADIUS_METERS` para mostrar al usuario la zona de
   marcación configurada en el backend.
 - **Stack:** React 19 con React Router 7, Axios para HTTP, Tailwind 4 para estilos.
-- **Router:** se utiliza `HashRouter` para mantener compatibilidad entre PWA, servidores estáticos y el empaquetado con Electron.
+- **Router:** se utiliza `HashRouter` para mantener compatibilidad entre PWA y servidores estáticos.
 
 ### 3.2 Ruteo y autorización
 - `src/routes/AppRouter.jsx` define todas las rutas y aplica `PrivateRoute`, que recibe `allowedRoles` y redirige a `/login` si no hay sesión válida. Rutas destacadas:
@@ -89,7 +89,7 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
 
 ### 3.5 Progressive Web App (PWA)
 - **Manifest y assets:** `frontend/manifest.json` define nombre corto, colores y los íconos (`/icons/icon-192.png` y `/icons/icon-512.png`). El `start_url` y `scope` son `/` para permitir instalación en dominio raíz.
-- **Service Worker:** `public/sw.js` aplica estrategia _online-first_ y se registra en `src/main.jsx` tras el evento `load` cuando corre en navegador. La detección de `window.electron?.isElectron` evita registrar el SW dentro del empaquetado de escritorio.
+- **Service Worker:** `public/sw.js` aplica estrategia _online-first_ y se registra en `src/main.jsx` tras el evento `load` cuando corre en navegador.
 - **Instalación:** en producción, servir los assets estáticos de `dist` asegurando que `manifest.json` y `sw.js` sean accesibles en la raíz del dominio. Navegadores compatibles ofrecerán la instalación como app.
 
 ## 4. Ejecución local
@@ -107,9 +107,3 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
 - Si las peticiones devuelven 401/403, verificar validez del token y estado del usuario en BD.
 - Ante errores de base de datos, validar que los tipos enviados desde el frontend coincidan con los definidos en los modelos (por ejemplo, `Decimal(12,2)` para montos salariales).
 - Usar `npm run lint` en frontend para detectar problemas de código antes de compilar.
-
-## 7. Aplicación de escritorio (Electron)
-- **Propósito:** reutiliza el frontend como aplicación de escritorio empaquetada con Electron. El archivo de entrada es `frontend/electron/main.js` y expone un contexto mínimo en `preload.js` (`window.electron.isElectron`).
-- **Desarrollo:** ejecutar `npm run electron:dev` en `frontend` (lanza Vite y Electron en paralelo; requiere `wait-on`).
-- **Build de escritorio:** `npm run electron:build` genera el instalador (target `nsis` para Windows) usando `electron-builder` y empaqueta el build de Vite (`dist`) junto a los archivos de `electron/` y los recursos en `assets/`.
-- **Consideraciones:** el service worker no se registra dentro de Electron (se detecta `isElectron`), y `HashRouter` evita problemas de ruteo al cargar archivos locales.
