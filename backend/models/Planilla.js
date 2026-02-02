@@ -5,7 +5,6 @@
 const { poolPromise, sql } = require('../db/db');
 const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
-const DescansoConfig = require('./DescansoConfig');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
 const parseUtcDate = (value) => {
@@ -18,13 +17,6 @@ const parseUtcDate = (value) => {
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
-const normalizeDiaSemana = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return null;
-  if (numeric === 7) return 0;
-  if (Number.isInteger(numeric) && numeric >= 0 && numeric <= 6) return numeric;
-  return null;
-};
 
 const planillaSchemaState = {
   checked: false,
@@ -97,163 +89,6 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
-const resolveDescansoPeriod = (fecha, config) => {
-  if (!fecha || !config) return null;
-  const tipoPatron = String(config.tipo_patron || '').trim().toUpperCase();
-  if (tipoPatron !== 'ALTERNADO') {
-    return 'A';
-  }
-
-  const fechaBase = parseUtcDate(config.fecha_base);
-  if (!fechaBase) return 'A';
-
-  const ciclo = String(config.ciclo || '').trim().toUpperCase();
-  const cicloDias = ciclo === 'QUINCENAL' ? 15 : 7;
-  if (!Number.isFinite(cicloDias) || cicloDias <= 0) {
-    return 'A';
-  }
-
-  const diffDays = Math.floor((fecha.getTime() - fechaBase.getTime()) / MS_POR_DIA);
-  const periodIndex = Math.floor(diffDays / cicloDias);
-  const parity = ((periodIndex % 2) + 2) % 2;
-  return parity === 0 ? 'A' : 'B';
-};
-
-const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
-  if (!id_empleado || !periodo_inicio || !periodo_fin) {
-    return 0;
-  }
-
-  const descansoConfig = await DescansoConfig.getByEmpleadoIdForPeriodo(
-    id_empleado,
-    periodo_inicio,
-    periodo_fin
-  );
-  if (!descansoConfig) {
-    return 0;
-  }
-
-  const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
-  const diasA = new Set();
-  const diasB = new Set();
-
-  if (Array.isArray(descansoDias)) {
-    descansoDias.forEach((dia) => {
-      if (!dia || !dia.es_descanso) return;
-      const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
-      const diaSemana = normalizeDiaSemana(dia.dia_semana);
-      if (diaSemana === null) return;
-      if (periodo === 'B') {
-        diasB.add(diaSemana);
-      } else {
-        diasA.add(diaSemana);
-      }
-    });
-  }
-
-  if (diasA.size === 0 && diasB.size === 0) {
-    return 0;
-  }
-
-  const inicioVigencia = parseUtcDate(descansoConfig.fecha_inicio_vigencia);
-  const finVigencia = parseUtcDate(descansoConfig.fecha_fin_vigencia);
-  const fechaInicio = parseUtcDate(periodo_inicio);
-  const fechaFin = parseUtcDate(periodo_fin);
-
-  if (!inicioVigencia || !fechaInicio || !fechaFin) {
-    return 0;
-  }
-
-  let cursor = fechaInicio > inicioVigencia ? fechaInicio : inicioVigencia;
-  const limite = finVigencia && finVigencia < fechaFin ? finVigencia : fechaFin;
-
-  if (cursor > limite) {
-    return 0;
-  }
-
-  let total = 0;
-  const alternado = String(descansoConfig.tipo_patron || '').trim().toUpperCase() === 'ALTERNADO'
-    && diasB.size > 0;
-
-  while (cursor <= limite) {
-    const periodo = alternado ? resolveDescansoPeriod(cursor, descansoConfig) : 'A';
-    const set = periodo === 'B' ? diasB : diasA;
-    if (set.has(cursor.getUTCDay())) {
-      total += 1;
-    }
-    cursor = new Date(cursor.getTime() + MS_POR_DIA);
-  }
-
-  return total;
-};
-
-const buildDescansoFechaSet = async (id_empleado, periodo_inicio, periodo_fin) => {
-  if (!id_empleado || !periodo_inicio || !periodo_fin) {
-    return new Set();
-  }
-
-  const descansoConfig = await DescansoConfig.getByEmpleadoIdForPeriodo(
-    id_empleado,
-    periodo_inicio,
-    periodo_fin
-  );
-  if (!descansoConfig) {
-    return new Set();
-  }
-
-  const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
-  const diasA = new Set();
-  const diasB = new Set();
-
-  if (Array.isArray(descansoDias)) {
-    descansoDias.forEach((dia) => {
-      if (!dia || !dia.es_descanso) return;
-      const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
-      const diaSemana = normalizeDiaSemana(dia.dia_semana);
-      if (diaSemana === null) return;
-      if (periodo === 'B') {
-        diasB.add(diaSemana);
-      } else {
-        diasA.add(diaSemana);
-      }
-    });
-  }
-
-  if (diasA.size === 0 && diasB.size === 0) {
-    return new Set();
-  }
-
-  const inicioVigencia = parseUtcDate(descansoConfig.fecha_inicio_vigencia);
-  const finVigencia = parseUtcDate(descansoConfig.fecha_fin_vigencia);
-  const fechaInicio = parseUtcDate(periodo_inicio);
-  const fechaFin = parseUtcDate(periodo_fin);
-
-  if (!inicioVigencia || !fechaInicio || !fechaFin) {
-    return new Set();
-  }
-
-  let cursor = fechaInicio > inicioVigencia ? fechaInicio : inicioVigencia;
-  const limite = finVigencia && finVigencia < fechaFin ? finVigencia : fechaFin;
-
-  if (cursor > limite) {
-    return new Set();
-  }
-
-  const descansos = new Set();
-  const alternado = String(descansoConfig.tipo_patron || '').trim().toUpperCase() === 'ALTERNADO'
-    && diasB.size > 0;
-
-  while (cursor <= limite) {
-    const periodo = alternado ? resolveDescansoPeriod(cursor, descansoConfig) : 'A';
-    const set = periodo === 'B' ? diasB : diasA;
-    if (set.has(cursor.getUTCDay())) {
-      descansos.add(cursor.toISOString().split('T')[0]);
-    }
-    cursor = new Date(cursor.getTime() + MS_POR_DIA);
-  }
-
-  return descansos;
-};
 
 const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
@@ -321,50 +156,6 @@ const normalizeFechaDiaDobleKey = (value) => {
   return fecha.toISOString().split('T')[0];
 };
 
-const applyDescansoToDetalles = (detalles, descansoFechas) => {
-  if (!Array.isArray(detalles) || detalles.length === 0 || !descansoFechas || descansoFechas.size === 0) {
-    return detalles;
-  }
-
-  return detalles.map((detalle) => {
-    if (!detalle || !detalle.fecha) {
-      return detalle;
-    }
-
-    const fechaKey = normalizeFechaDiaDobleKey(detalle.fecha);
-    if (!fechaKey || !descansoFechas.has(fechaKey)) {
-      return detalle;
-    }
-
-    const estadoTexto = typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
-    const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto) ? estadoTexto : '';
-
-    if (estadoNormalizado && estadoNormalizado !== 'Presente' && estadoNormalizado !== 'Ausente') {
-      return detalle;
-    }
-
-    const asistenciaTexto = typeof detalle.asistencia === 'string' ? detalle.asistencia.trim() : '';
-    const justificadoValor =
-      detalle.justificado === true || detalle.justificado === 1 || detalle.justificado === '1';
-    const justificacionTexto = justificadoValor
-      ? typeof detalle.justificacion === 'string'
-        ? detalle.justificacion.trim()
-        : detalle.justificacion !== undefined && detalle.justificacion !== null
-          ? String(detalle.justificacion).trim()
-          : ''
-      : '';
-
-    return {
-      ...detalle,
-      asistio: false,
-      es_descanso: true,
-      estado: 'Descanso',
-      asistencia: 'Descanso',
-      justificado: true,
-      justificacion: justificacionTexto || 'Descanso programado',
-    };
-  });
-};
 
 const applyDiasDoblesAutoToDetalles = async ({
   detalles,
@@ -731,13 +522,6 @@ class Planilla {
         });
         detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
       }
-      const descansoFechas =
-        detallesFinales.length > 0
-          ? await buildDescansoFechaSet(id_empleado, periodo_inicio, periodo_fin)
-          : new Set();
-      if (descansoFechas.size > 0) {
-        detallesFinales = applyDescansoToDetalles(detallesFinales, descansoFechas);
-      }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
           ? salario_base
@@ -780,10 +564,9 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
             );
-            const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
             const diasAsistenciaNormalizados =
               Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
-            diasParaPago = diasAsistenciaNormalizados + descansoDias;
+            diasParaPago = diasAsistenciaNormalizados;
           } else {
             diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
@@ -820,11 +603,7 @@ class Planilla {
               ? diasTrabajadosCalculados
               : 0;
           const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
-          const diasDescansoReferencia = esAutomatica
-            ? await countDescansoDays(id_empleado, periodo_inicio, periodo_fin)
-            : DIAS_LIBRES_QUINCENA;
-          const diasExtra = Math.max(diasDescansoReferencia - diasLibres, 0);
-          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          const diasPago = Math.max(diasTrabajadosNormalizados, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
         } else {
@@ -1120,13 +899,6 @@ class Planilla {
         });
         detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
       }
-      const descansoFechas =
-        detallesFinales.length > 0
-          ? await buildDescansoFechaSet(id_empleado, periodo_inicio, periodo_fin)
-          : new Set();
-      if (descansoFechas.size > 0) {
-        detallesFinales = applyDescansoToDetalles(detallesFinales, descansoFechas);
-      }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
           ? salario_base
@@ -1173,10 +945,9 @@ class Planilla {
               periodo_inicio,
               periodo_fin,
             );
-            const descansoDias = await countDescansoDays(id_empleado, periodo_inicio, periodo_fin);
             const diasAsistenciaNormalizados =
               Number.isFinite(diasAsistencia) && diasAsistencia > 0 ? diasAsistencia : 0;
-            diasParaPago = diasAsistenciaNormalizados + descansoDias;
+            diasParaPago = diasAsistenciaNormalizados;
           } else {
             diasParaPago = await resolveDiasPagoManual(id_empleado, periodo_inicio, periodo_fin);
           }
@@ -1210,11 +981,7 @@ class Planilla {
 
         if (tipo_pago === 'Quincenal' && diasTrabajadosNormalizados !== null) {
           const diasLibres = Math.max(diasReferenciaPago - diasTrabajadosNormalizados, 0);
-          const diasDescansoReferencia = esAutomatica
-            ? await countDescansoDays(id_empleado, periodo_inicio, periodo_fin)
-            : DIAS_LIBRES_QUINCENA;
-          const diasExtra = Math.max(diasDescansoReferencia - diasLibres, 0);
-          const diasPago = Math.max(diasTrabajadosNormalizados + diasExtra, 0);
+          const diasPago = Math.max(diasTrabajadosNormalizados, 0);
           salarioBasePeriodo = Number((salarioDiarioEstimado * diasPago).toFixed(2));
           deduccionDiasMonto = 0;
         } else {
