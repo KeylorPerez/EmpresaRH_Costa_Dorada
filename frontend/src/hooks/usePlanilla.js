@@ -514,11 +514,11 @@ const normalizeFechaDiaDoble = (value) => {
 
 const normalizeDescansoDays = (dias) => {
   if (!Array.isArray(dias)) return new Set();
-  return new Set(
-    dias
-      .map((day) => Number(day))
-      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
-  );
+  const normalized = dias
+    .map((day) => Number(day))
+    .map((day) => (day === 7 ? 0 : day))
+    .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
+  return new Set(normalized);
 };
 
 const resolveDescansoPeriod = (fecha, config) => {

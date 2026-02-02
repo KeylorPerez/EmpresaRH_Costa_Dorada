@@ -18,6 +18,13 @@ const parseUtcDate = (value) => {
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
+const normalizeDiaSemana = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric === 7) return 0;
+  if (Number.isInteger(numeric) && numeric >= 0 && numeric <= 6) return numeric;
+  return null;
+};
 
 const planillaSchemaState = {
   checked: false,
@@ -130,8 +137,8 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
     descansoDias.forEach((dia) => {
       if (!dia || !dia.es_descanso) return;
       const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
-      const diaSemana = Number(dia.dia_semana);
-      if (!Number.isInteger(diaSemana) || diaSemana < 0 || diaSemana > 6) return;
+      const diaSemana = normalizeDiaSemana(dia.dia_semana);
+      if (diaSemana === null) return;
       if (periodo === 'B') {
         diasB.add(diaSemana);
       } else {
@@ -194,8 +201,8 @@ const buildDescansoFechaSet = async (id_empleado, periodo_inicio, periodo_fin) =
     descansoDias.forEach((dia) => {
       if (!dia || !dia.es_descanso) return;
       const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
-      const diaSemana = Number(dia.dia_semana);
-      if (!Number.isInteger(diaSemana) || diaSemana < 0 || diaSemana > 6) return;
+      const diaSemana = normalizeDiaSemana(dia.dia_semana);
+      if (diaSemana === null) return;
       if (periodo === 'B') {
         diasB.add(diaSemana);
       } else {
