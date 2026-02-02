@@ -342,8 +342,9 @@ const applyDescansoToDetalles = (detalles, descansoFechas) => {
     return {
       ...detalle,
       asistio: false,
+      es_descanso: true,
       estado: 'Descanso',
-      asistencia: asistenciaTexto || 'Descanso',
+      asistencia: 'Descanso',
       justificado: true,
       justificacion: justificacionTexto || 'Descanso programado',
     };
