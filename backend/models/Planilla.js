@@ -124,7 +124,10 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
     return 0;
   }
 
-  const descansoConfig = await DescansoConfig.getByEmpleadoId(id_empleado);
+  const descansoConfig = await DescansoConfig.getByEmpleadoIdForFecha(
+    id_empleado,
+    periodo_inicio
+  );
   if (!descansoConfig) {
     return 0;
   }
@@ -188,7 +191,10 @@ const buildDescansoFechaSet = async (id_empleado, periodo_inicio, periodo_fin) =
     return new Set();
   }
 
-  const descansoConfig = await DescansoConfig.getByEmpleadoId(id_empleado);
+  const descansoConfig = await DescansoConfig.getByEmpleadoIdForFecha(
+    id_empleado,
+    periodo_inicio
+  );
   if (!descansoConfig) {
     return new Set();
   }

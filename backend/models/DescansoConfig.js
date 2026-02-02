@@ -28,6 +28,36 @@ class DescansoConfig {
     return result.recordset[0] || null;
   }
 
+  static async getByEmpleadoIdForFecha(id_empleado, fechaReferencia, { transaction } = {}) {
+    if (!fechaReferencia) {
+      return DescansoConfig.getByEmpleadoId(id_empleado, { transaction });
+    }
+
+    const pool = await poolPromise;
+    const request = transaction ? new sql.Request(transaction) : pool.request();
+    const result = await request
+      .input('id_empleado', sql.Int, id_empleado)
+      .input('fecha_referencia', sql.Date, fechaReferencia)
+      .query(`
+        SELECT TOP 1
+          id_config,
+          id_empleado,
+          tipo_patron,
+          ciclo,
+          fecha_inicio_vigencia,
+          fecha_fin_vigencia,
+          fecha_base,
+          created_at,
+          updated_at
+        FROM dbo.DescansoConfig
+        WHERE id_empleado = @id_empleado
+          AND fecha_inicio_vigencia <= @fecha_referencia
+          AND (fecha_fin_vigencia IS NULL OR fecha_fin_vigencia >= @fecha_referencia)
+        ORDER BY fecha_inicio_vigencia DESC, id_config DESC
+      `);
+    return result.recordset[0] || null;
+  }
+
   static async getDiasByConfigId(id_config, { transaction } = {}) {
     const pool = await poolPromise;
     const request = transaction ? new sql.Request(transaction) : pool.request();
