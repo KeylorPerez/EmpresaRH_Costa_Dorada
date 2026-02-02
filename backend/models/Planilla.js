@@ -485,7 +485,12 @@ function sanitizeDetallePlanilla(detalles) {
             : null,
       };
     })
-    .filter((detalle) => Boolean(detalle.fecha) && Boolean(detalle.dia_semana));
+    .filter((detalle) => {
+      const hasFecha = detalle.fecha !== null && detalle.fecha !== undefined && detalle.fecha !== '';
+      const hasDiaSemana =
+        detalle.dia_semana !== null && detalle.dia_semana !== undefined && detalle.dia_semana !== '';
+      return hasFecha && hasDiaSemana;
+    });
 }
 
 class Planilla {
