@@ -3,6 +3,165 @@
  * facilita los cálculos de asistencia asociados a cada pago.
  */
 const { poolPromise, sql } = require('../db/db');
+const DescansoConfig = require('./DescansoConfig');
+
+const MS_POR_DIA = 1000 * 60 * 60 * 24;
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
+
+const parseUtcDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+};
+
+const normalizeDiaSemana = (value) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toLowerCase();
+    const map = {
+      domingo: 0,
+      lunes: 1,
+      martes: 2,
+      miércoles: 3,
+      miercoles: 3,
+      jueves: 4,
+      viernes: 5,
+      sábado: 6,
+      sabado: 6,
+    };
+    if (Object.prototype.hasOwnProperty.call(map, trimmed)) {
+      return map[trimmed];
+    }
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric === 7) return 0;
+  if (Number.isInteger(numeric) && numeric >= 0 && numeric <= 6) return numeric;
+  return null;
+};
+
+const resolveDescansoPeriod = (fecha, config) => {
+  if (!fecha || !config) return null;
+  const tipoPatron = String(config.tipo_patron || '').trim().toUpperCase();
+  if (tipoPatron !== 'ALTERNADO') {
+    return 'A';
+  }
+
+  const fechaBase = parseUtcDate(config.fecha_base);
+  if (!fechaBase) return 'A';
+
+  const ciclo = String(config.ciclo || '').trim().toUpperCase();
+  const cicloDias = ciclo === 'QUINCENAL' ? 15 : 7;
+  if (!Number.isFinite(cicloDias) || cicloDias <= 0) {
+    return 'A';
+  }
+
+  const diffDays = Math.floor((fecha.getTime() - fechaBase.getTime()) / MS_POR_DIA);
+  const periodIndex = Math.floor(diffDays / cicloDias);
+  const parity = ((periodIndex % 2) + 2) % 2;
+  return parity === 0 ? 'A' : 'B';
+};
+
+const buildDescansoFechaSet = async ({ id_empleado, periodo_inicio, periodo_fin }) => {
+  if (!id_empleado || !periodo_inicio || !periodo_fin) {
+    return new Set();
+  }
+
+  const descansoConfig = await DescansoConfig.getByEmpleadoId(id_empleado);
+  if (!descansoConfig) {
+    return new Set();
+  }
+
+  const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
+  const diasA = new Set();
+  const diasB = new Set();
+
+  if (Array.isArray(descansoDias)) {
+    descansoDias.forEach((dia) => {
+      if (!dia || !dia.es_descanso) return;
+      const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
+      const diaSemana = normalizeDiaSemana(dia.dia_semana);
+      if (diaSemana === null) return;
+      if (periodo === 'B') {
+        diasB.add(diaSemana);
+      } else {
+        diasA.add(diaSemana);
+      }
+    });
+  }
+
+  if (diasA.size === 0 && diasB.size === 0) {
+    return new Set();
+  }
+
+  const inicioVigencia = parseUtcDate(descansoConfig.fecha_inicio_vigencia);
+  const finVigencia = parseUtcDate(descansoConfig.fecha_fin_vigencia);
+  const fechaInicio = parseUtcDate(periodo_inicio);
+  const fechaFin = parseUtcDate(periodo_fin);
+
+  if (!inicioVigencia || !fechaInicio || !fechaFin) {
+    return new Set();
+  }
+
+  let cursor = fechaInicio > inicioVigencia ? fechaInicio : inicioVigencia;
+  const limite = finVigencia && finVigencia < fechaFin ? finVigencia : fechaFin;
+
+  if (cursor > limite) {
+    return new Set();
+  }
+
+  const descansos = new Set();
+  const alternado = String(descansoConfig.tipo_patron || '').trim().toUpperCase() === 'ALTERNADO'
+    && diasB.size > 0;
+
+  while (cursor <= limite) {
+    const periodo = alternado ? resolveDescansoPeriod(cursor, descansoConfig) : 'A';
+    const set = periodo === 'B' ? diasB : diasA;
+    if (set.has(cursor.getUTCDay())) {
+      descansos.add(cursor.toISOString().split('T')[0]);
+    }
+    cursor = new Date(cursor.getTime() + MS_POR_DIA);
+  }
+
+  return descansos;
+};
+
+const applyDescansoMetadata = (detalles, descansoFechas) => {
+  if (!Array.isArray(detalles) || detalles.length === 0 || !descansoFechas || descansoFechas.size === 0) {
+    return detalles;
+  }
+
+  return detalles.map((detalle) => {
+    if (!detalle || !detalle.fecha) return detalle;
+
+    const fechaKey = parseUtcDate(detalle.fecha)?.toISOString().split('T')[0];
+    if (!fechaKey || !descansoFechas.has(fechaKey)) {
+      return { ...detalle, es_descanso: false };
+    }
+
+    const estadoTexto = typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
+    const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto) ? estadoTexto : '';
+
+    if (detalle.asistio) {
+      return { ...detalle, es_descanso: true };
+    }
+
+    if (estadoNormalizado && estadoNormalizado !== 'Presente' && estadoNormalizado !== 'Ausente') {
+      return { ...detalle, es_descanso: true };
+    }
+
+    return {
+      ...detalle,
+      asistio: false,
+      es_descanso: true,
+      estado: 'Descanso',
+      asistencia: 'Descanso',
+      justificado: true,
+      justificacion: detalle.justificacion || 'Descanso programado',
+    };
+  });
+};
 
 const schemaState = {
   checked: false,
@@ -373,6 +532,9 @@ class DetallePlanilla {
           ${justificadoSelect},
           ${justificacionSelect},
           dp.observacion,
+          p.id_empleado,
+          p.periodo_inicio,
+          p.periodo_fin,
           marcas.hora_entrada,
           marcas.hora_salida
         FROM dbo.DetallePlanilla dp
@@ -390,7 +552,28 @@ class DetallePlanilla {
         WHERE dp.id_planilla = @id_planilla
         ORDER BY dp.fecha ASC
       `);
-    return result.recordset;
+    const detalles = result.recordset || [];
+    if (detalles.length === 0) {
+      return detalles;
+    }
+
+    const { id_empleado, periodo_inicio, periodo_fin } = detalles[0];
+    const descansoFechas = await buildDescansoFechaSet({
+      id_empleado,
+      periodo_inicio,
+      periodo_fin,
+    });
+
+    const detallesConDescanso = applyDescansoMetadata(detalles, descansoFechas);
+    return detallesConDescanso.map((detalle) => {
+      const {
+        id_empleado: unusedEmpleado,
+        periodo_inicio: unusedInicio,
+        periodo_fin: unusedFin,
+        ...rest
+      } = detalle;
+      return rest;
+    });
   }
 }
 
