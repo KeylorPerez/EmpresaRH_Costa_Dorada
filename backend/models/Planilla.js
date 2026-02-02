@@ -176,6 +176,70 @@ const countDescansoDays = async (id_empleado, periodo_inicio, periodo_fin) => {
   return total;
 };
 
+const buildDescansoFechaSet = async (id_empleado, periodo_inicio, periodo_fin) => {
+  if (!id_empleado || !periodo_inicio || !periodo_fin) {
+    return new Set();
+  }
+
+  const descansoConfig = await DescansoConfig.getByEmpleadoId(id_empleado);
+  if (!descansoConfig) {
+    return new Set();
+  }
+
+  const descansoDias = await DescansoConfig.getDiasByConfigId(descansoConfig.id_config);
+  const diasA = new Set();
+  const diasB = new Set();
+
+  if (Array.isArray(descansoDias)) {
+    descansoDias.forEach((dia) => {
+      if (!dia || !dia.es_descanso) return;
+      const periodo = String(dia.periodo_tipo || '').trim().toUpperCase();
+      const diaSemana = Number(dia.dia_semana);
+      if (!Number.isInteger(diaSemana) || diaSemana < 0 || diaSemana > 6) return;
+      if (periodo === 'B') {
+        diasB.add(diaSemana);
+      } else {
+        diasA.add(diaSemana);
+      }
+    });
+  }
+
+  if (diasA.size === 0 && diasB.size === 0) {
+    return new Set();
+  }
+
+  const inicioVigencia = parseUtcDate(descansoConfig.fecha_inicio_vigencia);
+  const finVigencia = parseUtcDate(descansoConfig.fecha_fin_vigencia);
+  const fechaInicio = parseUtcDate(periodo_inicio);
+  const fechaFin = parseUtcDate(periodo_fin);
+
+  if (!inicioVigencia || !fechaInicio || !fechaFin) {
+    return new Set();
+  }
+
+  let cursor = fechaInicio > inicioVigencia ? fechaInicio : inicioVigencia;
+  const limite = finVigencia && finVigencia < fechaFin ? finVigencia : fechaFin;
+
+  if (cursor > limite) {
+    return new Set();
+  }
+
+  const descansos = new Set();
+  const alternado = String(descansoConfig.tipo_patron || '').trim().toUpperCase() === 'ALTERNADO'
+    && diasB.size > 0;
+
+  while (cursor <= limite) {
+    const periodo = alternado ? resolveDescansoPeriod(cursor, descansoConfig) : 'A';
+    const set = periodo === 'B' ? diasB : diasA;
+    if (set.has(cursor.getUTCDay())) {
+      descansos.add(cursor.toISOString().split('T')[0]);
+    }
+    cursor = new Date(cursor.getTime() + MS_POR_DIA);
+  }
+
+  return descansos;
+};
+
 const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) => {
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
   if (diasPeriodo <= 0) return 0;
@@ -240,6 +304,50 @@ const normalizeFechaDiaDobleKey = (value) => {
   const fecha = parseUtcDate(value);
   if (!fecha) return null;
   return fecha.toISOString().split('T')[0];
+};
+
+const applyDescansoToDetalles = (detalles, descansoFechas) => {
+  if (!Array.isArray(detalles) || detalles.length === 0 || !descansoFechas || descansoFechas.size === 0) {
+    return detalles;
+  }
+
+  return detalles.map((detalle) => {
+    if (!detalle || !detalle.fecha) {
+      return detalle;
+    }
+
+    const fechaKey = normalizeFechaDiaDobleKey(detalle.fecha);
+    if (!fechaKey || !descansoFechas.has(fechaKey)) {
+      return detalle;
+    }
+
+    const estadoTexto = typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
+    const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto) ? estadoTexto : '';
+
+    if (estadoNormalizado && estadoNormalizado !== 'Presente' && estadoNormalizado !== 'Ausente') {
+      return detalle;
+    }
+
+    const asistenciaTexto = typeof detalle.asistencia === 'string' ? detalle.asistencia.trim() : '';
+    const justificadoValor =
+      detalle.justificado === true || detalle.justificado === 1 || detalle.justificado === '1';
+    const justificacionTexto = justificadoValor
+      ? typeof detalle.justificacion === 'string'
+        ? detalle.justificacion.trim()
+        : detalle.justificacion !== undefined && detalle.justificacion !== null
+          ? String(detalle.justificacion).trim()
+          : ''
+      : '';
+
+    return {
+      ...detalle,
+      asistio: false,
+      estado: 'Descanso',
+      asistencia: asistenciaTexto || 'Descanso',
+      justificado: true,
+      justificacion: justificacionTexto || 'Descanso programado',
+    };
+  });
 };
 
 const applyDiasDoblesAutoToDetalles = async ({
@@ -601,6 +709,13 @@ class Planilla {
           filtrar_por_asistencia: esAutomatica,
         });
         detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+      }
+      const descansoFechas =
+        detallesFinales.length > 0
+          ? await buildDescansoFechaSet(id_empleado, periodo_inicio, periodo_fin)
+          : new Set();
+      if (descansoFechas.size > 0) {
+        detallesFinales = applyDescansoToDetalles(detallesFinales, descansoFechas);
       }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
@@ -983,6 +1098,13 @@ class Planilla {
           filtrar_por_asistencia: esAutomatica,
         });
         detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
+      }
+      const descansoFechas =
+        detallesFinales.length > 0
+          ? await buildDescansoFechaSet(id_empleado, periodo_inicio, periodo_fin)
+          : new Set();
+      if (descansoFechas.size > 0) {
+        detallesFinales = applyDescansoToDetalles(detallesFinales, descansoFechas);
       }
       const salarioDiaDobles =
         tipo_pago === 'Diario'
