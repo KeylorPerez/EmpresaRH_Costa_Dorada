@@ -1,6 +1,6 @@
 /**
  * Utilidades relacionadas a la navegación global.
- * Centraliza redirecciones que deben funcionar tanto en web como en Electron.
+ * Centraliza redirecciones para web y PWA.
  */
 export const redirectToLogin = () => {
   // Con HashRouter la ruta de login vive en el hash. Usar `replace` evita

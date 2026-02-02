@@ -3,7 +3,7 @@
 ## 1. Visión general
 El proyecto se divide en dos aplicaciones principales y dos targets de entrega (web/PWA y escritorio):
 - **Backend (Node.js/Express + SQL Server):** expone una API REST para la gestión de empleados, asistencia, planillas, vacaciones, préstamos, liquidaciones, aguinaldos y usuarios. Todas las rutas se registran en `index.js`, se sirven archivos generados desde `backend/exports` y se protege el acceso con JWT y control de roles.
-- **Frontend (React + Vite + Tailwind):** aplica rutas protegidas por rol (administrador vs. empleado) y consume los servicios REST mediante `axios`. La misma base se usa para la aplicación web tradicional, la PWA y el empaquetado con Electron.
+- **Frontend (React + Vite + Tailwind):** aplica rutas protegidas por rol (administrador vs. empleado) y consume los servicios REST mediante `axios`. La misma base se usa para la aplicación web tradicional y la PWA.
 
 ## 2. Backend
 ### 2.1 Arranque y configuración

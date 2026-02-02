@@ -15,6 +15,6 @@ export default defineConfig({
 
 
   publicDir: "public",
-  // Usamos rutas relativas para que el build funcione desde file:// en Electron
+  // Usamos rutas relativas para despliegues estáticos/PWA
   base: './',
 })
