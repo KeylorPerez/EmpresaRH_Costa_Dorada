@@ -30,6 +30,7 @@ const normalizeDescansoDays = (value) => {
     new Set(
       value
         .map((day) => Number(day))
+        .map((day) => (day === 7 ? 0 : day))
         .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
     )
   ).sort((a, b) => a - b);
