@@ -6,7 +6,14 @@ const { poolPromise, sql } = require('../db/db');
 const JustificacionAsistencia = require('./JustificacionAsistencia');
 
 const TIPOS_MARCA = ['entrada', 'salida', 'almuerzo_inicio', 'almuerzo_fin'];
-const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+const ESTADOS_ASISTENCIA = [
+  'Presente',
+  'Ausente',
+  'Permiso',
+  'Vacaciones',
+  'Incapacidad',
+  'Descanso',
+];
 
 const normalizeEstadoAsistencia = (estado) => {
   if (typeof estado !== 'string') {
@@ -64,7 +71,7 @@ BEGIN
     estado NVARCHAR(20) NOT NULL CONSTRAINT DF_Asistencia_Estado DEFAULT ('Presente'),
     CONSTRAINT FK_Asistencia_Empleado FOREIGN KEY(id_empleado) REFERENCES Empleados(id_empleado),
     CONSTRAINT CHK_Asistencia_Estado CHECK (
-      estado IN ('Incapacidad', 'Vacaciones', 'Permiso', 'Ausente', 'Presente')
+      estado IN ('Incapacidad', 'Vacaciones', 'Permiso', 'Ausente', 'Presente', 'Descanso')
     ),
     CONSTRAINT CHK_Asistencia_TipoMarca CHECK (
       tipo_marca IN ('almuerzo_fin', 'almuerzo_inicio', 'salida', 'entrada')
