@@ -153,7 +153,6 @@ const Planilla = () => {
     restoreDetalleDias,
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
-    toggleDetalleDiaDoble,
     detalleDiasResumen,
     detalleEstadoOptions,
   } = usePlanilla();
@@ -1639,7 +1638,7 @@ const Planilla = () => {
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-gray-800">Detalle diario del periodo</h3>
                         <p className="text-sm text-gray-500">
-                          Actualiza asistencias, marca días dobles y ajusta los montos directamente en esta vista ampliada.
+                          Actualiza asistencias y ajusta los montos directamente en esta vista ampliada.
                         </p>
                         <AttendanceStatusMessage attendanceState={attendanceState} />
                       </div>
@@ -1694,7 +1693,6 @@ const Planilla = () => {
                         autoResizeTextarea={autoResizeTextarea}
                         updateDetalleDia={updateDetalleDia}
                         toggleDetalleAsistencia={toggleDetalleAsistencia}
-                        toggleDetalleDiaDoble={toggleDetalleDiaDoble}
                         normalizeDetalleSalario={normalizeDetalleSalario}
                         restoreDetalleFieldFocus={restoreDetalleFieldFocus}
                       />

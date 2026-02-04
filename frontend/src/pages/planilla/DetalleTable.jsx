@@ -9,7 +9,6 @@ const DetalleTable = ({
   autoResizeTextarea,
   updateDetalleDia,
   toggleDetalleAsistencia,
-  toggleDetalleDiaDoble,
   normalizeDetalleSalario,
   restoreDetalleFieldFocus,
 }) => {
@@ -91,7 +90,6 @@ const DetalleTable = ({
             <th className="px-4 py-3 text-left">Fecha</th>
             <th className="px-4 py-3 text-left">Día</th>
             <th className="px-4 py-3 text-center">Asistencia</th>
-            <th className="px-4 py-3 text-center">Tipo</th>
             <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
             <th className="px-4 py-3 text-center">Justificado</th>
             <th className="px-4 py-3 text-left min-w-[240px]">Justificación</th>
@@ -122,19 +120,6 @@ const DetalleTable = ({
                     )}`}
                   >
                     {resolveAsistenciaLabel(detalle)}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => toggleDetalleDiaDoble(index)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      detalle.es_dia_doble
-                        ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {detalle.es_dia_doble ? "Día doble" : "Normal"}
                   </button>
                 </td>
                 <td className="px-4 py-3 min-w-[160px]">
