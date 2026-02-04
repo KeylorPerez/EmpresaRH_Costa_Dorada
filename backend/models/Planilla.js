@@ -7,10 +7,49 @@ const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
-const parseUtcDate = (value) => {
+const parseDateInput = (value) => {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parseYmd = (dateText) => {
+      const [year, month, day] = dateText.split('-').map(Number);
+      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+        return new Date(year, month - 1, day);
+      }
+      return null;
+    };
+    const parseDmy = (dateText) => {
+      const [day, month, year] = dateText.split('/').map(Number);
+      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+        return new Date(year, month - 1, day);
+      }
+      return null;
+    };
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return parseYmd(trimmed);
+    }
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      const [datePart] = trimmed.split('T');
+      return parseYmd(datePart);
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      return parseDmy(trimmed);
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const parseUtcDate = (value) => {
+  const date = parseDateInput(value);
+  if (!date || Number.isNaN(date.getTime())) return null;
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 };
 
