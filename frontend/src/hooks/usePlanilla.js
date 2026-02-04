@@ -511,25 +511,6 @@ const normalizeFechaDiaDoble = (value) => {
   return "";
 };
 
-const isDiaDobleActivo = (dia) => {
-  if (!dia) return false;
-  const { activo } = dia;
-  if (activo === undefined || activo === null) return true;
-  if (typeof activo === "string") {
-    const trimmed = activo.trim().toLowerCase();
-    if (trimmed === "true") return true;
-    if (trimmed === "false") return false;
-  }
-  if (typeof activo === "boolean") {
-    return activo;
-  }
-  const numeric = Number(activo);
-  if (!Number.isNaN(numeric)) {
-    return numeric === 1;
-  }
-  return Boolean(activo);
-};
-
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
   const inicioDate = parseDateSafe(inicio);
   const finDate = parseDateSafe(fin);
@@ -1516,26 +1497,15 @@ export const usePlanilla = () => {
       setDetalleDiasDobles({ key, loading: true, fechas: [], error: "" });
 
       try {
-        const data = await diasDoblesService.getAll();
+        const data = await diasDoblesService.getActiveInRange(periodo_inicio, periodo_fin);
         if (cancelado) return;
 
-        const inicioDate = parseDateSafe(periodo_inicio);
-        const finDate = parseDateSafe(periodo_fin);
-
         const fechasDobles = Array.isArray(data)
-          ? data
-              .filter((dia) => isDiaDobleActivo(dia))
-              .map((dia) => ({
-                fecha: normalizeFechaDiaDoble(dia.fecha),
-                multiplicador: Number(dia.multiplicador),
-              }))
+          ? data.map((dia) => ({
+              fecha: normalizeFechaDiaDoble(dia.fecha),
+              multiplicador: Number(dia.multiplicador),
+            }))
               .filter((entrada) => entrada.fecha.length > 0)
-              .filter((entrada) => {
-                if (!inicioDate || !finDate) return false;
-                const fechaDate = parseDateSafe(entrada.fecha);
-                if (!fechaDate) return false;
-                return fechaDate >= inicioDate && fechaDate <= finDate;
-              })
           : [];
 
         setDetalleDiasDobles({ key, loading: false, fechas: fechasDobles, error: "" });

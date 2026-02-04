@@ -24,6 +24,21 @@ const getDiasDobles = async (req, res) => {
   }
 };
 
+const getDiasDoblesActivos = async (req, res) => {
+  try {
+    const { inicio, fin } = req.query;
+
+    if (!inicio || !fin) {
+      return res.status(400).json({ error: 'Debe indicar inicio y fin del periodo.' });
+    }
+
+    const dias = await DiasDobles.getActiveInRange(inicio, fin);
+    return res.json(dias);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 const getDiaDobleById = async (req, res) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
@@ -132,6 +147,7 @@ const deleteDiaDoble = async (req, res) => {
 
 module.exports = {
   getDiasDobles,
+  getDiasDoblesActivos,
   getDiaDobleById,
   createDiaDoble,
   updateDiaDoble,

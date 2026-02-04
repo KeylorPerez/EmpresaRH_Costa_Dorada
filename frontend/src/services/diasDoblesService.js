@@ -9,6 +9,12 @@ const diasDoblesService = {
     const response = await api.get(`/dias-dobles/${id}`);
     return response.data;
   },
+  getActiveInRange: async (inicio, fin) => {
+    const response = await api.get("/dias-dobles/activos", {
+      params: { inicio, fin },
+    });
+    return response.data;
+  },
   create: async (payload) => {
     const response = await api.post("/dias-dobles", payload);
     return response.data;
