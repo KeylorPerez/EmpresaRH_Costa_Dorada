@@ -1466,7 +1466,7 @@ export const usePlanilla = () => {
   ]);
 
   useEffect(() => {
-    if (!modalOpen || editingPlanilla) {
+    if (!modalOpen) {
       setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
       return;
     }
