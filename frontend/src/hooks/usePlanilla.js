@@ -3,7 +3,6 @@ import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
-import diasDoblesService from "../services/diasDoblesService";
 import { parseDateValue } from "../utils/dateUtils";
 import { parseNumberInput, toPositiveNumber } from "../utils/numberUtils";
 import {
@@ -488,29 +487,6 @@ const formatInputDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const normalizeFechaDiaDoble = (value) => {
-  const parsed = parseDateSafe(value);
-  if (parsed) {
-    return formatInputDate(parsed);
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return "";
-    const soloFecha = trimmed.split("T")[0];
-    if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(soloFecha)) {
-      const [day, month, year] = soloFecha.split(/[/-]/).map(Number);
-      if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)) {
-        const fecha = new Date(year, month - 1, day);
-        if (!Number.isNaN(fecha.getTime())) {
-          return formatInputDate(fecha);
-        }
-      }
-    }
-    return soloFecha;
-  }
-  return "";
-};
-
 const hasOverlappingPlanilla = (planillas, idEmpleado, inicio, fin) => {
   const inicioDate = parseDateSafe(inicio);
   const finDate = parseDateSafe(fin);
@@ -558,12 +534,6 @@ export const usePlanilla = () => {
     loading: false,
     fechas: [],
     registros: [],
-    error: "",
-  });
-  const [detalleDiasDobles, setDetalleDiasDobles] = useState({
-    key: "",
-    loading: false,
-    fechas: [],
     error: "",
   });
   const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
@@ -995,75 +965,6 @@ export const usePlanilla = () => {
   }, []);
 
 
-  const aplicarDiasDoblesAuto = useCallback(
-    (detalles, fechasDobles) => {
-      if (!Array.isArray(detalles) || detalles.length === 0) {
-        return detalles;
-      }
-
-      const doblesSet = new Map(
-        (Array.isArray(fechasDobles) ? fechasDobles : [])
-          .map((entrada) => {
-            if (!entrada) return null;
-            if (typeof entrada === "string") {
-              const fecha = normalizeFechaDiaDoble(entrada);
-              return fecha ? { fecha, multiplicador: 2 } : null;
-            }
-
-            const fecha = normalizeFechaDiaDoble(entrada.fecha);
-            const multiplicador = Number(entrada.multiplicador);
-            const multiplicadorNormalizado =
-              Number.isFinite(multiplicador) && multiplicador >= 1 ? multiplicador : 2;
-
-            return fecha ? { fecha, multiplicador: multiplicadorNormalizado } : null;
-          })
-          .filter(Boolean)
-          .map((entrada) => [entrada.fecha, entrada.multiplicador]),
-      );
-
-      return detalles.map((detalle) => {
-        if (detalle.dia_doble_manual) {
-          return detalle;
-        }
-
-        const fechaDetalle = normalizeFechaDiaDoble(detalle.fecha);
-        const multiplicadorAuto = fechaDetalle ? doblesSet.get(fechaDetalle) : undefined;
-        const es_dia_doble = multiplicadorAuto !== undefined;
-        const multiplicadorManual = Number(detalle.multiplicador_dia_doble);
-        const multiplicadorNormalizado = es_dia_doble
-          ? multiplicadorAuto
-          : Number.isFinite(multiplicadorManual) && multiplicadorManual >= 1
-            ? multiplicadorManual
-            : 1;
-
-        if (
-          detalle.es_dia_doble === es_dia_doble &&
-          detalle.multiplicador_dia_doble === multiplicadorNormalizado
-        ) {
-          return detalle;
-        }
-
-        const baseReferencia = obtenerSalarioBaseDetalle(detalle);
-        const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-        const factorAplicado = detalle.asistio && es_dia_doble ? multiplicadorNormalizado : 1;
-        const salarioCalculado = detalle.asistio
-          ? formatMontoPositivo(baseNormalizado * factorAplicado)
-          : formatMontoPositivo(baseNormalizado);
-
-        return {
-          ...detalle,
-          es_dia_doble,
-          multiplicador_dia_doble: es_dia_doble
-            ? multiplicadorNormalizado
-            : detalle.multiplicador_dia_doble,
-          salario_base: baseNormalizado,
-          salario_dia: salarioCalculado,
-        };
-      });
-    },
-    [applySalarioBaseFallback],
-  );
-
   const fetchPlanillas = useCallback(async () => {
     try {
       setLoading(true);
@@ -1190,7 +1091,6 @@ export const usePlanilla = () => {
     detalleContextRef.current = { empleadoId: null, inicio: "", fin: "" };
     setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
     setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
-    setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
     setDetalleNonDiarioReloadKey(0);
   };
 
@@ -1465,78 +1365,6 @@ export const usePlanilla = () => {
     detalleNonDiarioReloadKey,
   ]);
 
-  useEffect(() => {
-    if (!modalOpen) {
-      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const { id_empleado, periodo_inicio, periodo_fin } = formData;
-
-    if (!id_empleado || !periodo_inicio || !periodo_fin) {
-      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const empleadoSeleccionado = empleados.find(
-      (empleado) => String(empleado.id_empleado) === String(id_empleado),
-    );
-
-    if (!empleadoSeleccionado) {
-      setDetalleDiasDobles({ key: "", loading: false, fechas: [], error: "" });
-      return;
-    }
-
-    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}-${detalleNonDiarioReloadKey}`;
-    if (detalleDiasDobles.key === key) {
-      return;
-    }
-    let cancelado = false;
-
-    const fetchDiasDobles = async () => {
-      setDetalleDiasDobles({ key, loading: true, fechas: [], error: "" });
-
-      try {
-        const data = await diasDoblesService.getActiveInRange(periodo_inicio, periodo_fin);
-        if (cancelado) return;
-
-        const fechasDobles = Array.isArray(data)
-          ? data.map((dia) => ({
-              fecha: normalizeFechaDiaDoble(dia.fecha),
-              multiplicador: Number(dia.multiplicador),
-            }))
-              .filter((entrada) => entrada.fecha.length > 0)
-          : [];
-
-        setDetalleDiasDobles({ key, loading: false, fechas: fechasDobles, error: "" });
-      } catch (err) {
-        if (cancelado) return;
-
-        const message =
-          err?.response?.data?.error ||
-          err?.message ||
-          "No se pudieron obtener los días dobles del periodo.";
-        setDetalleDiasDobles({ key, loading: false, fechas: [], error: message });
-      }
-    };
-
-    fetchDiasDobles();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [
-    modalOpen,
-    editingPlanilla,
-    formData.id_empleado,
-    formData.periodo_inicio,
-    formData.periodo_fin,
-    empleados,
-    detalleNonDiarioReloadKey,
-    detalleDiasDobles.key,
-    detalleDiasDobles.loading,
-  ]);
-
   const buildDetalleDias = useCallback((empleado, inicio, fin) => {
     if (!empleado || !inicio || !fin) return [];
 
@@ -1672,11 +1500,9 @@ export const usePlanilla = () => {
       detalleAsistencia.key === baseKey ? detalleAsistencia.fechas : [];
     const registrosAsistencia =
       detalleAsistencia.key === baseKey ? detalleAsistencia.registros : [];
-    const fechasDobles =
-      matchesDetalleKey(detalleDiasDobles.key, baseKey) ? detalleDiasDobles.fechas : [];
     const aplicarAsistencia = formData.es_automatica === "1";
 
-    let nuevosDetalles = aplicarDiasDoblesAuto(nuevosDetallesBase, fechasDobles);
+    let nuevosDetalles = nuevosDetallesBase;
     if (aplicarAsistencia) {
       nuevosDetalles = aplicarAsistenciaDetalle(nuevosDetalles, fechasAsistencia);
       nuevosDetalles = aplicarAsistenciaManual(nuevosDetalles, registrosAsistencia);
@@ -1705,47 +1531,15 @@ export const usePlanilla = () => {
     empleados,
     detalleDias,
     buildDetalleDias,
-    aplicarDiasDoblesAuto,
     aplicarAsistenciaDetalle,
     aplicarAsistenciaManual,
     detalleAsistencia.key,
     detalleAsistencia.fechas,
     detalleAsistencia.registros,
-    detalleDiasDobles.key,
-    detalleDiasDobles.fechas,
     formData.es_automatica,
     detalleJustificaciones.key,
     detalleJustificaciones.registros,
     aplicarPoliticaAusencias,
-  ]);
-
-  useEffect(() => {
-    if (!modalOpen) return;
-
-    const contextoActual = detalleContextRef.current;
-    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
-    if (!matchesDetalleKey(detalleDiasDobles.key, keyActual)) {
-      return;
-    }
-    if (!Array.isArray(detalleDias) || detalleDias.length === 0) {
-      return;
-    }
-
-    setDetalleDias((prev) => {
-      if (!Array.isArray(prev) || prev.length === 0) {
-        return prev;
-      }
-
-      const actualizados = aplicarDiasDoblesAuto(prev, detalleDiasDobles.fechas);
-      const cambio = actualizados.some((detalle, index) => detalle !== prev[index]);
-      return cambio ? actualizados : prev;
-    });
-  }, [
-    modalOpen,
-    detalleDiasDobles.key,
-    detalleDiasDobles.fechas,
-    detalleDias,
-    aplicarDiasDoblesAuto,
   ]);
 
   useEffect(() => {
@@ -1761,8 +1555,6 @@ export const usePlanilla = () => {
       detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : null;
     const registrosAsistencia =
       detalleAsistencia.key === keyActual ? detalleAsistencia.registros : null;
-    const fechasDobles =
-      matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : null;
     const aplicarAsistencia = formData.es_automatica === "1";
 
     if (!keyJustificaciones || keyActual !== keyJustificaciones) {
@@ -1773,9 +1565,6 @@ export const usePlanilla = () => {
           }
 
           let restaurados = aplicarJustificacionesAuto(prev, []);
-          if (fechasDobles) {
-            restaurados = aplicarDiasDoblesAuto(restaurados, fechasDobles);
-          }
           if (fechasAsistencia && aplicarAsistencia) {
             restaurados = aplicarAsistenciaDetalle(restaurados, fechasAsistencia);
             restaurados = aplicarAsistenciaManual(restaurados, registrosAsistencia || []);
@@ -1801,9 +1590,6 @@ export const usePlanilla = () => {
       }
 
       let aplicados = prev;
-      if (fechasDobles) {
-        aplicados = aplicarDiasDoblesAuto(aplicados, fechasDobles);
-      }
       if (fechasAsistencia && aplicarAsistencia) {
         aplicados = aplicarAsistenciaDetalle(aplicados, fechasAsistencia);
         aplicados = aplicarAsistenciaManual(aplicados, registrosAsistencia || []);
@@ -1825,11 +1611,8 @@ export const usePlanilla = () => {
     detalleAsistencia.key,
     detalleAsistencia.fechas,
     detalleAsistencia.registros,
-    detalleDiasDobles.key,
-    detalleDiasDobles.fechas,
     aplicarAsistenciaDetalle,
     aplicarAsistenciaManual,
-    aplicarDiasDoblesAuto,
     aplicarPoliticaAusencias,
     formData.es_automatica,
   ]);
@@ -2489,11 +2272,7 @@ export const usePlanilla = () => {
       const debeAplicarJustificaciones = detalleJustificaciones.key === keyActual;
       const fechasAsistencia =
         detalleAsistencia.key === keyActual ? detalleAsistencia.fechas : [];
-      const fechasDobles =
-        matchesDetalleKey(detalleDiasDobles.key, keyActual) ? detalleDiasDobles.fechas : [];
-
-      let detallesRestaurados = aplicarDiasDoblesAuto(detallesBase, fechasDobles);
-      detallesRestaurados = aplicarAsistenciaDetalle(detallesRestaurados, fechasAsistencia);
+      let detallesRestaurados = aplicarAsistenciaDetalle(detallesBase, fechasAsistencia);
       detallesRestaurados = aplicarAsistenciaManual(
         detallesRestaurados,
         detalleAsistencia.key === keyActual ? detalleAsistencia.registros : [],
@@ -2547,11 +2326,8 @@ export const usePlanilla = () => {
     detalleAsistencia.key,
     detalleAsistencia.fechas,
     detalleAsistencia.registros,
-    detalleDiasDobles.key,
-    detalleDiasDobles.fechas,
     aplicarAsistenciaDetalle,
     aplicarAsistenciaManual,
-    aplicarDiasDoblesAuto,
     aplicarPoliticaAusencias,
   ]);
 
