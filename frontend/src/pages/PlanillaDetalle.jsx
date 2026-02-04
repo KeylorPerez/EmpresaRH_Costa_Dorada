@@ -666,7 +666,7 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
             <header className="border-b px-6 py-4">
               <h2 className="text-lg font-semibold text-gray-800">Detalle diario del periodo</h2>
               <p className="text-sm text-gray-500">
-                Cada fila corresponde a un día del periodo. Marca asistencias, días dobles y revisa observaciones.
+                Cada fila corresponde a un día del periodo. Marca asistencias y revisa observaciones.
               </p>
             </header>
             <div className="px-6 py-4">
@@ -685,7 +685,6 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Fecha</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Día</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Asistencia</th>
-                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Tipo</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Estado</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Justificado</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Justificación</th>
@@ -706,26 +705,6 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                                     className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${asistenciaBadge.className}`}
                                   >
                                     {asistenciaBadge.label}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {(() => {
-                                const tipoTexto =
-                                  (typeof item.tipo === "string" && item.tipo.trim().length > 0
-                                    ? item.tipo.trim()
-                                    : null) || (item.es_dia_doble ? "Día doble" : "Normal");
-
-                                return (
-                                  <span
-                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                      item.es_dia_doble
-                                        ? "bg-purple-100 text-purple-700"
-                                        : "bg-gray-100 text-gray-600"
-                                    }`}
-                                  >
-                                    {tipoTexto}
                                   </span>
                                 );
                               })()}
