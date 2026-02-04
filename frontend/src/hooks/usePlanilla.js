@@ -1724,6 +1724,35 @@ export const usePlanilla = () => {
 
     const contextoActual = detalleContextRef.current;
     const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
+    if (!matchesDetalleKey(detalleDiasDobles.key, keyActual)) {
+      return;
+    }
+    if (!Array.isArray(detalleDias) || detalleDias.length === 0) {
+      return;
+    }
+
+    setDetalleDias((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) {
+        return prev;
+      }
+
+      const actualizados = aplicarDiasDoblesAuto(prev, detalleDiasDobles.fechas);
+      const cambio = actualizados.some((detalle, index) => detalle !== prev[index]);
+      return cambio ? actualizados : prev;
+    });
+  }, [
+    modalOpen,
+    detalleDiasDobles.key,
+    detalleDiasDobles.fechas,
+    detalleDias,
+    aplicarDiasDoblesAuto,
+  ]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    const contextoActual = detalleContextRef.current;
+    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
     const keyJustificaciones = detalleJustificaciones.key;
     const registrosJustificados = Array.isArray(detalleJustificaciones.registros)
       ? detalleJustificaciones.registros
