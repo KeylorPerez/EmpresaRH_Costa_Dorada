@@ -6,53 +6,6 @@ const { poolPromise, sql } = require('../db/db');
 const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
-const DiasDobles = require('./DiasDobles');
-const parseDateInput = (value) => {
-  if (!value) return null;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parseYmd = (dateText) => {
-      const [year, month, day] = dateText.split('-').map(Number);
-      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
-        return new Date(year, month - 1, day);
-      }
-      return null;
-    };
-    const parseDmy = (dateText) => {
-      const [day, month, year] = dateText.split('/').map(Number);
-      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
-        return new Date(year, month - 1, day);
-      }
-      return null;
-    };
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return parseYmd(trimmed);
-    }
-    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
-      const [datePart] = trimmed.split('T');
-      return parseYmd(datePart);
-    }
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-      return parseDmy(trimmed);
-    }
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed;
-    }
-  }
-  return null;
-};
-
-const parseUtcDate = (value) => {
-  const date = parseDateInput(value);
-  if (!date || Number.isNaN(date.getTime())) return null;
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-};
-
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
@@ -135,127 +88,6 @@ const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) =
   return Math.max(diasPeriodo, 0);
 };
 
-const buildDiasDoblesAuto = async ({
-  id_empleado,
-  periodo_inicio,
-  periodo_fin,
-  salario_base,
-  salario_dia_base,
-  filtrar_por_asistencia = true,
-}) => {
-  const diasDobles = await DiasDobles.getActiveInRange(periodo_inicio, periodo_fin);
-  if (!Array.isArray(diasDobles) || diasDobles.length === 0) {
-    return { diasDobles: 0, montoExtra: 0 };
-  }
-
-  let asistenciaSet = null;
-  let filtrarPorAsistencia = false;
-
-  if (filtrar_por_asistencia) {
-    const asistenciaFechas = await Asistencia.getDistinctAttendanceDays(
-      id_empleado,
-      periodo_inicio,
-      periodo_fin
-    );
-    asistenciaSet = new Set(asistenciaFechas);
-    filtrarPorAsistencia = asistenciaSet.size > 0;
-  }
-
-  const diasAplicados = diasDobles.filter((dia) =>
-    filtrarPorAsistencia && asistenciaSet ? asistenciaSet.has(dia.fecha) : true
-  );
-
-  const salarioDiaAplicado = Number.isFinite(salario_dia_base) && salario_dia_base > 0
-    ? salario_dia_base
-    : salario_base;
-
-  const montoExtra = diasAplicados.reduce((sum, dia) => {
-    const multiplicador = Number(dia.multiplicador) || 1;
-    const factorExtra = Math.max(multiplicador - 1, 0);
-    return sum + salarioDiaAplicado * factorExtra;
-  }, 0);
-
-  return {
-    diasDobles: diasAplicados.length,
-    montoExtra: Number(Number(montoExtra).toFixed(2)),
-  };
-};
-
-const normalizeMultiplicador = (value, fallback = 2) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric < 1) {
-    return fallback;
-  }
-  return numeric;
-};
-
-const normalizeFechaDiaDobleKey = (value) => {
-  const fecha = parseUtcDate(value);
-  if (!fecha) return null;
-  return fecha.toISOString().split('T')[0];
-};
-
-
-const applyDiasDoblesAutoToDetalles = async ({
-  detalles,
-  periodo_inicio,
-  periodo_fin,
-  filtrar_por_asistencia = true,
-}) => {
-  if (!Array.isArray(detalles) || detalles.length === 0) {
-    return detalles;
-  }
-
-  const diasDobles = await DiasDobles.getActiveInRange(periodo_inicio, periodo_fin);
-  if (!Array.isArray(diasDobles) || diasDobles.length === 0) {
-    return detalles;
-  }
-
-  const doblesMap = new Map(
-    diasDobles
-      .map((dia) => {
-        if (!dia || !dia.fecha) return null;
-        const fechaKey = normalizeFechaDiaDobleKey(dia.fecha);
-        if (!fechaKey) return null;
-        return [fechaKey, normalizeMultiplicador(dia.multiplicador)];
-      })
-      .filter(Boolean),
-  );
-
-  if (doblesMap.size === 0) {
-    return detalles;
-  }
-
-  return detalles.map((detalle) => {
-    if (!detalle || detalle.es_dia_doble || !detalle.fecha) {
-      return detalle;
-    }
-
-    const fechaDetalleKey = normalizeFechaDiaDobleKey(detalle.fecha);
-    if (!fechaDetalleKey) {
-      return detalle;
-    }
-
-    const multiplicador = doblesMap.get(fechaDetalleKey);
-    if (multiplicador === undefined) {
-      return detalle;
-    }
-
-    const asistio = Boolean(detalle.asistio);
-
-    const salarioBase = Number(detalle.salario_dia) || 0;
-    const salarioCalculado = asistio
-      ? Number((salarioBase * multiplicador).toFixed(2))
-      : salarioBase;
-
-    return {
-      ...detalle,
-      es_dia_doble: true,
-      salario_dia: salarioCalculado,
-      tipo: 'Día doble',
-    };
-  });
-};
 
 function sanitizeDetallePlanilla(detalles) {
   if (!Array.isArray(detalles) || detalles.length === 0) {
@@ -545,39 +377,6 @@ class Planilla {
       })();
 
       let detallesFinales = detallesSanitizados;
-      let detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
-
-      if (
-        detallesFinales.length > 0 &&
-        !detallesDoblesPresentes &&
-        diasDoblesValor === 0 &&
-        montoDiasDoblesValor === null
-      ) {
-        detallesFinales = await applyDiasDoblesAutoToDetalles({
-          detalles: detallesFinales,
-          periodo_inicio,
-          periodo_fin,
-          filtrar_por_asistencia: esAutomatica,
-        });
-        detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
-      }
-      const salarioDiaDobles =
-        tipo_pago === 'Diario'
-          ? salario_base
-          : salario_base > 0 && diasReferenciaPago > 0
-            ? salario_base / diasReferenciaPago
-            : 0;
-      const autoDiasDoblesInfo =
-        !detallesDoblesPresentes && diasDoblesValor === 0 && montoDiasDoblesValor === null
-          ? await buildDiasDoblesAuto({
-              id_empleado,
-              periodo_inicio,
-              periodo_fin,
-              salario_base,
-              salario_dia_base: salarioDiaDobles,
-              filtrar_por_asistencia: esAutomatica,
-            })
-          : null;
 
       let salarioBasePeriodo = salario_base;
       let deduccionDiasMonto = 0;
@@ -588,11 +387,6 @@ class Planilla {
           return sum + salario;
         }, 0);
         salarioBasePeriodo = Number(Number(salarioBasePeriodo).toFixed(2));
-        if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          salarioBasePeriodo = Number(
-            (salarioBasePeriodo + autoDiasDoblesInfo.montoExtra).toFixed(2)
-          );
-        }
       } else if (tipo_pago === 'Diario') {
         let diasParaPago = diasTrabajadosCalculados;
 
@@ -622,8 +416,6 @@ class Planilla {
           montoExtraDiasDobles = Number(montoDiasDoblesValor.toFixed(2));
         } else if (diasDoblesValor > 0 && salario_base > 0) {
           montoExtraDiasDobles = salario_base * diasDoblesValor;
-        } else if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          montoExtraDiasDobles = autoDiasDoblesInfo.montoExtra;
         }
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
@@ -665,8 +457,6 @@ class Planilla {
           montoExtraDiasDobles = Number(montoDiasDoblesValor.toFixed(2));
         } else if (diasDoblesValor > 0 && salarioDiarioEstimado > 0) {
           montoExtraDiasDobles = salarioDiarioEstimado * diasDoblesValor;
-        } else if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          montoExtraDiasDobles = autoDiasDoblesInfo.montoExtra;
         }
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
@@ -922,39 +712,6 @@ class Planilla {
           : Number(monto_dias_dobles);
 
       let detallesFinales = detallesSanitizados;
-      let detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
-
-      if (
-        detallesFinales.length > 0 &&
-        !detallesDoblesPresentes &&
-        diasDoblesValor === 0 &&
-        montoDiasDoblesValor === null
-      ) {
-        detallesFinales = await applyDiasDoblesAutoToDetalles({
-          detalles: detallesFinales,
-          periodo_inicio,
-          periodo_fin,
-          filtrar_por_asistencia: esAutomatica,
-        });
-        detallesDoblesPresentes = detallesFinales.some((detalle) => detalle.es_dia_doble);
-      }
-      const salarioDiaDobles =
-        tipo_pago === 'Diario'
-          ? salario_base
-          : salario_base > 0 && diasReferenciaPago > 0
-            ? salario_base / diasReferenciaPago
-            : 0;
-      const autoDiasDoblesInfo =
-        !detallesDoblesPresentes && diasDoblesValor === 0 && montoDiasDoblesValor === null
-          ? await buildDiasDoblesAuto({
-              id_empleado,
-              periodo_inicio,
-              periodo_fin,
-              salario_base,
-              salario_dia_base: salarioDiaDobles,
-              filtrar_por_asistencia: esAutomatica,
-            })
-          : null;
 
       const montoHorasExtras = Math.max(Number(horas_extras) || 0, 0);
       const bonificacionesNumber = Math.max(Number(bonificaciones) || 0, 0);
@@ -969,11 +726,6 @@ class Planilla {
           return sum + salario;
         }, 0);
         salarioBasePeriodo = Number(Number(salarioBasePeriodo).toFixed(2));
-        if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          salarioBasePeriodo = Number(
-            (salarioBasePeriodo + autoDiasDoblesInfo.montoExtra).toFixed(2)
-          );
-        }
       } else if (tipo_pago === 'Diario') {
         const diasValor = Number(dias_trabajados);
         let diasParaPago;
@@ -1004,8 +756,6 @@ class Planilla {
           montoExtraDiasDobles = montoDiasDoblesValor;
         } else if (diasDoblesValor > 0 && salario_base > 0) {
           montoExtraDiasDobles = salario_base * diasDoblesValor;
-        } else if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          montoExtraDiasDobles = autoDiasDoblesInfo.montoExtra;
         }
 
         const pagoDiasNormales = Number((salario_base * Math.max(diasParaPago, 0)).toFixed(2));
@@ -1059,8 +809,6 @@ class Planilla {
           montoExtraDiasDobles = montoDiasDoblesValor;
         } else if (diasDoblesValor > 0 && salarioDiarioEstimado > 0) {
           montoExtraDiasDobles = salarioDiarioEstimado * diasDoblesValor;
-        } else if (autoDiasDoblesInfo && autoDiasDoblesInfo.montoExtra > 0) {
-          montoExtraDiasDobles = autoDiasDoblesInfo.montoExtra;
         }
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
