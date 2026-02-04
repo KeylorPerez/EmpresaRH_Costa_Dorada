@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getDiasDobles,
+  getDiasDoblesActivos,
   getDiaDobleById,
   createDiaDoble,
   updateDiaDoble,
@@ -15,6 +16,9 @@ const { authenticateToken, authorizeRoles } = require('../middleware/authMiddlew
 
 // Obtener todos los días dobles (solo autenticado)
 router.get('/', authenticateToken, getDiasDobles);
+
+// Obtener días dobles activos por periodo
+router.get('/activos', authenticateToken, getDiasDoblesActivos);
 
 // Obtener un día doble por ID
 router.get('/:id', authenticateToken, getDiaDobleById);
