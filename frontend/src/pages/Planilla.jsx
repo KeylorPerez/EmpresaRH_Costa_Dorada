@@ -153,6 +153,7 @@ const Planilla = () => {
     restoreDetalleDias,
     normalizeDetalleSalario,
     toggleDetalleAsistencia,
+    toggleDetalleDiaDoble,
     detalleDiasResumen,
     detalleEstadoOptions,
   } = usePlanilla();
@@ -1693,6 +1694,7 @@ const Planilla = () => {
                         autoResizeTextarea={autoResizeTextarea}
                         updateDetalleDia={updateDetalleDia}
                         toggleDetalleAsistencia={toggleDetalleAsistencia}
+                        toggleDetalleDiaDoble={toggleDetalleDiaDoble}
                         normalizeDetalleSalario={normalizeDetalleSalario}
                         restoreDetalleFieldFocus={restoreDetalleFieldFocus}
                       />
