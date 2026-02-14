@@ -62,6 +62,8 @@ const DetalleTable = ({
         return "bg-purple-100 text-purple-700";
       case "ausente":
         return "bg-red-100 text-red-700";
+      case "pagado":
+        return "bg-slate-100 text-slate-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
@@ -138,19 +140,25 @@ const DetalleTable = ({
                   </button>
                 </td>
                 <td className="px-4 py-3 min-w-[160px]">
-                  <select
-                    value={estadoSeleccionado}
-                    onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
-                    className={`w-full rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold ${getEstadoBadgeClass(
-                      estadoSeleccionado
-                    )} focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300`}
-                  >
-                    {detalleEstadoOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  {detalle.es_descanso && !detalle.asistio ? (
+                    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      Pagado
+                    </span>
+                  ) : (
+                    <select
+                      value={estadoSeleccionado}
+                      onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
+                      className={`w-full rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold ${getEstadoBadgeClass(
+                        estadoSeleccionado
+                      )} focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300`}
+                    >
+                      {detalleEstadoOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <input

@@ -31,6 +31,7 @@ const ESTADO_PERMISO = "Permiso";
 const ESTADO_VACACIONES = "Vacaciones";
 const ESTADO_INCAPACIDAD = "Incapacidad";
 const ESTADO_DESCANSO = "Descanso";
+const ESTADO_PAGADO = "Pagado";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 const DIAS_POR_QUINCENA = 15;
 const DIAS_POR_MES = 30;
@@ -159,7 +160,7 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
   const estado = (() => {
     if (typeof detalle.estado === "string") {
       const texto = detalle.estado.trim();
-      if (estadoAsistenciaSet.has(texto)) {
+      if (estadoAsistenciaSet.has(texto) || texto === ESTADO_PAGADO) {
         return texto;
       }
     }
@@ -169,8 +170,7 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
   const esDescanso = Boolean(
     detalle.es_descanso === true || Number(detalle.es_descanso) === 1,
   );
-  const estadoFinal =
-    esDescanso && estado !== ESTADO_DESCANSO ? ESTADO_DESCANSO : estado;
+  const estadoFinal = esDescanso ? ESTADO_DESCANSO : estado;
 
   const justificado = Boolean(
     detalle.justificado === true || Number(detalle.justificado) === 1,
@@ -249,7 +249,17 @@ const DETALLE_JUSTIFICACIONES_INICIAL = {
 const normalizeEstado = (value) => {
   if (typeof value !== "string") return ESTADO_PRESENTE;
   const trimmed = value.trim();
+  if (trimmed === ESTADO_PAGADO) {
+    return ESTADO_DESCANSO;
+  }
   return estadoAsistenciaSet.has(trimmed) ? trimmed : ESTADO_PRESENTE;
+};
+
+const resolveEstadoPersistencia = (detalle) => {
+  if (detalle?.es_descanso && !detalle?.asistio) {
+    return ESTADO_PAGADO;
+  }
+  return normalizeEstado(detalle?.estado);
 };
 
 const ajustarEstadoPorAsistencia = (estadoActual, asistio) => {
@@ -2412,7 +2422,7 @@ export const usePlanilla = () => {
         salario_dia: buildNumber(detalle.salario_dia),
         asistio: Boolean(detalle.asistio),
         es_dia_doble: Boolean(detalle.es_dia_doble),
-        estado: normalizeEstado(detalle.estado),
+        estado: resolveEstadoPersistencia(detalle),
         asistencia: (() => {
           if (typeof detalle.asistencia === "string") {
             const texto = detalle.asistencia.trim();
