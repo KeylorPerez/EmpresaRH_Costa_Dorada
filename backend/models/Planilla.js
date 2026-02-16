@@ -6,7 +6,7 @@ const { poolPromise, sql } = require('../db/db');
 const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
-const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso'];
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
 
@@ -105,9 +105,6 @@ function sanitizeDetallePlanilla(detalles) {
           if (texto.length > 0) {
             return texto.length > 50 ? texto.slice(0, 50) : texto;
           }
-        }
-        if (estadoNormalizado === 'Descanso') {
-          return 'Descanso';
         }
         return detalle.asistio ? 'Asistió' : 'Faltó';
       })();
