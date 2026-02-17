@@ -48,6 +48,23 @@ const DiasDobles = {
     if (!result.recordset.length) return null;
     return mapRow(result.recordset[0]);
   },
+
+  async getActivosEnRango(fechaInicio, fechaFin) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input('fechaInicio', sql.Date, fechaInicio)
+      .input('fechaFin', sql.Date, fechaFin)
+      .query(`
+        SELECT id_dia_doble, fecha, descripcion, multiplicador, activo, created_at
+        FROM DiasDobles
+        WHERE activo = 1
+          AND fecha BETWEEN @fechaInicio AND @fechaFin
+        ORDER BY fecha ASC
+      `);
+
+    return result.recordset.map(mapRow);
+  },
 };
 
 module.exports = DiasDobles;
