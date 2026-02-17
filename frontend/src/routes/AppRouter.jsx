@@ -20,6 +20,7 @@ import Prestamos from "../pages/Prestamos";
 import Liquidaciones from "../pages/Liquidaciones";
 import Aguinaldos from "../pages/Aguinaldos";
 import Asistencia from "../pages/Asistencia";
+import DiasDobles from "../pages/DiasDobles";
 import AuthForm from "../components/AuthForm"; // Login
 import Acerca from "../pages/Acerca";
 
@@ -96,6 +97,16 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <Usuarios />
+          </PrivateRoute>
+        }
+      />
+
+
+      <Route
+        path="/admin/dias-dobles"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <DiasDobles />
           </PrivateRoute>
         }
       />
