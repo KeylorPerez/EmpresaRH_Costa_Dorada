@@ -1,5 +1,5 @@
 /**
- * Modelo de días dobles. Permite consultar los días configurados
+ * Modelo de días dobles. Permite consultar y administrar los días configurados
  * con pago especial para que otros módulos puedan aplicar el cálculo
  * correspondiente en planilla.
  */
@@ -47,6 +47,75 @@ const DiasDobles = {
 
     if (!result.recordset.length) return null;
     return mapRow(result.recordset[0]);
+  },
+
+  async getById(idDiaDoble) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input('id_dia_doble', sql.Int, idDiaDoble)
+      .query(`
+        SELECT TOP 1 id_dia_doble, fecha, descripcion, multiplicador, activo, created_at
+        FROM DiasDobles
+        WHERE id_dia_doble = @id_dia_doble
+      `);
+
+    if (!result.recordset.length) return null;
+    return mapRow(result.recordset[0]);
+  },
+
+  async create({ fecha, descripcion, multiplicador = 2, activo = true }) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input('fecha', sql.Date, fecha)
+      .input('descripcion', sql.NVarChar(150), descripcion)
+      .input('multiplicador', sql.Decimal(5, 2), multiplicador)
+      .input('activo', sql.Bit, activo ? 1 : 0)
+      .query(`
+        INSERT INTO DiasDobles (fecha, descripcion, multiplicador, activo)
+        OUTPUT INSERTED.id_dia_doble, INSERTED.fecha, INSERTED.descripcion, INSERTED.multiplicador, INSERTED.activo, INSERTED.created_at
+        VALUES (@fecha, @descripcion, @multiplicador, @activo)
+      `);
+
+    return mapRow(result.recordset[0]);
+  },
+
+  async update(idDiaDoble, { fecha, descripcion, multiplicador, activo }) {
+    const pool = await poolPromise;
+    const request = pool
+      .request()
+      .input('id_dia_doble', sql.Int, idDiaDoble)
+      .input('fecha', sql.Date, fecha)
+      .input('descripcion', sql.NVarChar(150), descripcion)
+      .input('multiplicador', sql.Decimal(5, 2), multiplicador)
+      .input('activo', sql.Bit, activo ? 1 : 0);
+
+    const result = await request.query(`
+      UPDATE DiasDobles
+      SET fecha = @fecha,
+          descripcion = @descripcion,
+          multiplicador = @multiplicador,
+          activo = @activo
+      OUTPUT INSERTED.id_dia_doble, INSERTED.fecha, INSERTED.descripcion, INSERTED.multiplicador, INSERTED.activo, INSERTED.created_at
+      WHERE id_dia_doble = @id_dia_doble
+    `);
+
+    if (!result.recordset.length) return null;
+    return mapRow(result.recordset[0]);
+  },
+
+  async remove(idDiaDoble) {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input('id_dia_doble', sql.Int, idDiaDoble)
+      .query(`
+        DELETE FROM DiasDobles
+        WHERE id_dia_doble = @id_dia_doble
+      `);
+
+    return result.rowsAffected[0] > 0;
   },
 
   async getActivosEnRango(fechaInicio, fechaFin) {
