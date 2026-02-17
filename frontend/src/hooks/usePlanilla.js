@@ -3,6 +3,7 @@ import planillaService from "../services/planillaService";
 import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
+import diasDoblesService from "../services/diasDoblesService";
 import { parseDateValue } from "../utils/dateUtils";
 import { parseNumberInput, toPositiveNumber } from "../utils/numberUtils";
 import {
@@ -79,6 +80,22 @@ const formatMontoPositivo = (valor) => {
     return Number(0).toFixed(2);
   }
   return Math.max(numero, 0).toFixed(2);
+};
+
+const formatDateKey = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const texto = value.trim();
+    if (!texto) return "";
+    return texto.split("T")[0];
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  return "";
 };
 
 const normalizeSalarioBase = (valor) => {
@@ -547,6 +564,7 @@ export const usePlanilla = () => {
     error: "",
   });
   const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
+  const [diasDoblesActivos, setDiasDoblesActivos] = useState([]);
   const [detalleDias, setDetalleDias] = useState([]);
   const [detalleJustificaciones, setDetalleJustificaciones] = useState(
     DETALLE_JUSTIFICACIONES_INICIAL,
@@ -600,6 +618,17 @@ export const usePlanilla = () => {
     const divisor = diasPeriodo > 0 ? diasPeriodo : DIAS_POR_QUINCENA;
     return Number((salarioBaseEmpleado / divisor).toFixed(2));
   }, [empleadoDetalleActivo, formData.periodo_inicio, formData.periodo_fin]);
+
+  const diasDoblesMap = useMemo(() => {
+    const mapa = new Map();
+    diasDoblesActivos.forEach((diaDoble) => {
+      const fechaKey = formatDateKey(diaDoble?.fecha);
+      if (!fechaKey) return;
+      const multiplicador = Number(diaDoble?.multiplicador);
+      mapa.set(fechaKey, Number.isFinite(multiplicador) && multiplicador >= 1 ? multiplicador : 2);
+    });
+    return mapa;
+  }, [diasDoblesActivos]);
 
   const esPagoQuincenal = useMemo(() => {
     if (!empleadoDetalleActivo) {
@@ -1007,11 +1036,22 @@ export const usePlanilla = () => {
     }
   }, []);
 
+  const fetchDiasDobles = useCallback(async () => {
+    try {
+      const data = await diasDoblesService.getAll({ activo: true });
+      setDiasDoblesActivos(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setDiasDoblesActivos([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPlanillas();
     fetchEmpleados();
     fetchPrestamos();
-  }, [fetchPlanillas, fetchEmpleados, fetchPrestamos]);
+    fetchDiasDobles();
+  }, [fetchPlanillas, fetchEmpleados, fetchPrestamos, fetchDiasDobles]);
 
   const selectedEmpleado = useMemo(
     () =>
@@ -1417,14 +1457,19 @@ export const usePlanilla = () => {
       const diaRaw = formatter.format(current);
       const diaSemana = diaRaw.charAt(0).toUpperCase() + diaRaw.slice(1);
 
+      const multiplicadorDoble = diasDoblesMap.get(iso);
+      const esDiaDobleConfigurado = Number.isFinite(multiplicadorDoble) && multiplicadorDoble >= 1;
+      const factor = esDiaDobleConfigurado ? multiplicadorDoble : 1;
+      const salarioDia = Number((salarioDiarioReferencia * factor).toFixed(2));
+
       detalles.push({
         fecha: iso,
         dia_semana: diaSemana,
         salario_base: salarioDiarioReferencia,
-        salario_dia: salarioDiarioReferencia.toFixed(2),
+        salario_dia: salarioDia.toFixed(2),
         asistio: true,
-        es_dia_doble: false,
-        multiplicador_dia_doble: null,
+        es_dia_doble: esDiaDobleConfigurado,
+        multiplicador_dia_doble: esDiaDobleConfigurado ? multiplicadorDoble : null,
         es_descanso: false,
         estado: ESTADO_PRESENTE,
         justificado: false,
@@ -1432,11 +1477,56 @@ export const usePlanilla = () => {
         observacion: "",
         autoJustificacion: false,
         asistenciaManual: false,
+        dia_doble_manual: false,
       });
     }
 
     return detalles;
-  }, []);
+  }, [diasDoblesMap]);
+
+  useEffect(() => {
+    setDetalleDias((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+      let changed = false;
+      const updated = prev.map((detalle) => {
+        if (detalle?.dia_doble_manual) {
+          return detalle;
+        }
+
+        const fechaKey = formatDateKey(detalle?.fecha);
+        const multiplicador = diasDoblesMap.get(fechaKey);
+        const esDiaDobleConfigurado = Number.isFinite(multiplicador) && multiplicador >= 1;
+        const salarioBase = parseNumberInput(detalle.salario_base);
+        const factor = esDiaDobleConfigurado ? multiplicador : 1;
+        const salarioCalculado = Number.isFinite(salarioBase) && salarioBase >= 0
+          ? Number((salarioBase * (detalle.asistio ? factor : 0)).toFixed(2))
+          : parseNumberInput(detalle.salario_dia);
+        const salarioTexto = Number.isFinite(salarioCalculado) ? salarioCalculado.toFixed(2) : detalle.salario_dia;
+
+        const nextEsDiaDoble = esDiaDobleConfigurado;
+        const nextMultiplicador = esDiaDobleConfigurado ? multiplicador : null;
+
+        if (
+          detalle.es_dia_doble === nextEsDiaDoble &&
+          detalle.multiplicador_dia_doble === nextMultiplicador &&
+          detalle.salario_dia === salarioTexto
+        ) {
+          return detalle;
+        }
+
+        changed = true;
+        return {
+          ...detalle,
+          es_dia_doble: nextEsDiaDoble,
+          multiplicador_dia_doble: nextMultiplicador,
+          salario_dia: salarioTexto,
+        };
+      });
+
+      return changed ? updated : prev;
+    });
+  }, [diasDoblesMap]);
 
   const syncDetalleWithAttendance = useCallback((fechasAsistidas) => {
     setDetalleDias((prev) => {
