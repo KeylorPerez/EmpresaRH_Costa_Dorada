@@ -6,6 +6,7 @@ const { poolPromise, sql } = require('../db/db');
 const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
+const DiasDobles = require('./DiasDobles');
 const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
@@ -86,6 +87,73 @@ const resolveDiasPagoManual = async (id_empleado, periodo_inicio, periodo_fin) =
   const diasPeriodo = calcularDiasPeriodo(periodo_inicio, periodo_fin);
   if (diasPeriodo <= 0) return 0;
   return Math.max(diasPeriodo, 0);
+};
+
+const formatDateKey = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+};
+
+const buildDiasDoblesMap = (diasDobles = []) => {
+  const entries = Array.isArray(diasDobles) ? diasDobles : [];
+  return new Map(entries.map((dia) => [formatDateKey(dia.fecha), dia]));
+};
+
+const resolveMontoExtraDiasDobles = ({
+  montoManual,
+  diasDoblesManual,
+  salarioDiario,
+  detalles = [],
+  diasDoblesPeriodo = [],
+  diasAsistenciaSet = null,
+}) => {
+  if (montoManual !== null && montoManual !== undefined) {
+    const valor = Number(montoManual);
+    if (Number.isFinite(valor) && valor >= 0) {
+      return Number(valor.toFixed(2));
+    }
+  }
+
+  const diasManual = Number(diasDoblesManual);
+  if (Number.isFinite(diasManual) && diasManual > 0 && salarioDiario > 0) {
+    return Number((salarioDiario * diasManual).toFixed(2));
+  }
+
+  if (salarioDiario <= 0) return 0;
+
+  const diasMap = buildDiasDoblesMap(diasDoblesPeriodo);
+  if (!diasMap.size) return 0;
+
+  let extra = 0;
+  if (Array.isArray(detalles) && detalles.length > 0) {
+    detalles.forEach((detalle) => {
+      const fecha = formatDateKey(detalle.fecha);
+      if (!fecha || !diasMap.has(fecha)) return;
+      const diaDoble = diasMap.get(fecha);
+      const multiplicador = Number(diaDoble?.multiplicador);
+      const factorExtra = Number.isFinite(multiplicador) && multiplicador > 1 ? multiplicador - 1 : 1;
+      const trabajada = detalle.asistio === true || Number(detalle.asistio) === 1;
+      if (!trabajada) return;
+      extra += salarioDiario * factorExtra;
+    });
+    return Number(extra.toFixed(2));
+  }
+
+  diasDoblesPeriodo.forEach((diaDoble) => {
+    const fecha = formatDateKey(diaDoble.fecha);
+    if (!fecha) return;
+    if (diasAsistenciaSet && !diasAsistenciaSet.has(fecha)) return;
+    const multiplicador = Number(diaDoble.multiplicador);
+    const factorExtra = Number.isFinite(multiplicador) && multiplicador > 1 ? multiplicador - 1 : 1;
+    extra += salarioDiario * factorExtra;
+  });
+
+  return Number(extra.toFixed(2));
 };
 
 
@@ -338,6 +406,7 @@ class Planilla {
             : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
+      const diasDoblesPeriodo = await DiasDobles.getActivosEnRango(periodo_inicio, periodo_fin);
 
       let diasTrabajadosCalculados = null;
       if (dias_trabajados === null || dias_trabajados === undefined) {
@@ -407,13 +476,24 @@ class Planilla {
         }
 
         const pagoDiasNormales = Number((salario_base * diasParaPago).toFixed(2));
-        let montoExtraDiasDobles = 0;
-
-        if (montoDiasDoblesValor !== null) {
-          montoExtraDiasDobles = Number(montoDiasDoblesValor.toFixed(2));
-        } else if (diasDoblesValor > 0 && salario_base > 0) {
-          montoExtraDiasDobles = salario_base * diasDoblesValor;
+        let diasAsistenciaFechas = null;
+        if (esAutomatica && diasDoblesPeriodo.length > 0) {
+          const diasAsistencia = await Asistencia.getDistinctAttendanceDays(
+            id_empleado,
+            periodo_inicio,
+            periodo_fin,
+          );
+          diasAsistenciaFechas = new Set(diasAsistencia.map((fecha) => formatDateKey(fecha)));
         }
+
+        let montoExtraDiasDobles = resolveMontoExtraDiasDobles({
+          montoManual: montoDiasDoblesValor,
+          diasDoblesManual: diasDoblesValor,
+          salarioDiario: salario_base,
+          detalles: detallesFinales,
+          diasDoblesPeriodo,
+          diasAsistenciaSet: diasAsistenciaFechas,
+        });
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
           montoExtraDiasDobles = 0;
@@ -450,11 +530,13 @@ class Planilla {
           );
         }
 
-        if (montoDiasDoblesValor !== null) {
-          montoExtraDiasDobles = Number(montoDiasDoblesValor.toFixed(2));
-        } else if (diasDoblesValor > 0 && salarioDiarioEstimado > 0) {
-          montoExtraDiasDobles = salarioDiarioEstimado * diasDoblesValor;
-        }
+        montoExtraDiasDobles = resolveMontoExtraDiasDobles({
+          montoManual: montoDiasDoblesValor,
+          diasDoblesManual: diasDoblesValor,
+          salarioDiario: salarioDiarioEstimado,
+          detalles: detallesFinales,
+          diasDoblesPeriodo,
+        });
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
           montoExtraDiasDobles = 0;
@@ -701,6 +783,7 @@ class Planilla {
             : DIAS_POR_QUINCENA;
 
       const detallesSanitizados = sanitizeDetallePlanilla(detalles);
+      const diasDoblesPeriodo = await DiasDobles.getActivosEnRango(periodo_inicio, periodo_fin);
 
       const diasDoblesValor = Number(dias_dobles) || 0;
       const montoDiasDoblesValor =
@@ -743,17 +826,24 @@ class Planilla {
           diasParaPago = diasValor;
         }
 
-        let montoExtraDiasDobles = 0;
-
-        if (
-          montoDiasDoblesValor !== null &&
-          Number.isFinite(montoDiasDoblesValor) &&
-          montoDiasDoblesValor >= 0
-        ) {
-          montoExtraDiasDobles = montoDiasDoblesValor;
-        } else if (diasDoblesValor > 0 && salario_base > 0) {
-          montoExtraDiasDobles = salario_base * diasDoblesValor;
+        let diasAsistenciaFechas = null;
+        if (esAutomatica && diasDoblesPeriodo.length > 0) {
+          const diasAsistencia = await Asistencia.getDistinctAttendanceDays(
+            id_empleado,
+            periodo_inicio,
+            periodo_fin,
+          );
+          diasAsistenciaFechas = new Set(diasAsistencia.map((fecha) => formatDateKey(fecha)));
         }
+
+        const montoExtraDiasDobles = resolveMontoExtraDiasDobles({
+          montoManual: montoDiasDoblesValor,
+          diasDoblesManual: diasDoblesValor,
+          salarioDiario: salario_base,
+          detalles: detallesFinales,
+          diasDoblesPeriodo,
+          diasAsistenciaSet: diasAsistenciaFechas,
+        });
 
         const pagoDiasNormales = Number((salario_base * Math.max(diasParaPago, 0)).toFixed(2));
         const montoExtraNormalizado = Number(Number(montoExtraDiasDobles).toFixed(2));
@@ -798,15 +888,13 @@ class Planilla {
           );
         }
 
-        if (
-          montoDiasDoblesValor !== null &&
-          Number.isFinite(montoDiasDoblesValor) &&
-          montoDiasDoblesValor >= 0
-        ) {
-          montoExtraDiasDobles = montoDiasDoblesValor;
-        } else if (diasDoblesValor > 0 && salarioDiarioEstimado > 0) {
-          montoExtraDiasDobles = salarioDiarioEstimado * diasDoblesValor;
-        }
+        montoExtraDiasDobles = resolveMontoExtraDiasDobles({
+          montoManual: montoDiasDoblesValor,
+          diasDoblesManual: diasDoblesValor,
+          salarioDiario: salarioDiarioEstimado,
+          detalles: detallesFinales,
+          diasDoblesPeriodo,
+        });
 
         if (!Number.isFinite(montoExtraDiasDobles) || montoExtraDiasDobles < 0) {
           montoExtraDiasDobles = 0;
