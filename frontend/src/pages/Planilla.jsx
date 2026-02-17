@@ -268,9 +268,24 @@ const Planilla = () => {
       return sum + (pagoNeto ?? 0);
     }, 0);
 
+    const totalDiasDobles = (planillasFiltradas || []).reduce((sum, planillaActual) => {
+      const diasDobles = getPlanillaNumericField(planillaActual, ["dias_dobles", "diasDobles"]);
+      return sum + (diasDobles ?? 0);
+    }, 0);
+
+    const totalMontoDiasDobles = (planillasFiltradas || []).reduce((sum, planillaActual) => {
+      const montoDiasDobles = getPlanillaNumericField(planillaActual, [
+        "monto_dias_dobles",
+        "montoDiasDobles",
+      ]);
+      return sum + (montoDiasDobles ?? 0);
+    }, 0);
+
     return {
       cantidad: planillasFiltradas?.length || 0,
       totalPago: currencyFormatter.format(totalPago),
+      totalDiasDobles: Number(totalDiasDobles.toFixed(2)),
+      totalMontoDiasDobles: currencyFormatter.format(totalMontoDiasDobles),
     };
   }, [planillasFiltradas]);
 
@@ -875,7 +890,7 @@ const Planilla = () => {
             )}
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <article className="bg-white shadow rounded-xl p-4">
               <p className="text-sm text-gray-500">Planillas registradas</p>
               <p className="text-3xl font-semibold text-gray-800">{resumenPlanillas.cantidad}</p>
@@ -883,6 +898,16 @@ const Planilla = () => {
             <article className="bg-white shadow rounded-xl p-4">
               <p className="text-sm text-gray-500">Pago neto acumulado</p>
               <p className="text-3xl font-semibold text-gray-800">{resumenPlanillas.totalPago}</p>
+            </article>
+            <article className="bg-white shadow rounded-xl p-4">
+              <p className="text-sm text-gray-500">Días dobles acumulados</p>
+              <p className="text-3xl font-semibold text-gray-800">{resumenPlanillas.totalDiasDobles}</p>
+            </article>
+            <article className="bg-white shadow rounded-xl p-4">
+              <p className="text-sm text-gray-500">Extra por feriados acumulado</p>
+              <p className="text-3xl font-semibold text-gray-800">
+                {resumenPlanillas.totalMontoDiasDobles}
+              </p>
             </article>
           </section>
 
@@ -989,6 +1014,8 @@ const Planilla = () => {
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Salario base</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Monto horas extras</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Bonificaciones</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Días dobles</th>
+                      <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Extra feriado</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">CCSS</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Otras deducciones</th>
                       <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Total deducciones</th>
@@ -1017,6 +1044,13 @@ const Planilla = () => {
                           "bonificaciones",
                           "bonos",
                           "bonificacionesTotales",
+                        ]) ?? 0;
+                      const diasDobles =
+                        getPlanillaNumericField(planilla, ["dias_dobles", "diasDobles"]) ?? 0;
+                      const montoDiasDobles =
+                        getPlanillaNumericField(planilla, [
+                          "monto_dias_dobles",
+                          "montoDiasDobles",
                         ]) ?? 0;
                       const ccss =
                         getPlanillaNumericField(planilla, ["ccss_deduccion", "ccssDeduccion"]) ?? 0;
@@ -1055,6 +1089,12 @@ const Planilla = () => {
                           </td>
                           <td className="px-4 py-2 text-right text-sm text-gray-600">
                             {formatCurrency(bonificaciones)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {diasDobles}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-600">
+                            {formatCurrency(montoDiasDobles)}
                           </td>
                           <td className="px-4 py-2 text-right text-sm text-gray-600">
                             {formatCurrency(ccss)}
