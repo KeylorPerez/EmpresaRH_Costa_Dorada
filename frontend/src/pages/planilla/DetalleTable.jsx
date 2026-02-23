@@ -104,10 +104,17 @@ const DetalleTable = ({
         </thead>
         <tbody className="divide-y divide-gray-100 bg-white">
           {detalleDias.map((detalle, index) => {
+            const estadoActual =
+              typeof detalle.estado === "string" && detalle.estado.trim().length > 0
+                ? detalle.estado.trim()
+                : detalle.es_descanso && !detalle.asistio
+                  ? "Descanso"
+                  : "Presente";
+
             const estadoSeleccionado = detalleEstadoOptions.some(
-              (option) => option.value === detalle.estado,
+              (option) => option.value === estadoActual,
             )
-              ? detalle.estado
+              ? estadoActual
               : "Presente";
 
             return (
@@ -141,25 +148,19 @@ const DetalleTable = ({
                   </button>
                 </td>
                 <td className="px-4 py-3 min-w-[160px]">
-                  {detalle.es_descanso && !detalle.asistio ? (
-                    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Descanso
-                    </span>
-                  ) : (
-                    <select
-                      value={estadoSeleccionado}
-                      onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
-                      className={`w-full rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold ${getEstadoBadgeClass(
-                        estadoSeleccionado
-                      )} focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300`}
-                    >
-                      {detalleEstadoOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    value={estadoSeleccionado}
+                    onChange={(event) => updateDetalleDia(index, { estado: event.target.value })}
+                    className={`w-full rounded-lg border border-gray-200 px-3 py-1 text-sm font-semibold ${getEstadoBadgeClass(
+                      estadoSeleccionado
+                    )} focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300`}
+                  >
+                    {detalleEstadoOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-4 py-3 text-center">
                   <input
