@@ -203,6 +203,10 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                 ...item,
                 asistio: Boolean(item.asistio),
                 es_dia_doble: Boolean(item.es_dia_doble),
+                dia_semana:
+                  item.dia_semana === undefined || item.dia_semana === null
+                    ? ""
+                    : String(item.dia_semana),
                 estado: estadoFinal,
                 es_descanso: esDescanso,
                 justificado:
@@ -211,6 +215,10 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                   item.justificacion === undefined || item.justificacion === null
                     ? ""
                     : String(item.justificacion),
+                observacion:
+                  item.observacion === undefined || item.observacion === null
+                    ? ""
+                    : String(item.observacion),
               };
             })
           : [];
