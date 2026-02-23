@@ -197,7 +197,7 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                 estadoNormalizado.toLowerCase() === "descanso" ||
                 estadoNormalizado.toLowerCase() === "pagado" ||
                 asistenciaNormalizada.toLowerCase() === "descanso";
-              const estadoFinal = esDescanso ? "Pagado" : estadoNormalizado;
+              const estadoFinal = esDescanso ? "Descanso" : estadoNormalizado;
 
               return {
                 ...item,

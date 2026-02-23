@@ -7,7 +7,7 @@ const { resolvePlanillaAutomaticaColumn } = require('../utils/empleadoSchema');
 const Asistencia = require('./Asistencia');
 const DetallePlanilla = require('./DetallePlanilla');
 const DiasDobles = require('./DiasDobles');
-const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad'];
+const ESTADOS_ASISTENCIA = ['Presente', 'Ausente', 'Permiso', 'Vacaciones', 'Incapacidad', 'Descanso', 'Pagado'];
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const isTruthyBit = (value) => Number(value) === 1 || value === true;
 
@@ -165,7 +165,14 @@ function sanitizeDetallePlanilla(detalles) {
   return detalles
     .map((detalle) => {
       const estadoTexto = typeof detalle.estado === 'string' ? detalle.estado.trim() : '';
-      const estadoNormalizado = ESTADOS_ASISTENCIA.includes(estadoTexto) ? estadoTexto : 'Presente';
+      const estadoNormalizado = (() => {
+        if (ESTADOS_ASISTENCIA.includes(estadoTexto)) {
+          if (estadoTexto === 'Pagado') return 'Descanso';
+          return estadoTexto;
+        }
+        if (detalle.es_descanso) return 'Descanso';
+        return 'Presente';
+      })();
 
       const asistenciaTexto = (() => {
         if (typeof detalle.asistencia === 'string') {

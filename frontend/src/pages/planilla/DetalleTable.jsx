@@ -62,6 +62,7 @@ const DetalleTable = ({
         return "bg-purple-100 text-purple-700";
       case "ausente":
         return "bg-red-100 text-red-700";
+      case "descanso":
       case "pagado":
         return "bg-slate-100 text-slate-700";
       default:
@@ -142,7 +143,7 @@ const DetalleTable = ({
                 <td className="px-4 py-3 min-w-[160px]">
                   {detalle.es_descanso && !detalle.asistio ? (
                     <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Pagado
+                      Descanso
                     </span>
                   ) : (
                     <select

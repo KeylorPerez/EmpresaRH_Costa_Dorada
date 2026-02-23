@@ -175,9 +175,11 @@ class DetallePlanilla {
         if (typeof detalle.estado === 'string') {
           const texto = detalle.estado.trim();
           if (texto.length > 0) {
+            if (texto.toLowerCase() === 'pagado') return 'Descanso';
             return texto.length > 50 ? texto.slice(0, 50) : texto;
           }
         }
+        if (detalle.es_descanso) return 'Descanso';
         return detalle.asistio ? 'Presente' : 'Ausente';
       })();
 
