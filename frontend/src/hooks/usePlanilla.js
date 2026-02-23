@@ -19,6 +19,7 @@ const ESTADOS_ASISTENCIA = [
   "Permiso",
   "Vacaciones",
   "Incapacidad",
+  "Descanso",
 ];
 
 export const detalleEstadoOptions = ESTADOS_ASISTENCIA.map((estado) => ({
