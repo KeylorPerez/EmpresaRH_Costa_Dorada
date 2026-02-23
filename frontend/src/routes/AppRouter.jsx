@@ -21,6 +21,7 @@ import Liquidaciones from "../pages/Liquidaciones";
 import Aguinaldos from "../pages/Aguinaldos";
 import Asistencia from "../pages/Asistencia";
 import DiasDobles from "../pages/DiasDobles";
+import EmpleadoDescansos from "../pages/EmpleadoDescansos";
 import AuthForm from "../components/AuthForm"; // Login
 import Acerca from "../pages/Acerca";
 
@@ -107,6 +108,15 @@ const AppRouter = () => {
         element={
           <PrivateRoute allowedRoles={[1]}>
             <DiasDobles />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/admin/descansos"
+        element={
+          <PrivateRoute allowedRoles={[1]}>
+            <EmpleadoDescansos />
           </PrivateRoute>
         }
       />

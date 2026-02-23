@@ -21,8 +21,10 @@ const liquidacionRoutes = require('./routes/liquidacionRoutes');
 const puestoRoutes = require('./routes/puestoRoutes');
 const aguinaldoRoutes = require('./routes/aguinaldoRoutes');
 const diasDoblesRoutes = require('./routes/diasDoblesRoutes');
+const empleadoDescansosRoutes = require('./routes/empleadoDescansosRoutes');
 const Planilla = require('./models/Planilla');
 const DetallePlanilla = require('./models/DetallePlanilla');
+const EmpleadoDescansos = require('./models/EmpleadoDescansos');
 
 const app = express();
 
@@ -47,6 +49,7 @@ async function bootstrapPlanillaSchemas() {
   try {
     await Planilla.ensureSchema();
     await DetallePlanilla.ensureSchema();
+    await EmpleadoDescansos.ensureSchema();
     console.log('[INIT] Esquemas de planilla verificados');
   } catch (err) {
     console.error('[INIT] Error verificando esquemas de planilla:', err.message);
@@ -67,6 +70,7 @@ app.use('/api/liquidaciones', liquidacionRoutes);
 app.use('/api/puestos', puestoRoutes);
 app.use('/api/aguinaldos', aguinaldoRoutes);
 app.use('/api/dias-dobles', diasDoblesRoutes);
+app.use('/api/empleado-descansos', empleadoDescansosRoutes);
 
 // Puerto
 const PORT = process.env.PORT || 3000;
