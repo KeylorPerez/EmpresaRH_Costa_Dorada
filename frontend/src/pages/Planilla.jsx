@@ -437,6 +437,10 @@ const Planilla = () => {
     }
 
     return planillas.reduce((acumulador, planillaActual) => {
+      if (!planillaActual || typeof planillaActual !== "object") {
+        return acumulador;
+      }
+
       const empleadoId = resolveEmpleadoId(planillaActual);
 
       if (empleadoId === null || empleadoId === undefined) {
