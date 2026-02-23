@@ -96,53 +96,56 @@ const ensureSchema = async () => {
         ON i.id_descanso = d.id_descanso;
     END');
 
-    IF OBJECT_ID('dbo.EsDescanso', 'FN') IS NOT NULL
-      DROP FUNCTION dbo.EsDescanso;
-
-    EXEC('CREATE FUNCTION dbo.EsDescanso
-    (
-      @id_empleado INT,
-      @fecha DATE
-    )
-    RETURNS BIT
-    AS
+    IF HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'CREATE FUNCTION') = 1
     BEGIN
-      DECLARE @es BIT = 0;
-      DECLARE @dow TINYINT = CONVERT(TINYINT, ((DATEDIFF(DAY, ''19000101'', @fecha) + 1) % 7) + 1);
+      IF OBJECT_ID('dbo.EsDescanso', 'FN') IS NOT NULL
+        DROP FUNCTION dbo.EsDescanso;
 
-      IF EXISTS (
-        SELECT 1 FROM dbo.EmpleadoDescansos d
-        WHERE d.id_empleado = @id_empleado AND d.estado = 1 AND d.tipo_descanso = ''FECHA_UNICA'' AND d.fecha_inicio = @fecha
-      ) RETURN 1;
+      EXEC('CREATE FUNCTION dbo.EsDescanso
+      (
+        @id_empleado INT,
+        @fecha DATE
+      )
+      RETURNS BIT
+      AS
+      BEGIN
+        DECLARE @es BIT = 0;
+        DECLARE @dow TINYINT = CONVERT(TINYINT, ((DATEDIFF(DAY, ''19000101'', @fecha) + 1) % 7) + 1);
 
-      IF EXISTS (
-        SELECT 1 FROM dbo.EmpleadoDescansos d
-        WHERE d.id_empleado = @id_empleado AND d.estado = 1 AND d.tipo_descanso = ''RANGO_FECHAS'' AND @fecha BETWEEN d.fecha_inicio AND d.fecha_fin
-      ) RETURN 1;
+        IF EXISTS (
+          SELECT 1 FROM dbo.EmpleadoDescansos d
+          WHERE d.id_empleado = @id_empleado AND d.estado = 1 AND d.tipo_descanso = ''FECHA_UNICA'' AND d.fecha_inicio = @fecha
+        ) RETURN 1;
 
-      IF EXISTS (
-        SELECT 1 FROM dbo.EmpleadoDescansos d
-        WHERE d.id_empleado = @id_empleado
-          AND d.estado = 1
-          AND d.tipo_descanso = ''ALTERNADO_SEMANAL''
-          AND @fecha >= d.fecha_inicio
-          AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
-          AND (((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 0 AND @dow = d.dia_semana
-               OR ((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 1 AND @dow = d.dia_semana_alterno)
-      ) RETURN 1;
+        IF EXISTS (
+          SELECT 1 FROM dbo.EmpleadoDescansos d
+          WHERE d.id_empleado = @id_empleado AND d.estado = 1 AND d.tipo_descanso = ''RANGO_FECHAS'' AND @fecha BETWEEN d.fecha_inicio AND d.fecha_fin
+        ) RETURN 1;
 
-      IF EXISTS (
-        SELECT 1 FROM dbo.EmpleadoDescansos d
-        WHERE d.id_empleado = @id_empleado
-          AND d.estado = 1
-          AND d.tipo_descanso = ''FIJO_SEMANAL''
-          AND @fecha >= d.fecha_inicio
-          AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
-          AND d.dia_semana = @dow
-      ) RETURN 1;
+        IF EXISTS (
+          SELECT 1 FROM dbo.EmpleadoDescansos d
+          WHERE d.id_empleado = @id_empleado
+            AND d.estado = 1
+            AND d.tipo_descanso = ''ALTERNADO_SEMANAL''
+            AND @fecha >= d.fecha_inicio
+            AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
+            AND (((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 0 AND @dow = d.dia_semana
+                OR ((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 1 AND @dow = d.dia_semana_alterno)
+        ) RETURN 1;
 
-      RETURN @es;
-    END');
+        IF EXISTS (
+          SELECT 1 FROM dbo.EmpleadoDescansos d
+          WHERE d.id_empleado = @id_empleado
+            AND d.estado = 1
+            AND d.tipo_descanso = ''FIJO_SEMANAL''
+            AND @fecha >= d.fecha_inicio
+            AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
+            AND d.dia_semana = @dow
+        ) RETURN 1;
+
+        RETURN @es;
+      END');
+    END;
   `);
 };
 
@@ -282,12 +285,78 @@ const EmpleadoDescansos = {
 
   async esDescanso(idEmpleado, fecha) {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input('id_empleado', sql.Int, idEmpleado)
-      .input('fecha', sql.Date, fecha)
-      .query('SELECT dbo.EsDescanso(@id_empleado, @fecha) AS es_descanso');
 
-    return Boolean(result.recordset[0]?.es_descanso);
+    try {
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, idEmpleado)
+        .input('fecha', sql.Date, fecha)
+        .query('SELECT dbo.EsDescanso(@id_empleado, @fecha) AS es_descanso');
+
+      return Boolean(result.recordset[0]?.es_descanso);
+    } catch (error) {
+      const mensaje = String(error?.message || '').toLowerCase();
+      const faltanteFuncion =
+        mensaje.includes('esdescanso')
+        && (mensaje.includes('not a recognized built-in function name')
+          || mensaje.includes('cannot find either column')
+          || mensaje.includes('could not find stored procedure'));
+
+      if (!faltanteFuncion) {
+        throw error;
+      }
+
+      const result = await pool.request()
+        .input('id_empleado', sql.Int, idEmpleado)
+        .input('fecha', sql.Date, fecha)
+        .query(`
+          DECLARE @dow TINYINT = CONVERT(TINYINT, ((DATEDIFF(DAY, '19000101', @fecha) + 1) % 7) + 1);
+
+          SELECT CAST(
+            CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM dbo.EmpleadoDescansos d
+                WHERE d.id_empleado = @id_empleado
+                  AND d.estado = 1
+                  AND d.tipo_descanso = 'FECHA_UNICA'
+                  AND d.fecha_inicio = @fecha
+              ) THEN 1
+              WHEN EXISTS (
+                SELECT 1
+                FROM dbo.EmpleadoDescansos d
+                WHERE d.id_empleado = @id_empleado
+                  AND d.estado = 1
+                  AND d.tipo_descanso = 'RANGO_FECHAS'
+                  AND @fecha BETWEEN d.fecha_inicio AND d.fecha_fin
+              ) THEN 1
+              WHEN EXISTS (
+                SELECT 1
+                FROM dbo.EmpleadoDescansos d
+                WHERE d.id_empleado = @id_empleado
+                  AND d.estado = 1
+                  AND d.tipo_descanso = 'ALTERNADO_SEMANAL'
+                  AND @fecha >= d.fecha_inicio
+                  AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
+                  AND (((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 0 AND @dow = d.dia_semana
+                    OR ((DATEDIFF(DAY, d.fecha_inicio, @fecha) / 7) % 2) = 1 AND @dow = d.dia_semana_alterno)
+              ) THEN 1
+              WHEN EXISTS (
+                SELECT 1
+                FROM dbo.EmpleadoDescansos d
+                WHERE d.id_empleado = @id_empleado
+                  AND d.estado = 1
+                  AND d.tipo_descanso = 'FIJO_SEMANAL'
+                  AND @fecha >= d.fecha_inicio
+                  AND (d.fecha_fin IS NULL OR @fecha <= d.fecha_fin)
+                  AND d.dia_semana = @dow
+              ) THEN 1
+              ELSE 0
+            END
+          AS bit) AS es_descanso;
+        `);
+
+      return Boolean(result.recordset[0]?.es_descanso);
+    }
   },
 };
 
