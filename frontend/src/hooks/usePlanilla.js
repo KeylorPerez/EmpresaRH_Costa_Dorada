@@ -4,6 +4,7 @@ import empleadoService from "../services/empleadoService";
 import prestamosService from "../services/prestamosService";
 import asistenciaService from "../services/asistenciaService";
 import diasDoblesService from "../services/diasDoblesService";
+import empleadoDescansosService from "../services/empleadoDescansosService";
 import { parseDateValue } from "../utils/dateUtils";
 import { parseNumberInput, toPositiveNumber } from "../utils/numberUtils";
 import {
@@ -33,6 +34,10 @@ const ESTADO_VACACIONES = "Vacaciones";
 const ESTADO_INCAPACIDAD = "Incapacidad";
 const ESTADO_DESCANSO = "Descanso";
 const ESTADO_PAGADO = "Pagado";
+const ESTADO_FIJO_SEMANAL = "FIJO_SEMANAL";
+const ESTADO_ALTERNADO_SEMANAL = "ALTERNADO_SEMANAL";
+const ESTADO_FECHA_UNICA = "FECHA_UNICA";
+const ESTADO_RANGO_FECHAS = "RANGO_FECHAS";
 const SALARIO_CERO_TEXTO = Number(0).toFixed(2);
 const DIAS_POR_QUINCENA = 15;
 const DIAS_POR_MES = 30;
@@ -96,6 +101,62 @@ const formatDateKey = (value) => {
     return `${year}-${month}-${day}`;
   }
   return "";
+};
+
+
+
+const getDayOfWeekMonToSun = (value) => {
+  const date = parseDateSafe(value);
+  if (!date) return null;
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+};
+
+const resolveEsDescansoPorReglas = (fecha, reglas = []) => {
+  const fechaDate = parseDateSafe(fecha);
+  if (!fechaDate) return false;
+  const fechaKey = formatDateKey(fechaDate);
+  const dow = getDayOfWeekMonToSun(fechaDate);
+
+  const activas = Array.isArray(reglas)
+    ? reglas.filter((item) => item && (item.estado === true || Number(item.estado) === 1))
+    : [];
+
+  const inRange = (regla) => {
+    const inicio = parseDateSafe(regla?.fecha_inicio);
+    if (!inicio || fechaDate < inicio) return false;
+    const fin = regla?.fecha_fin ? parseDateSafe(regla.fecha_fin) : null;
+    if (fin && fechaDate > fin) return false;
+    return true;
+  };
+
+  if (activas.some((regla) => regla.tipo_descanso === ESTADO_FECHA_UNICA && formatDateKey(regla.fecha_inicio) === fechaKey)) {
+    return true;
+  }
+
+  if (activas.some((regla) => regla.tipo_descanso === ESTADO_RANGO_FECHAS && inRange(regla))) {
+    return true;
+  }
+
+  if (
+    activas.some((regla) => {
+      if (regla.tipo_descanso !== ESTADO_ALTERNADO_SEMANAL || !inRange(regla)) return false;
+      const inicio = parseDateSafe(regla.fecha_inicio);
+      if (!inicio) return false;
+      const diffDays = Math.floor((fechaDate - inicio) / MS_POR_DIA);
+      if (diffDays < 0) return false;
+      const esSemanaPar = Math.floor(diffDays / 7) % 2 === 0;
+      const diaObjetivo = esSemanaPar ? Number(regla.dia_semana) : Number(regla.dia_semana_alterno);
+      return Number.isInteger(diaObjetivo) && diaObjetivo === dow;
+    })
+  ) {
+    return true;
+  }
+
+  return activas.some((regla) => {
+    if (regla.tipo_descanso !== ESTADO_FIJO_SEMANAL || !inRange(regla)) return false;
+    return Number(regla.dia_semana) === dow;
+  });
 };
 
 const normalizeSalarioBase = (valor) => {
@@ -274,7 +335,7 @@ const normalizeEstado = (value) => {
 
 const resolveEstadoPersistencia = (detalle) => {
   if (detalle?.es_descanso && !detalle?.asistio) {
-    return ESTADO_PAGADO;
+    return ESTADO_DESCANSO;
   }
   return normalizeEstado(detalle?.estado);
 };
@@ -564,6 +625,7 @@ export const usePlanilla = () => {
     error: "",
   });
   const [detalleNonDiarioReloadKey, setDetalleNonDiarioReloadKey] = useState(0);
+  const [descansosEmpleado, setDescansosEmpleado] = useState([]);
   const [diasDoblesActivos, setDiasDoblesActivos] = useState([]);
   const [detalleDias, setDetalleDias] = useState([]);
   const [detalleJustificaciones, setDetalleJustificaciones] = useState(
@@ -585,7 +647,7 @@ export const usePlanilla = () => {
     );
   }, [empleados, formData.id_empleado]);
 
-  const descansoProgramadoActivo = false;
+  const descansoProgramadoActivo = Array.isArray(descansosEmpleado) && descansosEmpleado.length > 0;
 
   const salarioDetalleReferencia = useMemo(() => {
     if (!empleadoDetalleActivo) {
@@ -629,6 +691,37 @@ export const usePlanilla = () => {
     });
     return mapa;
   }, [diasDoblesActivos]);
+
+  useEffect(() => {
+    if (!modalOpen || !formData.id_empleado) {
+      setDescansosEmpleado([]);
+      return;
+    }
+
+    let cancelado = false;
+
+    const fetchDescansos = async () => {
+      try {
+        const data = await empleadoDescansosService.getAll({
+          id_empleado: Number(formData.id_empleado),
+          estado: true,
+        });
+        if (!cancelado) {
+          setDescansosEmpleado(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (!cancelado) {
+          setDescansosEmpleado([]);
+        }
+      }
+    };
+
+    fetchDescansos();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [modalOpen, formData.id_empleado]);
 
   const esPagoQuincenal = useMemo(() => {
     if (!empleadoDetalleActivo) {
@@ -946,7 +1039,7 @@ export const usePlanilla = () => {
 
       return {
         ...detalle,
-        asistio: true,
+        asistio: esDescanso ? false : true,
         es_dia_doble: esDiaDoble,
         multiplicador_dia_doble: esDiaDoble ? factor : detalle.multiplicador_dia_doble,
         salario_dia: salarioTexto,
@@ -1462,19 +1555,21 @@ export const usePlanilla = () => {
       const factor = esDiaDobleConfigurado ? multiplicadorDoble : 1;
       const salarioDia = Number((salarioDiarioReferencia * factor).toFixed(2));
 
+      const esDescanso = resolveEsDescansoPorReglas(iso, descansosEmpleado);
+
       detalles.push({
         fecha: iso,
         dia_semana: diaSemana,
         salario_base: salarioDiarioReferencia,
         salario_dia: salarioDia.toFixed(2),
-        asistio: true,
+        asistio: esDescanso ? false : true,
         es_dia_doble: esDiaDobleConfigurado,
         multiplicador_dia_doble: esDiaDobleConfigurado ? multiplicadorDoble : null,
-        es_descanso: false,
-        estado: ESTADO_PRESENTE,
-        justificado: false,
-        justificacion: "",
-        observacion: "",
+        es_descanso: esDescanso,
+        estado: esDescanso ? ESTADO_DESCANSO : ESTADO_PRESENTE,
+        justificado: esDescanso ? true : false,
+        justificacion: esDescanso ? "Descanso programado" : "",
+        observacion: esDescanso ? "Descanso programado" : "",
         autoJustificacion: false,
         asistenciaManual: false,
         dia_doble_manual: false,
@@ -1482,7 +1577,7 @@ export const usePlanilla = () => {
     }
 
     return detalles;
-  }, [diasDoblesMap]);
+  }, [descansosEmpleado, diasDoblesMap]);
 
   useEffect(() => {
     setDetalleDias((prev) => {
