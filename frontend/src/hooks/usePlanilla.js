@@ -1047,7 +1047,7 @@ export const usePlanilla = () => {
 
       return {
         ...detalle,
-        asistio: esDescanso ? false : true,
+        asistio: true,
         es_dia_doble: esDiaDoble,
         multiplicador_dia_doble: esDiaDoble ? factor : detalle.multiplicador_dia_doble,
         salario_dia: salarioTexto,
