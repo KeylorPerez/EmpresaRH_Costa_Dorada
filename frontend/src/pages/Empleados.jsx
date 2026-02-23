@@ -40,7 +40,7 @@ const Empleados = ({ mode = "admin" }) => {
     ? "Administra y gestiona la información del personal registrado en el sistema."
     : "Consulta tus datos laborales registrados en el sistema.";
 
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const currentEmpleadoId = useMemo(() => {
