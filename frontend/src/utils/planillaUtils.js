@@ -290,7 +290,9 @@ export const ensurePlanillaArrayCanonical = (planillas) => {
     return [];
   }
 
-  return planillas.map((item) => ensurePlanillaCanonical(item));
+  return planillas
+    .map((item) => ensurePlanillaCanonical(item))
+    .filter((item) => item && typeof item === "object");
 };
 
 export default ensurePlanillaCanonical;

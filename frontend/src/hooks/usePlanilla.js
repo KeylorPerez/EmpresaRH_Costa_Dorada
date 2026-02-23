@@ -568,6 +568,14 @@ const normalizeFlag = (value, fallback = "0") => {
   return numericValue === 1 ? "1" : "0";
 };
 
+const sanitizeObjectArray = (records) => {
+  if (!Array.isArray(records)) {
+    return [];
+  }
+
+  return records.filter((item) => item && typeof item === "object");
+};
+
 const formatInputDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1114,7 +1122,7 @@ export const usePlanilla = () => {
   const fetchEmpleados = useCallback(async () => {
     try {
       const data = await empleadoService.getAll();
-      setEmpleados(Array.isArray(data) ? data : []);
+      setEmpleados(sanitizeObjectArray(data));
     } catch (err) {
       console.error(err);
     }
@@ -1123,7 +1131,7 @@ export const usePlanilla = () => {
   const fetchPrestamos = useCallback(async () => {
     try {
       const data = await prestamosService.getAll();
-      setPrestamos(Array.isArray(data) ? data : []);
+      setPrestamos(sanitizeObjectArray(data));
     } catch (err) {
       console.error(err);
     }
@@ -1132,7 +1140,7 @@ export const usePlanilla = () => {
   const fetchDiasDobles = useCallback(async () => {
     try {
       const data = await diasDoblesService.getAll({ activo: true });
-      setDiasDoblesActivos(Array.isArray(data) ? data : []);
+      setDiasDoblesActivos(sanitizeObjectArray(data));
     } catch (err) {
       console.error(err);
       setDiasDoblesActivos([]);
