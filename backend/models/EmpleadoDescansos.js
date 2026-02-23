@@ -80,21 +80,24 @@ const ensureSchema = async () => {
         ON dbo.EmpleadoDescansos (id_empleado, fecha_inicio, fecha_fin, estado, tipo_descanso);
     END;
 
-    IF OBJECT_ID('dbo.TR_EmpleadoDescansos_UpdatedAt', 'TR') IS NOT NULL
-      DROP TRIGGER dbo.TR_EmpleadoDescansos_UpdatedAt;
-
-    EXEC('CREATE TRIGGER dbo.TR_EmpleadoDescansos_UpdatedAt
-    ON dbo.EmpleadoDescansos
-    AFTER UPDATE
-    AS
+    IF HAS_PERMS_BY_NAME('dbo.EmpleadoDescansos', 'OBJECT', 'ALTER') = 1
     BEGIN
-      SET NOCOUNT ON;
-      UPDATE d
-        SET updated_at = SYSDATETIME()
-      FROM dbo.EmpleadoDescansos d
-      INNER JOIN inserted i
-        ON i.id_descanso = d.id_descanso;
-    END');
+      IF OBJECT_ID('dbo.TR_EmpleadoDescansos_UpdatedAt', 'TR') IS NOT NULL
+        DROP TRIGGER dbo.TR_EmpleadoDescansos_UpdatedAt;
+
+      EXEC('CREATE TRIGGER dbo.TR_EmpleadoDescansos_UpdatedAt
+      ON dbo.EmpleadoDescansos
+      AFTER UPDATE
+      AS
+      BEGIN
+        SET NOCOUNT ON;
+        UPDATE d
+          SET updated_at = SYSDATETIME()
+        FROM dbo.EmpleadoDescansos d
+        INNER JOIN inserted i
+          ON i.id_descanso = d.id_descanso;
+      END');
+    END;
 
     IF HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'CREATE FUNCTION') = 1
     BEGIN
