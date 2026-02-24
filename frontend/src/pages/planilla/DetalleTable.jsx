@@ -13,6 +13,19 @@ const DetalleTable = ({
   normalizeDetalleSalario,
   restoreDetalleFieldFocus,
 }) => {
+  const formatHour = (value) => {
+    if (!value) return "-";
+    if (typeof value === "string") {
+      const cleanValue = value.split(".")[0]?.trim() || "";
+      if (!cleanValue) return "-";
+      const match = cleanValue.match(/^(\d{2}:\d{2})/);
+      return match ? match[1] : cleanValue;
+    }
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return String(value);
+    return parsedDate.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" });
+  };
+
   if (detalleDias.length === 0) {
     return (
       <p className={`text-sm text-gray-500 ${className}`}>
@@ -93,6 +106,8 @@ const DetalleTable = ({
           <tr>
             <th className="px-4 py-3 text-left">Fecha</th>
             <th className="px-4 py-3 text-left">Día</th>
+            <th className="px-4 py-3 text-center whitespace-nowrap">Hora entrada</th>
+            <th className="px-4 py-3 text-center whitespace-nowrap">Hora salida</th>
             <th className="px-4 py-3 text-center">Asistencia</th>
             <th className="px-4 py-3 text-center">Día doble</th>
             <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
@@ -123,6 +138,12 @@ const DetalleTable = ({
                   {formatDate(detalle.fecha)}
                 </td>
                 <td className="px-4 py-3 capitalize text-gray-600">{detalle.dia_semana}</td>
+                <td className="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
+                  {formatHour(detalle.hora_entrada)}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
+                  {formatHour(detalle.hora_salida)}
+                </td>
                 <td className="px-4 py-3 text-center">
                   <button
                     type="button"
