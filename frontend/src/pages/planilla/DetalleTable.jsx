@@ -103,6 +103,8 @@ const DetalleTable = ({
     (detalle) => Boolean(detalle?.hora_entrada) || Boolean(detalle?.hora_salida),
   );
 
+  const tableWidthClass = context === "overlay" ? "min-w-[1450px]" : "min-w-full";
+
   return (
     <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
       {!hasAnyHour && (
@@ -110,8 +112,8 @@ const DetalleTable = ({
           No se encontraron marcas de entrada/salida en asistencia para este periodo.
         </p>
       )}
-      <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+      <table className={`${tableWidthClass} divide-y divide-gray-200 text-sm`}>
+        <thead className="sticky top-0 z-10 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
           <tr>
             <th className="px-4 py-3 text-left">Fecha</th>
             <th className="px-4 py-3 text-left">Día</th>

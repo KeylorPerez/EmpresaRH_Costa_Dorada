@@ -1671,15 +1671,15 @@ const Planilla = () => {
             </div>
 
               {detalleOverlayOpen && (
-                <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-6">
+                <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 px-2 py-4 sm:px-4 sm:py-6">
                   <div className="absolute inset-0" onClick={() => handleDetalleOverlayClose(false)} />
                   <div
                     role="dialog"
                     aria-modal="true"
                     aria-label="Detalle diario del periodo"
-                    className="relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
+                    className="relative z-10 flex h-[calc(100vh-1.5rem)] w-[min(96vw,1600px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[calc(100vh-3rem)]"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-4 py-4 sm:px-6 lg:px-8">
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-gray-800">Detalle diario del periodo</h3>
                         <p className="text-sm text-gray-500">
@@ -1726,7 +1726,7 @@ const Planilla = () => {
                     <div
                       ref={detalleOverlayFocusRef}
                       tabIndex={-1}
-                      className="flex-1 overflow-y-auto px-6 py-6 focus:outline-none"
+                      className="flex-1 overflow-y-auto px-4 py-4 focus:outline-none sm:px-6 sm:py-6 lg:px-8"
                       style={{ WebkitOverflowScrolling: "touch" }}
                     >
                       <DetalleTable
