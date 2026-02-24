@@ -265,8 +265,10 @@ const normalizeDetallePlanillaRegistro = (detalle) => {
     detalle.observacion !== undefined && detalle.observacion !== null
       ? String(detalle.observacion)
       : "";
-  const horaEntradaRaw = detalle.hora_entrada ?? detalle.horaEntrada ?? null;
-  const horaSalidaRaw = detalle.hora_salida ?? detalle.horaSalida ?? null;
+  const horaEntradaRaw =
+    detalle.hora_entrada ?? detalle.horaEntrada ?? detalle.hora_ingreso ?? detalle.horaIngreso ?? null;
+  const horaSalidaRaw =
+    detalle.hora_salida ?? detalle.horaSalida ?? detalle.hora_egreso ?? detalle.horaEgreso ?? null;
   const hora_entrada =
     typeof horaEntradaRaw === "string" ? horaEntradaRaw.trim() : horaEntradaRaw;
   const hora_salida =
@@ -432,20 +434,35 @@ const normalizarAsistenciaManualRegistro = (registro) => {
   if (!fecha) return null;
 
   const estadoNormalizado = normalizeEstado(registro.estado);
-  if (!estadosAsistenciaManual.has(estadoNormalizado)) {
-    return null;
-  }
+  const estadoManual = estadosAsistenciaManual.has(estadoNormalizado)
+    ? estadoNormalizado
+    : null;
 
   const justificado =
     registro.justificado === true ||
     registro.justificado === 1 ||
     registro.justificado === "1";
 
+  const tipoMarca =
+    typeof registro.tipo_marca === "string"
+      ? registro.tipo_marca.trim().toLowerCase()
+      : "";
+  const horaRegistro =
+    typeof registro.hora === "string" ? registro.hora.split(".")[0].trim() : "";
+  const horaEntrada = tipoMarca === "entrada" && horaRegistro ? horaRegistro : null;
+  const horaSalida = tipoMarca === "salida" && horaRegistro ? horaRegistro : null;
+
+  if (!estadoManual && !horaEntrada && !horaSalida) {
+    return null;
+  }
+
   return {
     fecha,
-    estado: estadoNormalizado,
+    estado: estadoManual,
     justificado,
     justificacion: resolveJustificacionTexto(registro),
+    hora_entrada: horaEntrada,
+    hora_salida: horaSalida,
   };
 };
 
@@ -1091,28 +1108,56 @@ export const usePlanilla = () => {
     const mapa = new Map();
 
     registrosAsistencia.forEach((registro) => {
-      if (!registro) return;
-      const anterior = mapa.get(registro.fecha);
-      if (!anterior) {
-        mapa.set(registro.fecha, registro);
-        return;
-      }
+      if (!registro || !registro.fecha) return;
+
+      const anterior = mapa.get(registro.fecha) || {
+        ...registro,
+        estado: null,
+        justificado: false,
+        justificacion: "",
+        hora_entrada: null,
+        hora_salida: null,
+      };
 
       const prioridadActual = prioridadEstadoAsistenciaManual[registro.estado] || 0;
       const prioridadAnterior = prioridadEstadoAsistenciaManual[anterior.estado] || 0;
+
       if (prioridadActual > prioridadAnterior) {
-        mapa.set(registro.fecha, registro);
+        anterior.estado = registro.estado;
+        anterior.justificado = registro.justificado;
+        anterior.justificacion = registro.justificacion || "";
       }
+
+      if (!anterior.hora_entrada && registro.hora_entrada) {
+        anterior.hora_entrada = registro.hora_entrada;
+      }
+
+      if (registro.hora_salida) {
+        anterior.hora_salida = registro.hora_salida;
+      }
+
+      mapa.set(registro.fecha, anterior);
     });
 
     return detalles.map((detalle) => {
-      if (detalle.asistenciaManual || detalle.es_descanso) {
-        return detalle;
-      }
-
       const registro = mapa.get(detalle.fecha);
       if (!registro) {
         return detalle;
+      }
+
+      const horaEntrada = registro.hora_entrada ?? detalle.hora_entrada ?? null;
+      const horaSalida = registro.hora_salida ?? detalle.hora_salida ?? null;
+
+      if (detalle.asistenciaManual || detalle.es_descanso || !registro.estado) {
+        if (horaEntrada === detalle.hora_entrada && horaSalida === detalle.hora_salida) {
+          return detalle;
+        }
+
+        return {
+          ...detalle,
+          hora_entrada: horaEntrada,
+          hora_salida: horaSalida,
+        };
       }
 
       return {
@@ -1122,6 +1167,8 @@ export const usePlanilla = () => {
         justificado: registro.justificado,
         justificacion: registro.justificacion || "",
         autoJustificacion: false,
+        hora_entrada: horaEntrada,
+        hora_salida: horaSalida,
       };
     });
   }, []);
