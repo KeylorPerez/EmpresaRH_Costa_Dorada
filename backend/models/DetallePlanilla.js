@@ -386,10 +386,20 @@ class DetallePlanilla {
           SELECT
             CONVERT(date, a.fecha) AS fecha,
             a.id_empleado,
-            MIN(CASE WHEN a.tipo_marca = 'entrada' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_entrada,
-            MAX(CASE WHEN a.tipo_marca = 'salida' THEN CONVERT(varchar(8), a.hora, 108) END) AS hora_salida
+            MIN(
+              CASE
+                WHEN LOWER(LTRIM(RTRIM(a.tipo_marca))) = 'entrada'
+                  THEN CONVERT(varchar(8), a.hora, 108)
+              END
+            ) AS hora_entrada,
+            MAX(
+              CASE
+                WHEN LOWER(LTRIM(RTRIM(a.tipo_marca))) = 'salida'
+                  THEN CONVERT(varchar(8), a.hora, 108)
+              END
+            ) AS hora_salida
           FROM Asistencia a
-          WHERE a.tipo_marca IN ('entrada', 'salida')
+          WHERE LOWER(LTRIM(RTRIM(a.tipo_marca))) IN ('entrada', 'salida')
           GROUP BY CONVERT(date, a.fecha), a.id_empleado
         ) AS marcas ON marcas.fecha = CONVERT(date, dp.fecha) AND marcas.id_empleado = p.id_empleado
         WHERE dp.id_planilla = @id_planilla
