@@ -99,8 +99,17 @@ const DetalleTable = ({
       : "bg-red-100 text-red-600 hover:bg-red-200";
   };
 
+  const hasAnyHour = detalleDias.some(
+    (detalle) => Boolean(detalle?.hora_entrada) || Boolean(detalle?.hora_salida),
+  );
+
   return (
     <div className={`overflow-x-auto rounded-xl border border-gray-100 ${className}`}>
+      {!hasAnyHour && (
+        <p className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+          No se encontraron marcas de entrada/salida en asistencia para este periodo.
+        </p>
+      )}
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
           <tr>

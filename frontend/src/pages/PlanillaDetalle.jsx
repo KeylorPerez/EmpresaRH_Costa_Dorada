@@ -212,8 +212,16 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                 asistenciaNormalizada.toLowerCase() === "descanso";
               const estadoFinal = esDescanso ? "Descanso" : estadoNormalizado;
 
+              const horaEntradaRaw =
+                item.hora_entrada ?? item.horaEntrada ?? item.horaIngreso ?? item.hora_ingreso ?? null;
+              const horaSalidaRaw =
+                item.hora_salida ?? item.horaSalida ?? item.horaEgreso ?? item.hora_egreso ?? null;
+
               return {
                 ...item,
+                hora_entrada:
+                  typeof horaEntradaRaw === "string" ? horaEntradaRaw.trim() : horaEntradaRaw,
+                hora_salida: typeof horaSalidaRaw === "string" ? horaSalidaRaw.trim() : horaSalidaRaw,
                 asistio: Boolean(item.asistio),
                 es_dia_doble: Boolean(item.es_dia_doble),
                 dia_semana:
