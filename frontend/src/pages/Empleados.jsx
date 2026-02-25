@@ -381,7 +381,7 @@ const Empleados = ({ mode = "admin" }) => {
                   <section className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre
+                        Nombre (campo obligatorio)
                       </label>
                       <input
                         type="text"
@@ -394,7 +394,7 @@ const Empleados = ({ mode = "admin" }) => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Apellido
+                        Apellido (campo obligatorio)
                       </label>
                       <input
                         type="text"
@@ -407,7 +407,7 @@ const Empleados = ({ mode = "admin" }) => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Puesto
+                        Puesto (campo obligatorio)
                       </label>
                       <select
                         name="id_puesto"
@@ -426,7 +426,7 @@ const Empleados = ({ mode = "admin" }) => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Cédula
+                        Cédula (campo obligatorio)
                       </label>
                       <input
                         type="text"
@@ -451,7 +451,7 @@ const Empleados = ({ mode = "admin" }) => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha de ingreso
+                        Fecha de ingreso (campo obligatorio)
                       </label>
                       <input
                         type="date"
@@ -491,7 +491,7 @@ const Empleados = ({ mode = "admin" }) => {
                   <section className="grid gap-4 md:grid-cols-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Salario base
+                        Salario base (campo obligatorio)
                       </label>
                       <input
                         type="number"
@@ -506,7 +506,7 @@ const Empleados = ({ mode = "admin" }) => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo de pago
+                        Tipo de pago (campo obligatorio)
                       </label>
                       <select
                         name="tipo_pago"
