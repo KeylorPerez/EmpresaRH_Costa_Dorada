@@ -636,6 +636,7 @@ const prepararLiquidacion = async ({
   const promedioInfo = await Liquidacion.calcularPromedioSalario(id_empleado, {
     meses: 6,
     fechaReferencia: fechaFin,
+    fechaIngreso: empleado.fecha_ingreso,
   });
 
   const salarioPromedio =

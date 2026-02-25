@@ -133,11 +133,19 @@ class Liquidacion {
     return { ...header, detalles, salarios_historicos: salariosHistoricos };
   }
 
-  static async calcularPromedioSalario(id_empleado, { meses = 6, fechaReferencia = new Date() } = {}) {
+  static async calcularPromedioSalario(
+    id_empleado,
+    { meses = 6, fechaReferencia = new Date(), fechaIngreso = null } = {},
+  ) {
     const pool = await poolPromise;
     const fechaCorte = toDateOrNull(fechaReferencia) || new Date();
-    const fechaDesde = new Date(fechaCorte);
-    fechaDesde.setMonth(fechaDesde.getMonth() - meses);
+    const fechaDesdeCalculada = new Date(fechaCorte);
+    fechaDesdeCalculada.setMonth(fechaDesdeCalculada.getMonth() - meses);
+    const fechaIngresoValida = toDateOrNull(fechaIngreso);
+    const fechaDesde =
+      fechaIngresoValida && fechaIngresoValida > fechaDesdeCalculada
+        ? fechaIngresoValida
+        : fechaDesdeCalculada;
 
     const request = pool.request();
     const result = await request
@@ -164,7 +172,12 @@ class Liquidacion {
         ORDER BY periodo_fin DESC
       `);
 
-    const historico = result.recordset || [];
+    const historico = (result.recordset || []).filter((row) => {
+      if (!fechaIngresoValida) return true;
+      const finPeriodo = toDateOrNull(row?.periodo_fin);
+      if (!finPeriodo) return false;
+      return finPeriodo >= fechaIngresoValida;
+    });
     const montos = historico
       .map((row) => {
         const salarioBase = Number(row.salario_base_liquidacion);
