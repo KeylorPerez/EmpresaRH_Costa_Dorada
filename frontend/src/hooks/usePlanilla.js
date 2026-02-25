@@ -46,8 +46,31 @@ const MS_POR_DIA = 1000 * 60 * 60 * 24;
 const MAX_AUSENCIAS_PAGADAS = 2;
 const MAX_AUSENCIAS_SIN_JUSTIFICAR = 3;
 
-const obtenerDiasReferencia = (tipoPago) =>
-  tipoPago === "Mensual" ? DIAS_POR_MES : DIAS_POR_QUINCENA;
+const obtenerDiasMes = (fecha) => {
+  const referencia = parseDateSafe(fecha);
+  if (!referencia) {
+    return 0;
+  }
+
+  return new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0).getDate();
+};
+
+const obtenerDiasReferencia = (tipoPago, { periodoInicio, periodoFin, fechaReferencia } = {}) => {
+  const tipoPagoNormalizado = (tipoPago || "").toString().trim().toLowerCase();
+
+  if (tipoPagoNormalizado !== "mensual") {
+    const diasPeriodoQuincenal = calcularDiasPeriodo(periodoInicio, periodoFin);
+    return diasPeriodoQuincenal > 0 ? diasPeriodoQuincenal : DIAS_POR_QUINCENA;
+  }
+
+  const diasPeriodoMensual = calcularDiasPeriodo(periodoInicio, periodoFin);
+  if (diasPeriodoMensual > 0) {
+    return diasPeriodoMensual;
+  }
+
+  const diasMes = obtenerDiasMes(fechaReferencia || periodoFin || periodoInicio);
+  return diasMes > 0 ? diasMes : DIAS_POR_MES;
+};
 
 const parseDateSafe = (value) => parseDateValue(value);
 
@@ -753,14 +776,17 @@ export const usePlanilla = () => {
     }
 
     if (tipoPagoEmpleado === "mensual") {
-      return Number((salarioBaseEmpleado / DIAS_POR_MES).toFixed(2));
+      const diasReferenciaMensual = obtenerDiasReferencia(tipoPagoEmpleado, {
+        periodoInicio: formData.periodo_inicio,
+        periodoFin: formData.periodo_fin,
+      });
+      return Number((salarioBaseEmpleado / diasReferenciaMensual).toFixed(2));
     }
 
-    const diasPeriodo =
-      tipoPagoEmpleado === "quincenal"
-        ? calcularDiasPeriodo(formData.periodo_inicio, formData.periodo_fin)
-        : 0;
-    const divisor = diasPeriodo > 0 ? diasPeriodo : DIAS_POR_QUINCENA;
+    const divisor = obtenerDiasReferencia(tipoPagoEmpleado, {
+      periodoInicio: formData.periodo_inicio,
+      periodoFin: formData.periodo_fin,
+    });
     return Number((salarioBaseEmpleado / divisor).toFixed(2));
   }, [empleadoDetalleActivo, formData.periodo_inicio, formData.periodo_fin]);
 
@@ -1663,15 +1689,14 @@ export const usePlanilla = () => {
     const salarioBase = Number(empleado.salario_monto) || 0;
     const tipoPago = empleado.tipo_pago || "Quincenal";
     const tipoPagoNormalizado = tipoPago.toString().trim().toLowerCase();
-    const diasPeriodo = calcularDiasPeriodo(inicio, fin);
     const diasReferencia =
       tipoPagoNormalizado === "diario"
         ? 0
-        : tipoPagoNormalizado === "mensual"
-          ? DIAS_POR_MES
-          : tipoPagoNormalizado === "quincenal" && diasPeriodo > 0
-            ? diasPeriodo
-            : DIAS_POR_QUINCENA;
+        : obtenerDiasReferencia(tipoPagoNormalizado, {
+            periodoInicio: inicio,
+            periodoFin: fin,
+            fechaReferencia: fin,
+          });
     const salarioDiarioReferencia =
       tipoPagoNormalizado === "diario"
         ? salarioBase
@@ -2773,7 +2798,11 @@ export const usePlanilla = () => {
           const salarioReferenciaDobles =
             tipoPagoEmpleado === "Diario"
               ? salarioBaseEmpleado
-              : salarioBaseEmpleado / obtenerDiasReferencia(tipoPagoEmpleado);
+              : salarioBaseEmpleado /
+                obtenerDiasReferencia(tipoPagoEmpleado, {
+                  periodoInicio: periodoPlanilla.periodo_inicio,
+                  periodoFin: periodoPlanilla.periodo_fin,
+                });
           montoDoblesPayload = Number((salarioReferenciaDobles * (diasDoblesManual ?? 0)).toFixed(2));
         } else {
           montoDoblesPayload = 0;
