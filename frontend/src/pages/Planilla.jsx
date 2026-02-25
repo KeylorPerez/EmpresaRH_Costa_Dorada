@@ -89,6 +89,27 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
+const obtenerDiasMes = (fecha) => {
+  if (!fecha) return 0;
+  const referencia = new Date(fecha);
+  if (Number.isNaN(referencia.getTime())) return 0;
+  return new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0).getDate();
+};
+
+const obtenerDiasReferenciaPago = (tipoPago, periodoInicio, periodoFin) => {
+  const tipoNormalizado = normalizarTipoPago(tipoPago);
+
+  if (tipoNormalizado === "mensual") {
+    const diasPeriodo = calcularDiasPeriodo(periodoInicio, periodoFin);
+    if (diasPeriodo > 0) return diasPeriodo;
+    const diasMes = obtenerDiasMes(periodoFin || periodoInicio);
+    return diasMes > 0 ? diasMes : DIAS_POR_MES;
+  }
+
+  const diasPeriodoQuincenal = calcularDiasPeriodo(periodoInicio, periodoFin);
+  return diasPeriodoQuincenal > 0 ? diasPeriodoQuincenal : DIAS_POR_QUINCENA;
+};
+
 const normalizarTexto = (valor) => (valor ?? "").toString().trim().toLowerCase();
 
 const obtenerRangoFechaPorDefecto = () => {
@@ -634,13 +655,11 @@ const Planilla = () => {
 
   const tipoPago = selectedEmpleado?.tipo_pago || "Quincenal";
   const salarioBaseReferencia = parseNumberValue(selectedEmpleado?.salario_monto);
-  const diasPeriodoQuincena = calcularDiasPeriodo(formData.periodo_inicio, formData.periodo_fin);
-  const diasReferenciaPago =
-    tipoPago === "Mensual"
-      ? DIAS_POR_MES
-      : tipoPago === "Quincenal" && diasPeriodoQuincena > 0
-        ? diasPeriodoQuincena
-        : DIAS_POR_QUINCENA;
+  const diasReferenciaPago = obtenerDiasReferenciaPago(
+    tipoPago,
+    formData.periodo_inicio,
+    formData.periodo_fin,
+  );
   const montoHorasExtras = Math.max(parseNumberValue(formData.horas_extras), 0);
   const bonificaciones = parseNumberValue(formData.bonificaciones);
   const deduccionesManualInput = parseNumberValue(formData.deducciones);
