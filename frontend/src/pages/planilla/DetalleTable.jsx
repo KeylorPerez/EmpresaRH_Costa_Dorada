@@ -123,8 +123,8 @@ const DetalleTable = ({
             <th className="px-4 py-3 text-center">Día doble</th>
             <th className="px-4 py-3 text-left min-w-[160px]">Estado</th>
             <th className="px-4 py-3 text-center">Justificado</th>
-            <th className="px-4 py-3 text-left min-w-[240px]">Justificación</th>
             <th className="px-4 py-3 text-right">Salario día</th>
+            <th className="px-4 py-3 text-left min-w-[240px]">Justificación</th>
             <th className="px-4 py-3 text-left">Observación</th>
           </tr>
         </thead>
@@ -202,6 +202,20 @@ const DetalleTable = ({
                     className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   />
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={detalle.salario_dia ?? ""}
+                    onChange={(event) => handleSalarioChange(event, index)}
+                    onBlur={(event) => handleSalarioBlur(event, index)}
+                    data-detalle-field="salario_dia"
+                    data-detalle-index={index}
+                    data-detalle-context={context}
+                    className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </td>
                 <td className="px-4 py-3 align-top">
                   <textarea
                     value={detalle.justificacion || ""}
@@ -215,20 +229,6 @@ const DetalleTable = ({
                     data-detalle-context={context}
                     ref={autoResizeTextarea}
                     className="w-full min-h-[3rem] rounded-lg border border-gray-200 px-3 py-2 text-sm leading-relaxed text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none overflow-hidden disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
-                  />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={detalle.salario_dia ?? ""}
-                    onChange={(event) => handleSalarioChange(event, index)}
-                    onBlur={(event) => handleSalarioBlur(event, index)}
-                    data-detalle-field="salario_dia"
-                    data-detalle-index={index}
-                    data-detalle-context={context}
-                    className="w-28 rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </td>
                 <td className="px-4 py-3">

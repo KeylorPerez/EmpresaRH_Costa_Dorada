@@ -723,8 +723,8 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Asistencia</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Estado</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-center">Justificado</th>
-                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Justificación</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-right">Salario día</th>
+                          <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Justificación</th>
                           <th className="sticky top-0 z-10 bg-gray-50 px-4 py-3 text-left">Observación</th>
                         </tr>
                       </thead>
@@ -771,13 +771,13 @@ const PlanillaDetalle = ({ mode = "admin" }) => {
                                 {item.justificado ? "Sí" : "No"}
                               </span>
                             </td>
+                            <td className="px-4 py-3 text-right font-semibold text-gray-800">
+                              {formatCurrency(item.salario_dia)}
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {item.justificacion && item.justificacion.trim() !== ""
                                 ? item.justificacion
                                 : "-"}
-                            </td>
-                            <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                              {formatCurrency(item.salario_dia)}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600">{item.observacion || "-"}</td>
                           </tr>
