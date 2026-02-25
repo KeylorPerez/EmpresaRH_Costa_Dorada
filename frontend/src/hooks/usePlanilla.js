@@ -64,6 +64,32 @@ const calcularDiasPeriodo = (inicio, fin) => {
   return Math.max(diferencia, 0);
 };
 
+const resolvePeriodoPorTipoPago = (tipoPago, periodoInicio, periodoFin) => {
+  const inicioNormalizado = formatDateKey(periodoInicio);
+  const finNormalizado = formatDateKey(periodoFin);
+
+  if (!inicioNormalizado || !finNormalizado) {
+    return null;
+  }
+
+  if (String(tipoPago || "").trim().toLowerCase() !== "mensual") {
+    return { periodo_inicio: inicioNormalizado, periodo_fin: finNormalizado };
+  }
+
+  const referencia = parseDateSafe(finNormalizado) || parseDateSafe(inicioNormalizado);
+  if (!referencia) {
+    return { periodo_inicio: inicioNormalizado, periodo_fin: finNormalizado };
+  }
+
+  const inicioMes = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
+  const finMes = new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0);
+
+  return {
+    periodo_inicio: formatDateInput(inicioMes),
+    periodo_fin: formatDateInput(finMes),
+  };
+};
+
 const isEmptyValue = (value) => value === "" || value === null || value === undefined;
 
 const estadosAsistenciaManual = new Set([
@@ -1525,8 +1551,20 @@ export const usePlanilla = () => {
       return;
     }
 
+    const periodoDetalle = resolvePeriodoPorTipoPago(
+      empleadoSeleccionado.tipo_pago,
+      periodo_inicio,
+      periodo_fin,
+    );
+
+    if (!periodoDetalle) {
+      setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
+      setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
+      return;
+    }
+
     let cancelado = false;
-    const key = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
+    const key = `${id_empleado}-${periodoDetalle.periodo_inicio}-${periodoDetalle.periodo_fin}`;
 
     const fetchJustificaciones = async () => {
       setDetalleJustificaciones({ key, loading: true, registros: [], error: "" });
@@ -1534,8 +1572,8 @@ export const usePlanilla = () => {
 
       try {
         const data = await asistenciaService.getByRange(
-          periodo_inicio,
-          periodo_fin,
+          periodoDetalle.periodo_inicio,
+          periodoDetalle.periodo_fin,
           id_empleado,
         );
         if (cancelado) return;
@@ -1765,17 +1803,6 @@ export const usePlanilla = () => {
       return;
     }
 
-    const contextoActual = detalleContextRef.current;
-    const baseKey = `${id_empleado}-${periodo_inicio}-${periodo_fin}`;
-    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
-    const keyNuevo = baseKey;
-    const sameDescansoSignature =
-      (contextoActual.descansoSignature || "") === descansosEmpleadoSignature;
-
-    if (detalleDias.length > 0 && keyActual === keyNuevo && sameDescansoSignature) {
-      return;
-    }
-
     const empleadoSeleccionado = empleados.find(
       (empleado) => String(empleado.id_empleado) === String(id_empleado)
     );
@@ -1793,10 +1820,42 @@ export const usePlanilla = () => {
       return;
     }
 
-    const nuevosDetallesBase = buildDetalleDias(
-      empleadoSeleccionado,
+    const periodoDetalle = resolvePeriodoPorTipoPago(
+      empleadoSeleccionado.tipo_pago,
       periodo_inicio,
       periodo_fin,
+    );
+
+    if (!periodoDetalle) {
+      if (detalleDias.length > 0) {
+        setDetalleDias([]);
+      }
+      detalleContextRef.current = {
+        empleadoId: id_empleado,
+        inicio: periodo_inicio,
+        fin: periodo_fin,
+        descansoSignature: descansosEmpleadoSignature,
+      };
+      return;
+    }
+
+    const { periodo_inicio: periodoDetalleInicio, periodo_fin: periodoDetalleFin } = periodoDetalle;
+
+    const contextoActual = detalleContextRef.current;
+    const baseKey = `${id_empleado}-${periodoDetalleInicio}-${periodoDetalleFin}`;
+    const keyActual = `${contextoActual.empleadoId}-${contextoActual.inicio}-${contextoActual.fin}`;
+    const keyNuevo = baseKey;
+    const sameDescansoSignature =
+      (contextoActual.descansoSignature || "") === descansosEmpleadoSignature;
+
+    if (detalleDias.length > 0 && keyActual === keyNuevo && sameDescansoSignature) {
+      return;
+    }
+
+    const nuevosDetallesBase = buildDetalleDias(
+      empleadoSeleccionado,
+      periodoDetalleInicio,
+      periodoDetalleFin,
     );
     const fechasAsistencia =
       detalleAsistencia.key === baseKey ? detalleAsistencia.fechas : [];
@@ -1820,8 +1879,8 @@ export const usePlanilla = () => {
     setDetalleDias(nuevosDetalles);
     detalleContextRef.current = {
       empleadoId: id_empleado,
-      inicio: periodo_inicio,
-      fin: periodo_fin,
+      inicio: periodoDetalleInicio,
+      fin: periodoDetalleFin,
       descansoSignature: descansosEmpleadoSignature,
     };
   }, [
@@ -2649,23 +2708,6 @@ export const usePlanilla = () => {
           setError("Selecciona empleado y periodo de pago");
           return;
         }
-
-        if (new Date(formData.periodo_fin) < new Date(formData.periodo_inicio)) {
-          setError("La fecha fin debe ser mayor o igual a la fecha inicio");
-          return;
-        }
-
-        if (
-          hasOverlappingPlanilla(
-            planillas,
-            empleadoIdSeleccionado,
-            formData.periodo_inicio,
-            formData.periodo_fin
-          )
-        ) {
-          setError("Este colaborador ya tiene una planilla generada para el periodo seleccionado");
-          return;
-        }
       }
 
       const empleadoSeleccionado = empleados.find(
@@ -2679,6 +2721,35 @@ export const usePlanilla = () => {
 
       const deduccionesManuales = buildNumber(formData.deducciones);
       const tipoPagoEmpleado = empleadoSeleccionado?.tipo_pago || "Quincenal";
+      const periodoPlanilla = resolvePeriodoPorTipoPago(
+        tipoPagoEmpleado,
+        formData.periodo_inicio,
+        formData.periodo_fin,
+      );
+
+      if (!periodoPlanilla) {
+        setError("La fecha de inicio y fin del periodo no son válidas");
+        return;
+      }
+
+      if (new Date(periodoPlanilla.periodo_fin) < new Date(periodoPlanilla.periodo_inicio)) {
+        setError("La fecha fin debe ser mayor o igual a la fecha inicio");
+        return;
+      }
+
+      if (
+        !editingPlanilla &&
+        hasOverlappingPlanilla(
+          planillas,
+          empleadoIdSeleccionado,
+          periodoPlanilla.periodo_inicio,
+          periodoPlanilla.periodo_fin
+        )
+      ) {
+        setError("Este colaborador ya tiene una planilla generada para el periodo seleccionado");
+        return;
+      }
+
       const salarioBaseEmpleado = Number(empleadoSeleccionado?.salario_monto) || 0;
 
       const diasDoblesDetalle = Number(detalleDiasResumen.diasDobles) || 0;
@@ -2777,8 +2848,8 @@ export const usePlanilla = () => {
         const payload = {
           ...commonPayload,
           id_empleado: Number(empleadoIdSeleccionado),
-          periodo_inicio: formData.periodo_inicio,
-          periodo_fin: formData.periodo_fin,
+          periodo_inicio: periodoPlanilla.periodo_inicio,
+          periodo_fin: periodoPlanilla.periodo_fin,
           prestamos: prestamosPayload,
         };
 
