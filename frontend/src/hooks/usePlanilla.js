@@ -449,8 +449,18 @@ const normalizarAsistenciaManualRegistro = (registro) => {
       : "";
   const horaRegistro =
     typeof registro.hora === "string" ? registro.hora.split(".")[0].trim() : "";
-  const horaEntrada = tipoMarca === "entrada" && horaRegistro ? horaRegistro : null;
-  const horaSalida = tipoMarca === "salida" && horaRegistro ? horaRegistro : null;
+
+  const horaEntradaDirecta =
+    typeof registro.hora_entrada === "string" ? registro.hora_entrada.split(".")[0].trim() : "";
+  const horaSalidaDirecta =
+    typeof registro.hora_salida === "string" ? registro.hora_salida.split(".")[0].trim() : "";
+
+  const horaEntrada =
+    horaEntradaDirecta ||
+    (tipoMarca === "entrada" && horaRegistro ? horaRegistro : null);
+  const horaSalida =
+    horaSalidaDirecta ||
+    (tipoMarca === "salida" && horaRegistro ? horaRegistro : null);
 
   if (!estadoManual && !horaEntrada && !horaSalida) {
     return null;
@@ -1493,7 +1503,7 @@ export const usePlanilla = () => {
 
     if (
       !empleadoSeleccionado ||
-      !["Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
+      !["Diario", "Quincenal", "Mensual"].includes(empleadoSeleccionado.tipo_pago)
     ) {
       setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
       setDetalleAsistencia({ key: "", loading: false, fechas: [], registros: [], error: "" });
