@@ -877,7 +877,22 @@ export const usePlanilla = () => {
 
           const baseReferencia = obtenerSalarioBaseDetalle(detalle);
           const baseNormalizado = applySalarioBaseFallback(baseReferencia);
-          const salarioTexto = SALARIO_CERO_TEXTO;
+          const estado = normalizeEstado(detalle.estado);
+          const esVacaciones = estado === ESTADO_VACACIONES;
+          const esIncapacidad = estado === ESTADO_INCAPACIDAD;
+          const esPermiso = estado === ESTADO_PERMISO;
+
+          let salarioCalculado = 0;
+
+          if (esPermiso) {
+            salarioCalculado = 0;
+          } else if (esVacaciones) {
+            salarioCalculado = baseNormalizado;
+          } else if (esIncapacidad) {
+            salarioCalculado = baseNormalizado / 2;
+          }
+
+          const salarioTexto = formatMontoPositivo(salarioCalculado);
 
           if (detalle.salario_dia !== salarioTexto || detalle.salario_base !== baseNormalizado) {
             updates.set(index, {
