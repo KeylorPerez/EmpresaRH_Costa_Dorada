@@ -254,8 +254,8 @@ const agruparPlanillaHistoricoPorMes = (historico = [], { maxPeriodos = 6 } = {}
     if (!periodo) return;
 
     const baseMonto = (() => {
-      if (row?.pago_neto !== null && row?.pago_neto !== undefined) {
-        const numero = Number(row.pago_neto);
+      if (row?.salario_base_liquidacion !== null && row?.salario_base_liquidacion !== undefined) {
+        const numero = Number(row.salario_base_liquidacion);
         return Number.isFinite(numero) ? numero : null;
       }
       if (row?.salario_bruto !== null && row?.salario_bruto !== undefined) {

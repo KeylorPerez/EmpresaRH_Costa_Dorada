@@ -149,6 +149,11 @@ class Liquidacion {
         SELECT TOP (@limite)
           pago_neto,
           salario_bruto,
+          bonificaciones,
+          horas_extras,
+          deducciones,
+          ccss_deduccion,
+          (COALESCE(salario_bruto, 0) - COALESCE(bonificaciones, 0) - COALESCE(horas_extras, 0)) AS salario_base_liquidacion,
           periodo_inicio,
           periodo_fin,
           fecha_pago
@@ -162,9 +167,21 @@ class Liquidacion {
     const historico = result.recordset || [];
     const montos = historico
       .map((row) => {
-        const base = row.pago_neto !== null && row.pago_neto !== undefined ? row.pago_neto : row.salario_bruto;
-        const numero = Number(base);
-        return Number.isFinite(numero) ? numero : null;
+        const salarioBase = Number(row.salario_base_liquidacion);
+        if (Number.isFinite(salarioBase)) {
+          return salarioBase;
+        }
+
+        const bruto = Number(row.salario_bruto);
+        const bonificaciones = Number(row.bonificaciones);
+        const horasExtras = Number(row.horas_extras);
+
+        if (Number.isFinite(bruto)) {
+          const baseCalculada = bruto - (Number.isFinite(bonificaciones) ? bonificaciones : 0) - (Number.isFinite(horasExtras) ? horasExtras : 0);
+          return Number.isFinite(baseCalculada) ? baseCalculada : null;
+        }
+
+        return null;
       })
       .filter((value) => value !== null);
 
