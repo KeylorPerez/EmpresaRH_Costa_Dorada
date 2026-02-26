@@ -913,6 +913,10 @@ export const usePlanilla = () => {
             return;
           }
 
+          if (detalle.salarioManual) {
+            return;
+          }
+
           if (detalle.es_descanso) {
             const baseReferencia = obtenerSalarioBaseDetalle(detalle);
             const baseNormalizado = applySalarioBaseFallback(baseReferencia);
@@ -974,6 +978,10 @@ export const usePlanilla = () => {
 
       ordenados.forEach(({ detalle, index }) => {
         if (detalle.asistio) {
+          return;
+        }
+
+        if (detalle.salarioManual) {
           return;
         }
 
@@ -2032,6 +2040,7 @@ export const usePlanilla = () => {
 
           if (Object.prototype.hasOwnProperty.call(updates, "salario_dia")) {
             const valor = updates.salario_dia;
+            siguiente.salarioManual = true;
 
             if (isEmptyValue(valor)) {
               siguiente.salario_dia = "";
@@ -2065,6 +2074,7 @@ export const usePlanilla = () => {
           }
 
           if (Object.prototype.hasOwnProperty.call(updates, "justificado")) {
+            siguiente.salarioManual = false;
             const nuevoJustificado = Boolean(updates.justificado);
             siguiente.justificado = nuevoJustificado;
             if (!nuevoJustificado) {
@@ -2095,6 +2105,7 @@ export const usePlanilla = () => {
           }
 
           if (Object.prototype.hasOwnProperty.call(updates, "estado")) {
+            siguiente.salarioManual = false;
             const nuevoEstado = normalizeEstado(updates.estado);
             siguiente.estado = nuevoEstado;
 
