@@ -395,17 +395,21 @@ const calcularSalarioPromedioDiarioPorTipoPago = ({ tipoPago, salarioBase }) => 
     return null;
   }
 
-  const tipoPagoNormalizado = String(tipoPago || '').trim().toLowerCase();
+  const tipoPagoNormalizado = String(tipoPago || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
-  if (tipoPagoNormalizado === 'diario') {
+  if (['diario', 'diarios'].includes(tipoPagoNormalizado)) {
     return Number(salarioNormalizado.toFixed(2));
   }
 
-  if (tipoPagoNormalizado === 'quincenal') {
+  if (['quincena', 'quincenal', 'quincenales'].includes(tipoPagoNormalizado)) {
     return Number((salarioNormalizado / 15).toFixed(2));
   }
 
-  if (tipoPagoNormalizado === 'mensual') {
+  if (['mensual', 'mensuales'].includes(tipoPagoNormalizado)) {
     return Number((salarioNormalizado / 30).toFixed(2));
   }
 
