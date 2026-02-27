@@ -416,6 +416,33 @@ const calcularSalarioPromedioDiarioPorTipoPago = ({ tipoPago, salarioBase }) => 
   return null;
 };
 
+const calcularSalarioPromedioDesdeSalarioBase = ({ tipoPago, salarioBase }) => {
+  const salarioNormalizado = Number(salarioBase);
+  if (!Number.isFinite(salarioNormalizado) || salarioNormalizado <= 0) {
+    return {
+      salarioMensual: 0,
+      salarioDiario: null,
+    };
+  }
+
+  const salarioDiario = calcularSalarioPromedioDiarioPorTipoPago({
+    tipoPago,
+    salarioBase: salarioNormalizado,
+  });
+
+  if (salarioDiario !== null) {
+    return {
+      salarioMensual: Number((salarioDiario * 30).toFixed(2)),
+      salarioDiario,
+    };
+  }
+
+  return {
+    salarioMensual: Number(salarioNormalizado.toFixed(2)),
+    salarioDiario: Number((salarioNormalizado / 30).toFixed(2)),
+  };
+};
+
 const formatPeriodoResumen = (periodo) => {
   if (!periodo) return '';
   if (typeof periodo === 'string' && /^\d{4}-\d{2}$/.test(periodo)) {
@@ -713,10 +740,11 @@ const prepararLiquidacion = async ({
   const salarioAcumulado = salariosHistoricos.length
     ? Number(salarioAcumuladoHistorico.toFixed(2))
     : null;
-
-  const salarioPromedio = salarioAcumulado !== null
-    ? Number((salarioAcumulado / salariosHistoricos.length).toFixed(2))
-    : Number(empleado.salario_monto || 0);
+  const salarioBaseAjustado = calcularSalarioPromedioDesdeSalarioBase({
+    tipoPago: empleado.tipo_pago,
+    salarioBase: empleado.salario_monto,
+  });
+  const salarioPromedio = salarioBaseAjustado.salarioMensual;
 
   const contextoLiquidacion = calcularContextoLiquidacion({
     salarioPromedioMensual: salarioPromedio,
@@ -733,10 +761,7 @@ const prepararLiquidacion = async ({
     contexto: contextoLiquidacion,
   });
 
-  const salarioDiarioPorTipoPago = calcularSalarioPromedioDiarioPorTipoPago({
-    tipoPago: empleado.tipo_pago,
-    salarioBase: empleado.salario_monto,
-  });
+  const salarioDiarioPorTipoPago = salarioBaseAjustado.salarioDiario;
   const salarioDiarioPromedioHistorico = calcularSalarioDiarioPromedioBase(promedioInfo.historico);
   const salarioPromedioDiario =
     salarioDiarioPorTipoPago !== null
