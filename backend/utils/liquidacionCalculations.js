@@ -114,7 +114,7 @@ const calcularContextoLiquidacion = ({
   const salarioDiario = salarioPromedio > 0 ? salarioPromedio / 30 : 0;
 
   const aguinaldoMonto = roundCurrency((salarioPromedio / 12) * Math.max(mesesPeriodo, 1));
-  const vacacionesDias = roundCurrency(mesesPeriodo * 1.25);
+  const vacacionesDias = roundCurrency(mesesPeriodo * 1);
   const vacacionesMonto = roundCurrency(salarioDiario * vacacionesDias);
 
   let diasCesantia = 0;
@@ -197,7 +197,7 @@ const calcularDetallesAutomaticos = ({
     monto_calculado: vacacionesMonto,
     monto_final: vacacionesMonto,
     editable: true,
-    formula_usada: '1.25 días por mes laborado x salario diario promedio',
+    formula_usada: '1 día por mes laborado x salario diario promedio',
   });
 
   if (calculoBase.mesesAntiguedad !== null) {
