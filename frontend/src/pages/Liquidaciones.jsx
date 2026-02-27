@@ -437,6 +437,7 @@ const Liquidaciones = ({ mode }) => {
 
   const [resumenEditable, setResumenEditable] = useState(null);
   const [resumenDirty, setResumenDirty] = useState(false);
+  const [resumenCamposEditados, setResumenCamposEditados] = useState({});
   const [historicoEditable, setHistoricoEditable] = useState([]);
   const [historicoDirty, setHistoricoDirty] = useState(false);
   const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
@@ -532,6 +533,7 @@ const Liquidaciones = ({ mode }) => {
       setResumenEditable(null);
     }
     setResumenDirty(false);
+    setResumenCamposEditados({});
     setSalarioAcumuladoManual(false);
     setSalarioPromedioManual(false);
 
@@ -551,6 +553,7 @@ const Liquidaciones = ({ mode }) => {
 
   const handleResumenManualChange = (campo, valor) => {
     setResumenDirty(true);
+    setResumenCamposEditados((prev) => ({ ...prev, [campo]: true }));
     if (campo === "salario_acumulado") {
       setSalarioAcumuladoManual(true);
     }
@@ -569,6 +572,7 @@ const Liquidaciones = ({ mode }) => {
       setResumenEditable(null);
     }
     setResumenDirty(false);
+    setResumenCamposEditados({});
     setSalarioAcumuladoManual(false);
     setSalarioPromedioManual(false);
   };
@@ -603,6 +607,11 @@ const Liquidaciones = ({ mode }) => {
       setHistoricoEditable([]);
     }
     setHistoricoDirty(false);
+    setResumenCamposEditados((prev) => {
+      const campos = { ...prev };
+      delete campos.salario_acumulado;
+      return campos;
+    });
     setSalarioAcumuladoManual(false);
     setSalarioPromedioManual(false);
   };
@@ -674,12 +683,25 @@ const Liquidaciones = ({ mode }) => {
       };
     });
     setResumenDirty(true);
+    setResumenCamposEditados((prev) => ({ ...prev, salario_acumulado: true }));
   }, [historicoEditable, resumenEditable, salarioAcumuladoManual]);
+
+  const encabezadoOverrides = useMemo(() => {
+    if (!resumenDirty || !resumenEditable) return null;
+
+    const campos = Object.keys(resumenCamposEditados || {});
+    if (campos.length === 0) return null;
+
+    return campos.reduce((acc, campo) => {
+      acc[campo] = resumenEditable[campo];
+      return acc;
+    }, {});
+  }, [resumenCamposEditados, resumenDirty, resumenEditable]);
 
   const handleGuardarLiquidacion = (options = {}) => {
     guardarLiquidacion({
       ...options,
-      encabezadoOverrides: resumenDirty ? resumenEditable : null,
+      encabezadoOverrides,
       salariosHistoricos: historicoDirty ? historicoEditable : null,
     });
   };
