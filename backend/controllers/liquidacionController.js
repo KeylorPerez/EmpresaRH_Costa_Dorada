@@ -756,10 +756,7 @@ const prepararLiquidacion = async ({
     contexto: contextoLiquidacion,
   });
 
-  const salarioDiarioPorTipoPago =
-    promedioHistorico && Number.isFinite(promedioHistorico.salarioPromedioMensual)
-      ? Number((promedioHistorico.salarioPromedioMensual / 30).toFixed(2))
-      : salarioBaseAjustado.salarioDiario;
+  const salarioDiarioPorTipoPago = salarioBaseAjustado.salarioDiario;
   const salarioPromedioDiario =
     salarioDiarioPorTipoPago !== null
       ? salarioDiarioPorTipoPago
