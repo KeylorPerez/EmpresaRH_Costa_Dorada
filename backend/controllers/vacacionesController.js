@@ -9,6 +9,9 @@ const Usuario = require('../models/Usuario'); // para obtener el id_empleado vin
 
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+const COMPANY_NAME = 'Distribuidora Astua Pirie';
+const COMPANY_LEGAL_NAME = 'Inversiones Daring Del Cedral S.R.L';
+const COMPANY_JURIDICAL_ID = '3-102-895618';
 
 const ensureExportsDir = async () => {
   if (!fs.existsSync(EXPORTS_DIR)) {
@@ -276,7 +279,9 @@ const buildVacacionesPdfLines = (solicitud) => {
   const estadoLabel = estadoVacacionesMap[solicitud.id_estado] || 'Desconocido';
 
   lines.push(titleDivider);
-  lines.push('Distribuidora Astua Pirie');
+  lines.push(COMPANY_NAME);
+  lines.push(COMPANY_LEGAL_NAME);
+  lines.push(`Cédula jurídica: ${COMPANY_JURIDICAL_ID}`);
   lines.push('Constancia de solicitud de vacaciones');
   lines.push(titleDivider);
   lines.push('');
