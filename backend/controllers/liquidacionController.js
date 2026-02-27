@@ -15,6 +15,9 @@ const { calcularDetallesAutomaticos, calcularContextoLiquidacion, agruparPlanill
 
 const { promises: fsPromises } = fs;
 const EXPORTS_DIR = path.join(__dirname, '..', 'exports');
+const COMPANY_NAME = 'Distribuidora Astua Pirie';
+const COMPANY_LEGAL_NAME = 'Inversiones Daring Del Cedral S.R.L';
+const COMPANY_JURIDICAL_ID = '3-102-895618';
 
 const ensureExportsDir = async () => {
   if (!fs.existsSync(EXPORTS_DIR)) {
@@ -450,7 +453,9 @@ const buildLiquidacionPdfLines = ({ liquidacion, empleado, detalles, aprobador }
     : [];
 
   lines.push(titleDivider);
-  lines.push('Distribuidora Astua Pirie');
+  lines.push(COMPANY_NAME);
+  lines.push(COMPANY_LEGAL_NAME);
+  lines.push(`Cédula jurídica: ${COMPANY_JURIDICAL_ID}`);
   lines.push('Constancia de liquidación de prestaciones');
   lines.push(titleDivider);
   lines.push('');
