@@ -549,15 +549,29 @@ const Liquidaciones = ({ mode }) => {
     setHistoricoDirty(false);
   }, [previewData]);
 
-  const calcularSalarioDiarioDesdeMensual = (valorMensual) => {
-    if (valorMensual === null || valorMensual === undefined || valorMensual === "") {
+  const calcularSalarioDiarioPorTipoPago = (salarioBase, tipoPago) => {
+    if (salarioBase === null || salarioBase === undefined || salarioBase === "") {
       return "";
     }
-    const numeroMensual = Number(valorMensual);
-    if (!Number.isFinite(numeroMensual)) {
+    const salario = Number(salarioBase);
+    if (!Number.isFinite(salario)) {
       return "";
     }
-    const salarioDiario = numeroMensual / 30;
+
+    const tipoPagoNormalizado = String(tipoPago || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    let divisor = 30;
+    if (["diario", "diarios"].includes(tipoPagoNormalizado)) {
+      divisor = 1;
+    } else if (["quincena", "quincenal", "quincenales"].includes(tipoPagoNormalizado)) {
+      divisor = 15;
+    }
+
+    const salarioDiario = salario / divisor;
     if (!Number.isFinite(salarioDiario)) {
       return "";
     }
@@ -575,7 +589,10 @@ const Liquidaciones = ({ mode }) => {
     setResumenEditable((prev) => {
       const base = { ...(prev || {}), [campo]: valor };
       if (campo === "salario_promedio_mensual") {
-        base.salario_promedio_diario = calcularSalarioDiarioDesdeMensual(valor);
+        base.salario_promedio_diario = calcularSalarioDiarioPorTipoPago(
+          valor,
+          empleadoSeleccionado?.tipo_pago,
+        );
       }
       return base;
     });
@@ -674,7 +691,9 @@ const Liquidaciones = ({ mode }) => {
 
     const totalHistorico = montosHistoricos.reduce((acc, monto) => acc + monto, 0);
     const promedioMensual = totalHistorico / montosHistoricos.length;
-    const promedioDiario = promedioMensual / 30;
+    const promedioDiario = Number(
+      calcularSalarioDiarioPorTipoPago(promedioMensual, empleadoSeleccionado?.tipo_pago) || 0,
+    );
 
     const totalRedondeado = Number(totalHistorico.toFixed(2));
     const promedioMensualRedondeado = Number(promedioMensual.toFixed(2));
@@ -719,7 +738,13 @@ const Liquidaciones = ({ mode }) => {
       return siguiente;
     });
     setResumenDirty(true);
-  }, [historicoEditable, resumenEditable, salarioAcumuladoManual, salarioPromedioManual]);
+  }, [
+    empleadoSeleccionado?.tipo_pago,
+    historicoEditable,
+    resumenEditable,
+    salarioAcumuladoManual,
+    salarioPromedioManual,
+  ]);
 
   const handleGuardarLiquidacion = (options = {}) => {
     guardarLiquidacion({
