@@ -355,40 +355,6 @@ const normalizeNumeroEntero = (value) => {
   return Math.max(Math.round(numero), 0);
 };
 
-const calcularSalarioDiarioPromedioBase = (historico = []) => {
-  if (!Array.isArray(historico) || historico.length === 0) {
-    return null;
-  }
-
-  const acumulado = historico.reduce(
-    (acc, row) => {
-      const base = Number(row?.salario_base_liquidacion);
-      if (!Number.isFinite(base)) {
-        return acc;
-      }
-
-      const inicio = row?.periodo_inicio ? new Date(row.periodo_inicio) : null;
-      const fin = row?.periodo_fin ? new Date(row.periodo_fin) : null;
-      if (!inicio || !fin || Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) {
-        return acc;
-      }
-
-      const dias = Math.max(1, Math.round((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      return {
-        monto: acc.monto + base,
-        dias: acc.dias + dias,
-      };
-    },
-    { monto: 0, dias: 0 },
-  );
-
-  if (!acumulado.dias) {
-    return null;
-  }
-
-  return Number((acumulado.monto / acumulado.dias).toFixed(2));
-};
-
 const calcularSalarioPromedioDiarioPorTipoPago = ({ tipoPago, salarioBase }) => {
   const salarioNormalizado = Number(salarioBase);
   if (!Number.isFinite(salarioNormalizado) || salarioNormalizado <= 0) {
@@ -762,12 +728,9 @@ const prepararLiquidacion = async ({
   });
 
   const salarioDiarioPorTipoPago = salarioBaseAjustado.salarioDiario;
-  const salarioDiarioPromedioHistorico = calcularSalarioDiarioPromedioBase(promedioInfo.historico);
   const salarioPromedioDiario =
     salarioDiarioPorTipoPago !== null
       ? salarioDiarioPorTipoPago
-      : salarioDiarioPromedioHistorico !== null
-      ? salarioDiarioPromedioHistorico
       : contextoLiquidacion.salarioDiario !== null && contextoLiquidacion.salarioDiario !== undefined
         ? Number(Number(contextoLiquidacion.salarioDiario).toFixed(2))
         : salarioPromedio > 0
