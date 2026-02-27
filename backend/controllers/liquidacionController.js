@@ -409,6 +409,39 @@ const calcularSalarioPromedioDesdeSalarioBase = ({ tipoPago, salarioBase }) => {
   };
 };
 
+const calcularPromedioMensualPorDias = (salariosHistoricos = []) => {
+  if (!Array.isArray(salariosHistoricos) || salariosHistoricos.length === 0) {
+    return null;
+  }
+
+  const acumulado = salariosHistoricos.reduce((acc, registro) => {
+    const monto = Number(registro?.monto);
+    return Number.isFinite(monto) ? acc + monto : acc;
+  }, 0);
+
+  const totalDias = salariosHistoricos.reduce((acc, registro) => {
+    const dias = Number(registro?.dias);
+    return Number.isFinite(dias) && dias > 0 ? acc + dias : acc;
+  }, 0);
+
+  const mesesEquivalentes = totalDias > 0 ? totalDias / 30 : salariosHistoricos.length;
+  if (!Number.isFinite(mesesEquivalentes) || mesesEquivalentes <= 0) {
+    return null;
+  }
+
+  const promedioMensual = acumulado / mesesEquivalentes;
+  if (!Number.isFinite(promedioMensual) || promedioMensual <= 0) {
+    return null;
+  }
+
+  return {
+    salarioAcumulado: Number(acumulado.toFixed(2)),
+    salarioPromedioMensual: Number(promedioMensual.toFixed(2)),
+    mesesEquivalentes: Number(mesesEquivalentes.toFixed(4)),
+    diasAcumulados: totalDias,
+  };
+};
+
 const formatPeriodoResumen = (periodo) => {
   if (!periodo) return '';
   if (typeof periodo === 'string' && /^\d{4}-\d{2}$/.test(periodo)) {
@@ -699,18 +732,14 @@ const prepararLiquidacion = async ({
   });
 
   const salariosHistoricos = agruparPlanillaHistoricoPorMes(promedioInfo.historico, { maxPeriodos: 6 });
-  const salarioAcumuladoHistorico = salariosHistoricos.reduce(
-    (acc, registro) => acc + (Number(registro.monto) || 0),
-    0,
-  );
-  const salarioAcumulado = salariosHistoricos.length
-    ? Number(salarioAcumuladoHistorico.toFixed(2))
-    : null;
+  const promedioHistorico = calcularPromedioMensualPorDias(salariosHistoricos);
+  const salarioAcumulado = promedioHistorico?.salarioAcumulado ?? null;
   const salarioBaseAjustado = calcularSalarioPromedioDesdeSalarioBase({
     tipoPago: empleado.tipo_pago,
     salarioBase: empleado.salario_monto,
   });
-  const salarioPromedio = salarioBaseAjustado.salarioMensual;
+  const salarioPromedio =
+    promedioHistorico?.salarioPromedioMensual ?? salarioBaseAjustado.salarioMensual;
 
   const contextoLiquidacion = calcularContextoLiquidacion({
     salarioPromedioMensual: salarioPromedio,
@@ -727,7 +756,10 @@ const prepararLiquidacion = async ({
     contexto: contextoLiquidacion,
   });
 
-  const salarioDiarioPorTipoPago = salarioBaseAjustado.salarioDiario;
+  const salarioDiarioPorTipoPago =
+    promedioHistorico && Number.isFinite(promedioHistorico.salarioPromedioMensual)
+      ? Number((promedioHistorico.salarioPromedioMensual / 30).toFixed(2))
+      : salarioBaseAjustado.salarioDiario;
   const salarioPromedioDiario =
     salarioDiarioPorTipoPago !== null
       ? salarioDiarioPorTipoPago
