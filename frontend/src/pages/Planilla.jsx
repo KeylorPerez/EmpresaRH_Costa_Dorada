@@ -198,6 +198,8 @@ const Planilla = () => {
   const [exportResumenMessage, setExportResumenMessage] = useState("");
   const [exportResumenError, setExportResumenError] = useState("");
   const [exportingResumen, setExportingResumen] = useState(null);
+  const [isMontoEstimadoSyncing, setIsMontoEstimadoSyncing] = useState(false);
+  const montoEstimadoTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!fechaInicioFiltro || !fechaFinFiltro) return;
@@ -782,6 +784,44 @@ const Planilla = () => {
   const totalDeduccionesEstimado =
     deduccionesManualesAplicables + deduccionesPrestamos + deduccionDiasResumen + ccssDeduccionEstimado;
   const pagoNetoEstimado = salarioBrutoEstimado - totalDeduccionesEstimado;
+  const disableSubmitPlanilla = attendanceState.loading || isMontoEstimadoSyncing;
+
+  useEffect(() => {
+    if (!modalOpen || !formData.id_empleado || !formData.periodo_inicio || !formData.periodo_fin) {
+      setIsMontoEstimadoSyncing(false);
+      if (montoEstimadoTimeoutRef.current) {
+        clearTimeout(montoEstimadoTimeoutRef.current);
+        montoEstimadoTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    setIsMontoEstimadoSyncing(true);
+    if (montoEstimadoTimeoutRef.current) {
+      clearTimeout(montoEstimadoTimeoutRef.current);
+    }
+
+    montoEstimadoTimeoutRef.current = setTimeout(() => {
+      setIsMontoEstimadoSyncing(false);
+      montoEstimadoTimeoutRef.current = null;
+    }, 5000);
+
+    return () => {
+      if (montoEstimadoTimeoutRef.current) {
+        clearTimeout(montoEstimadoTimeoutRef.current);
+        montoEstimadoTimeoutRef.current = null;
+      }
+    };
+  }, [modalOpen, formData.id_empleado, formData.periodo_inicio, formData.periodo_fin]);
+
+  const handleFormSubmit = async (event) => {
+    if (disableSubmitPlanilla) {
+      event.preventDefault();
+      return;
+    }
+
+    await handleSubmit(event);
+  };
 
   useEffect(() => {
     if (!modalOpen || isEditing) return;
@@ -1180,7 +1220,7 @@ const Planilla = () => {
                   </Button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+                <form onSubmit={handleFormSubmit} className="flex flex-1 flex-col overflow-hidden">
                   <div className="flex-1 overflow-hidden bg-gray-50">
                     <div
                       ref={modalScrollRef}
@@ -1664,6 +1704,11 @@ const Planilla = () => {
                             <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                               <p className="text-xs uppercase tracking-wide text-gray-500">Monto neto estimado a pagar</p>
                               <p className="mt-1 text-xl font-semibold text-gray-800">{formatCurrency(pagoNetoEstimado)}</p>
+                              {disableSubmitPlanilla && (
+                                <p className="mt-1 text-xs font-medium text-amber-700">
+                                  Calculando monto estimado... habilitaremos el botón en unos segundos.
+                                </p>
+                              )}
                               <p className="mt-1 text-xs text-gray-600">
                                 {tipoPago === "Diario"
                                   ? "Incluye salario diario según los días aplicados, montos por días dobles, bonificaciones y todas las deducciones seleccionadas."
@@ -1681,8 +1726,12 @@ const Planilla = () => {
                     <Button variant="secondary" size="sm" type="button" onClick={closeModal}>
                       Cancelar
                     </Button>
-                    <Button variant="primary" size="sm" type="submit">
-                      {editingPlanilla ? "Actualizar" : "Generar planilla"}
+                    <Button variant="primary" size="sm" type="submit" disabled={disableSubmitPlanilla}>
+                      {disableSubmitPlanilla
+                        ? "Calculando..."
+                        : editingPlanilla
+                          ? "Actualizar"
+                          : "Generar planilla"}
                     </Button>
                   </div>
                 </form>
