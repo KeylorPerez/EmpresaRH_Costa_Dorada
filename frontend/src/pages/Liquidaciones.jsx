@@ -440,7 +440,7 @@ const Liquidaciones = ({ mode }) => {
   const [historicoEditable, setHistoricoEditable] = useState([]);
   const [historicoDirty, setHistoricoDirty] = useState(false);
   const [salarioAcumuladoManual, setSalarioAcumuladoManual] = useState(false);
-  const [salarioPromedioManual, setSalarioPromedioManual] = useState(false);
+  const [, setSalarioPromedioManual] = useState(false);
   const [filtroHistorial, setFiltroHistorial] = useState("");
   const [filtroNombreHistorial, setFiltroNombreHistorial] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -690,61 +690,27 @@ const Liquidaciones = ({ mode }) => {
     if (montosHistoricos.length === 0) return;
 
     const totalHistorico = montosHistoricos.reduce((acc, monto) => acc + monto, 0);
-    const promedioMensual = totalHistorico / montosHistoricos.length;
-    const promedioDiario = Number(
-      calcularSalarioDiarioPorTipoPago(promedioMensual, empleadoSeleccionado?.tipo_pago) || 0,
-    );
-
     const totalRedondeado = Number(totalHistorico.toFixed(2));
-    const promedioMensualRedondeado = Number(promedioMensual.toFixed(2));
-    const promedioDiarioRedondeado = Number(promedioDiario.toFixed(2));
     const salarioActual = Number(resumenEditable.salario_acumulado);
     const salarioRedondeado = Number.isFinite(salarioActual)
       ? Number(salarioActual.toFixed(2))
       : null;
 
-    const salarioMensualActual = Number(resumenEditable.salario_promedio_mensual);
-    const salarioMensualRedondeado = Number.isFinite(salarioMensualActual)
-      ? Number(salarioMensualActual.toFixed(2))
-      : null;
-
-    const salarioDiarioActual = Number(resumenEditable.salario_promedio_diario);
-    const salarioDiarioRedondeado = Number.isFinite(salarioDiarioActual)
-      ? Number(salarioDiarioActual.toFixed(2))
-      : null;
-
     const debeActualizarAcumulado = !salarioAcumuladoManual && salarioRedondeado !== totalRedondeado;
-    const debeActualizarPromedioMensual =
-      !salarioPromedioManual && salarioMensualRedondeado !== promedioMensualRedondeado;
-    const debeActualizarPromedioDiario =
-      !salarioPromedioManual && salarioDiarioRedondeado !== promedioDiarioRedondeado;
 
-    if (!debeActualizarAcumulado && !debeActualizarPromedioMensual && !debeActualizarPromedioDiario) {
+    if (!debeActualizarAcumulado) {
       return;
     }
 
     setResumenEditable((prev) => {
       if (!prev) return prev;
-      const siguiente = { ...prev };
-      if (debeActualizarAcumulado) {
-        siguiente.salario_acumulado = totalRedondeado;
-      }
-      if (debeActualizarPromedioMensual) {
-        siguiente.salario_promedio_mensual = promedioMensualRedondeado;
-      }
-      if (debeActualizarPromedioDiario) {
-        siguiente.salario_promedio_diario = promedioDiarioRedondeado;
-      }
-      return siguiente;
+      return {
+        ...prev,
+        salario_acumulado: totalRedondeado,
+      };
     });
     setResumenDirty(true);
-  }, [
-    empleadoSeleccionado?.tipo_pago,
-    historicoEditable,
-    resumenEditable,
-    salarioAcumuladoManual,
-    salarioPromedioManual,
-  ]);
+  }, [historicoEditable, resumenEditable, salarioAcumuladoManual]);
 
   const handleGuardarLiquidacion = (options = {}) => {
     guardarLiquidacion({
