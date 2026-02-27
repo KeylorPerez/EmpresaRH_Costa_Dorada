@@ -549,35 +549,6 @@ const Liquidaciones = ({ mode }) => {
     setHistoricoDirty(false);
   }, [previewData]);
 
-  const calcularSalarioDiarioPorTipoPago = (salarioBase, tipoPago) => {
-    if (salarioBase === null || salarioBase === undefined || salarioBase === "") {
-      return "";
-    }
-    const salario = Number(salarioBase);
-    if (!Number.isFinite(salario)) {
-      return "";
-    }
-
-    const tipoPagoNormalizado = String(tipoPago || "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    let divisor = 30;
-    if (["diario", "diarios"].includes(tipoPagoNormalizado)) {
-      divisor = 1;
-    } else if (["quincena", "quincenal", "quincenales"].includes(tipoPagoNormalizado)) {
-      divisor = 15;
-    }
-
-    const salarioDiario = salario / divisor;
-    if (!Number.isFinite(salarioDiario)) {
-      return "";
-    }
-    return Number(salarioDiario.toFixed(2));
-  };
-
   const handleResumenManualChange = (campo, valor) => {
     setResumenDirty(true);
     if (campo === "salario_acumulado") {
@@ -587,14 +558,7 @@ const Liquidaciones = ({ mode }) => {
       setSalarioPromedioManual(true);
     }
     setResumenEditable((prev) => {
-      const base = { ...(prev || {}), [campo]: valor };
-      if (campo === "salario_promedio_mensual") {
-        base.salario_promedio_diario = calcularSalarioDiarioPorTipoPago(
-          valor,
-          empleadoSeleccionado?.tipo_pago,
-        );
-      }
-      return base;
+      return { ...(prev || {}), [campo]: valor };
     });
   };
 
