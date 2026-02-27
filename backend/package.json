@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "check:syntax": "rg --files -g '*.js' -g '!node_modules/**' | xargs -I{} node --check {}"
   },
   "keywords": [],
   "author": "",
