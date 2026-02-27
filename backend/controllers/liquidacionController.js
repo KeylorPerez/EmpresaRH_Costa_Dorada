@@ -386,6 +386,29 @@ const calcularSalarioDiarioPromedioBase = (historico = []) => {
   return Number((acumulado.monto / acumulado.dias).toFixed(2));
 };
 
+const calcularSalarioPromedioDiarioPorTipoPago = ({ tipoPago, salarioBase }) => {
+  const salarioNormalizado = Number(salarioBase);
+  if (!Number.isFinite(salarioNormalizado) || salarioNormalizado <= 0) {
+    return null;
+  }
+
+  const tipoPagoNormalizado = String(tipoPago || '').trim().toLowerCase();
+
+  if (tipoPagoNormalizado === 'diario') {
+    return Number(salarioNormalizado.toFixed(2));
+  }
+
+  if (tipoPagoNormalizado === 'quincenal') {
+    return Number((salarioNormalizado / 15).toFixed(2));
+  }
+
+  if (tipoPagoNormalizado === 'mensual') {
+    return Number((salarioNormalizado / 30).toFixed(2));
+  }
+
+  return null;
+};
+
 const formatPeriodoResumen = (periodo) => {
   if (!periodo) return '';
   if (typeof periodo === 'string' && /^\d{4}-\d{2}$/.test(periodo)) {
@@ -701,9 +724,15 @@ const prepararLiquidacion = async ({
     contexto: contextoLiquidacion,
   });
 
+  const salarioDiarioPorTipoPago = calcularSalarioPromedioDiarioPorTipoPago({
+    tipoPago: empleado.tipo_pago,
+    salarioBase: empleado.salario_monto,
+  });
   const salarioDiarioPromedioHistorico = calcularSalarioDiarioPromedioBase(promedioInfo.historico);
   const salarioPromedioDiario =
-    salarioDiarioPromedioHistorico !== null
+    salarioDiarioPorTipoPago !== null
+      ? salarioDiarioPorTipoPago
+      : salarioDiarioPromedioHistorico !== null
       ? salarioDiarioPromedioHistorico
       : contextoLiquidacion.salarioDiario !== null && contextoLiquidacion.salarioDiario !== undefined
         ? Number(Number(contextoLiquidacion.salarioDiario).toFixed(2))
