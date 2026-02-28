@@ -1445,7 +1445,7 @@ export const usePlanilla = () => {
     setDetalleJustificaciones(DETALLE_JUSTIFICACIONES_INICIAL);
     autoDiasRef.current = null;
     setAttendanceState({
-      loading: false,
+      loading: true,
       dias: null,
       fechas: [],
       error: "",
