@@ -92,8 +92,29 @@ const EmpleadoDescansos = () => {
     estado: Boolean(formData.estado),
   });
 
+  const shouldConfirmAdditionalWeeklyRest = () => {
+    if (formData.id_descanso || formData.tipo_descanso !== "FIJO_SEMANAL") return true;
+
+    const idEmpleado = Number(formData.id_empleado);
+    if (!idEmpleado) return true;
+
+    const activeWeeklyRests = descansos.filter(
+      (item) => item.id_empleado === idEmpleado && item.tipo_descanso === "FIJO_SEMANAL" && Boolean(item.estado),
+    );
+
+    if (activeWeeklyRests.length === 0) return true;
+
+    return window.confirm(
+      "Este empleado ya tiene un día de descanso semanal configurado. ¿Deseas agregar otro día de descanso?",
+    );
+  };
+
   const onSubmit = async (event) => {
     event.preventDefault();
+
+    const confirmed = shouldConfirmAdditionalWeeklyRest();
+    if (!confirmed) return;
+
     setSaving(true);
     setError("");
     setSuccess("");
