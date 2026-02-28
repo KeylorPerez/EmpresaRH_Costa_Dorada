@@ -414,6 +414,25 @@ const Prestamos = ({ mode }) => {
                 )}
               </div>
 
+
+              <div className="md:col-span-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Comentario (opcional)
+                </label>
+                <textarea
+                  name="comentario"
+                  value={formData.comentario}
+                  onChange={handleChange}
+                  maxLength={500}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  placeholder="Agrega detalles o justificación de la solicitud"
+                />
+                <p className="mt-1 text-xs text-gray-500 text-right">
+                  {(formData.comentario || "").length}/500
+                </p>
+              </div>
+
               <div className="md:col-span-4 flex items-center gap-3">
                 <Button type="submit" variant="primary" disabled={submitting}>
                   {submitting ? "Enviando..." : "Enviar solicitud"}
@@ -553,6 +572,7 @@ const Prestamos = ({ mode }) => {
                         <th className="px-4 py-3 text-left">Cuotas</th>
                         <th className="px-4 py-3 text-left">Interés</th>
                         <th className="px-4 py-3 text-left">Estado</th>
+                        <th className="px-4 py-3 text-left">Comentario</th>
                         <th className="px-4 py-3 text-left">Documento</th>
                         {isAdmin && <th className="px-4 py-3 text-left">Acciones</th>}
                       </tr>
@@ -594,6 +614,11 @@ const Prestamos = ({ mode }) => {
                               {formatearPorcentaje(prestamo.interes_porcentaje)}
                             </td>
                             <td className="px-4 py-3">{renderEstadoBadge(prestamo)}</td>
+                            <td className="px-4 py-3 text-gray-700 max-w-xs">
+                              <p className="line-clamp-2" title={prestamo.comentario || ""}>
+                                {prestamo.comentario || "—"}
+                              </p>
+                            </td>
                             <td className="px-4 py-3">
                               {isApproved ? (
                                 <Button
