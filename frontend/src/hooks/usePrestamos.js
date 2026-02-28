@@ -9,6 +9,7 @@ const createInitialForm = (idEmpleadoDefault = "") => ({
   cuotas: "",
   interes: "0",
   fecha_solicitud: getTodayInputValue(),
+  comentario: "",
 });
 
 export const estadosPrestamo = {
@@ -149,6 +150,11 @@ export const usePrestamos = ({ autoFetch = true, user = null, isAdmin = false } 
       return;
     }
 
+    if (formData.comentario && formData.comentario.trim().length > 500) {
+      setError("El comentario no puede superar los 500 caracteres");
+      return;
+    }
+
     const idEmpleadoNumber = Number(formData.id_empleado || linkedEmpleadoId);
 
     if (!idEmpleadoNumber || Number.isNaN(idEmpleadoNumber)) {
@@ -164,6 +170,7 @@ export const usePrestamos = ({ autoFetch = true, user = null, isAdmin = false } 
         cuotas: cuotasNumber,
         interes: interesNumber,
         fecha_solicitud: formData.fecha_solicitud,
+        comentario: formData.comentario?.trim() || null,
       });
       setSuccessMessage("Solicitud de préstamo enviada correctamente");
       resetForm();

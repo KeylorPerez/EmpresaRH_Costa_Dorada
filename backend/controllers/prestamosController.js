@@ -279,6 +279,13 @@ const formatPercentage = (value) => {
   return `${numero.toFixed(2)}%`;
 };
 
+const sanitizeComentario = (value) => {
+  if (value === undefined || value === null) return null;
+  const comentario = String(value).trim();
+  if (!comentario) return null;
+  return comentario;
+};
+
 const buildPrestamoPdfLines = (prestamo) => {
   const lines = [];
   const divider = '-'.repeat(110);
@@ -326,6 +333,9 @@ const buildPrestamoPdfLines = (prestamo) => {
   lines.push(`Fecha de solicitud: ${formatDateDisplay(prestamo.fecha_solicitud) || '—'}`);
   lines.push(`Fecha del último pago: ${formatDateDisplay(prestamo.fecha_ultimo_pago) || '—'}`);
   lines.push(`Última actualización: ${formatDateDisplay(prestamo.updated_at || prestamo.created_at) || '—'}`);
+  lines.push('Comentario:');
+  const comentarioTexto = sanitizePdfText(prestamo.comentario || 'Sin comentario');
+  wrapText(comentarioTexto, 95).forEach((linea) => lines.push(`  ${linea}`));
   lines.push(divider);
 
   lines.push('Declaración del colaborador:');
@@ -477,6 +487,7 @@ const createPrestamo = async (req, res) => {
       cuotas,
       interes,
       fecha_solicitud: fechaSolicitud,
+      comentario,
     } = req.body;
     const user = req.user;
     const usuarioDB = await Usuario.getById(user.id_usuario);
@@ -512,12 +523,18 @@ const createPrestamo = async (req, res) => {
       return res.status(400).json({ error: 'El interés no puede ser negativo' });
     }
 
+    const comentarioSanitizado = sanitizeComentario(comentario);
+    if (comentarioSanitizado && comentarioSanitizado.length > 500) {
+      return res.status(400).json({ error: 'El comentario no puede superar los 500 caracteres' });
+    }
+
     const created = await Prestamos.create({
       id_empleado: id_empleado_final,
       monto: montoNumber,
       cuotas: cuotasNumber,
       interes_porcentaje: interesNumber,
       fecha_solicitud: fechaSolicitud,
+      comentario: comentarioSanitizado,
     });
 
     return res.status(201).json({ message: 'Préstamo creado', id_prestamo: created.id_prestamo });
