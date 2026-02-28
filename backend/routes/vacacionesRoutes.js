@@ -10,6 +10,7 @@ const {
   createSolicitud,
   aprobarSolicitud,
   rechazarSolicitud,
+  deleteSolicitud,
   exportSolicitudPdf
 } = require('../controllers/vacacionesController');
 
@@ -39,5 +40,9 @@ router.put('/:id/aprobar', authenticateToken, authorizeRoles(1), aprobarSolicitu
 // PUT /api/vacaciones/:id/rechazar
 // Rechazar solicitud (solo admin)
 router.put('/:id/rechazar', authenticateToken, authorizeRoles(1), rechazarSolicitud);
+
+// DELETE /api/vacaciones/:id
+// Eliminar solicitud (solo admin)
+router.delete('/:id', authenticateToken, authorizeRoles(1), deleteSolicitud);
 
 module.exports = router;

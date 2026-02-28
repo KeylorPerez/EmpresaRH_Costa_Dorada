@@ -465,6 +465,30 @@ const rechazarSolicitud = async (req, res) => {
   }
 };
 
+// =======================
+// DELETE /api/vacaciones/:id (solo admin)
+// =======================
+const deleteSolicitud = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: 'No autenticado' });
+    if (user.id_rol !== 1) return res.status(403).json({ error: 'Solo admin puede eliminar' });
+
+    const id_vacacion = parseInt(req.params.id, 10);
+    if (isNaN(id_vacacion)) return res.status(400).json({ error: 'id inválido' });
+
+    const solicitud = await Vacaciones.getById(id_vacacion);
+    if (!solicitud) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' });
+    }
+
+    await Vacaciones.delete(id_vacacion);
+    return res.json({ message: 'Solicitud eliminada correctamente' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 const exportSolicitudPdf = async (req, res) => {
   try {
     const user = req.user;
@@ -511,5 +535,6 @@ module.exports = {
   createSolicitud,
   aprobarSolicitud,
   rechazarSolicitud,
+  deleteSolicitud,
   exportSolicitudPdf
 };

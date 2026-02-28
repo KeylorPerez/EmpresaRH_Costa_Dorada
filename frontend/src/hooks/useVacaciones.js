@@ -181,6 +181,25 @@ export const useVacaciones = ({ autoFetch = true, isAdmin = false, user = null }
     [fetchSolicitudes]
   );
 
+
+  const deleteSolicitud = useCallback(
+    async (id_vacacion) => {
+      setError("");
+      setSuccessMessage("");
+      try {
+        await vacacionesService.remove(id_vacacion);
+        setSuccessMessage("Solicitud eliminada correctamente");
+        await fetchSolicitudes();
+      } catch (err) {
+        console.error(err);
+        const message = err.response?.data?.error || "No fue posible eliminar la solicitud";
+        setError(message);
+        throw err;
+      }
+    },
+    [fetchSolicitudes]
+  );
+
   const exportSolicitud = useCallback(async (id_vacacion) => {
     setError("");
     setSuccessMessage("");
@@ -218,6 +237,7 @@ export const useVacaciones = ({ autoFetch = true, isAdmin = false, user = null }
     fetchSolicitudes,
     approveSolicitud,
     rejectSolicitud,
+    deleteSolicitud,
     exportSolicitud,
     setError,
     setSuccessMessage,

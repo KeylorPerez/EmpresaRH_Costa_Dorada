@@ -26,6 +26,7 @@ const Vacaciones = ({ mode }) => {
     handleSubmit,
     approveSolicitud,
     rejectSolicitud,
+    deleteSolicitud,
     exportSolicitud,
     setError,
     empleados,
@@ -149,6 +150,23 @@ const Vacaciones = ({ mode }) => {
       setDiasAprobados((prev) => ({ ...prev, [solicitud.id_vacacion]: "" }));
     } catch {
       // Error gestionado en el hook
+    }
+  };
+
+
+  const onDelete = async (solicitud) => {
+    const nombreEmpleado = `${solicitud.nombre || ""} ${solicitud.apellido || ""}`.trim();
+    const confirmacion = window.confirm(
+      `¿Deseas eliminar la solicitud #${solicitud.id_vacacion}${nombreEmpleado ? ` de ${nombreEmpleado}` : ""}? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmacion) return;
+
+    try {
+      await deleteSolicitud(solicitud.id_vacacion);
+      setDiasAprobados((prev) => ({ ...prev, [solicitud.id_vacacion]: "" }));
+    } catch {
+      // El hook ya maneja el error
     }
   };
 
@@ -466,48 +484,58 @@ const Vacaciones = ({ mode }) => {
                           </td>
                           {isAdmin && (
                             <td className="px-4 py-3">
-                              {isPending ? (
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                      value={
-                                        diasAprobados[solicitud.id_vacacion] ?? ""
-                                      }
-                                      placeholder={String(dias)}
-                                      onChange={(event) =>
-                                        handleDiasChange(
-                                          solicitud.id_vacacion,
-                                          event.target.value
-                                        )
-                                      }
-                                    />
-                                    <span className="text-xs text-gray-500">días</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="success"
-                                      onClick={() => onApprove(solicitud)}
-                                    >
-                                      Aprobar
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="danger"
-                                      onClick={() => onReject(solicitud)}
-                                    >
-                                      Rechazar
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-gray-500">
-                                  Sin acciones disponibles
-                                </span>
-                              )}
+                              <div className="flex flex-col gap-2">
+                                {isPending ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        value={
+                                          diasAprobados[solicitud.id_vacacion] ?? ""
+                                        }
+                                        placeholder={String(dias)}
+                                        onChange={(event) =>
+                                          handleDiasChange(
+                                            solicitud.id_vacacion,
+                                            event.target.value
+                                          )
+                                        }
+                                      />
+                                      <span className="text-xs text-gray-500">días</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="success"
+                                        onClick={() => onApprove(solicitud)}
+                                      >
+                                        Aprobar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="danger"
+                                        onClick={() => onReject(solicitud)}
+                                      >
+                                        Rechazar
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-gray-500">
+                                    Sin acciones de aprobación
+                                  </span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  className="w-fit"
+                                  onClick={() => onDelete(solicitud)}
+                                >
+                                  Eliminar
+                                </Button>
+                              </div>
                             </td>
                           )}
                         </tr>
