@@ -21,6 +21,11 @@ const vacacionesService = {
     return response.data;
   },
 
+  remove: async (id) => {
+    const response = await api.delete(`/vacaciones/${id}`);
+    return response.data;
+  },
+
   exportPdf: async (id) => {
     const response = await api.get(`/vacaciones/${id}/export`);
     return response.data;
