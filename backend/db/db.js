@@ -21,12 +21,20 @@ const config = {
 };
 
 const parsedPort = Number.parseInt(process.env.DB_PORT, 10);
-if (Number.isInteger(parsedPort)) {
+const hasExplicitPort = Number.isInteger(parsedPort);
+
+if (hasExplicitPort) {
     config.port = parsedPort;
 }
 
+/**
+ * SQL Server puede conectarse por nombre de instancia o por puerto.
+ * Si el puerto está definido, evitamos usar `instanceName` para que
+ * el driver no dependa del SQL Browser (UDP 1434), que suele causar
+ * timeouts como "Failed to connect to localhost\\SQLEXPRESS in 15000ms".
+ */
 const sqlInstanceName = process.env.DB_INSTANCE || instanceNameFromServer;
-if (sqlInstanceName) {
+if (!hasExplicitPort && sqlInstanceName) {
     config.options.instanceName = sqlInstanceName;
 }
 
