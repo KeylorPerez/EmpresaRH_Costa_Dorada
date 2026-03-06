@@ -49,10 +49,7 @@ const login = async (req, res) => {
         const { token, tokenTtl } = signSessionToken(buildJwtPayload(user));
 
         // Actualizar último login (solo la fecha)
-        const pool = await require('../db/db').poolPromise;
-        await pool.request()
-            .input('id_usuario', require('../db/db').sql.Int, user.id_usuario)
-            .query(`UPDATE Usuarios SET ultimo_login = GETDATE() WHERE id_usuario = @id_usuario`);
+        await Usuario.updateLastLogin(user.id_usuario);
 
         const profile = await Usuario.getProfileById(user.id_usuario);
 
