@@ -17,6 +17,24 @@ El proyecto se divide en dos aplicaciones principales y dos targets de entrega (
     marcaciones. Actualmente se utiliza `10.34113265735398`, `-83.73774991896887` y un radio de
     150 m (con tolerancia `OFFICE_RADIUS_TOLERANCE_METERS`, por defecto 0 m).
 - **Conexión a BD:** `backend/db/db.js` crea un `ConnectionPool` reutilizable (`poolPromise`) y exporta el objeto `sql` para tipar parámetros. El cifrado se desactiva por defecto y se confía en certificados locales.
+
+
+### 2.1.1 Configuración recomendada para SQL Server local (SSMS + API)
+Para que SSMS y el backend usen exactamente el mismo destino de base de datos en desarrollo local:
+
+- **Backend (`backend/.env`)**
+  - `DB_SERVER=localhost`
+  - `DB_PORT=1433`
+  - `DB_DATABASE=EmpresaRH`
+  - `DB_USER=<usuario_sql>`
+  - `DB_PASSWORD=<password_sql>`
+
+- **SSMS (pantalla Conectar)**
+  - **Nombre del servidor:** `localhost,1433`
+  - **Autenticación:** `SQL Server Authentication` (usar el mismo usuario/clave de `DB_USER` y `DB_PASSWORD`)
+  - **Nombre de la base de datos:** `EmpresaRH` (opcional en la conexión inicial, pero recomendado)
+
+> Nota: si defines `DB_PORT`, el backend prioriza conexión por puerto y no depende de `DB_INSTANCE`/SQL Browser.
 - **Middleware global:** CORS, `express.json()` y exposición estática de `/files` apuntando a `backend/exports`.
 
 ### 2.2 Estructura de módulos
